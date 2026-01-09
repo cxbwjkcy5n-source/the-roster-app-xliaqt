@@ -14,6 +14,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { RosterProvider } from "@/contexts/RosterContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,33 +37,35 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <RosterProvider>
-          <SystemBars style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth/login" />
-            <Stack.Screen name="auth/signup" />
-            <Stack.Screen name="auth-popup" />
-            <Stack.Screen name="auth-callback" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen 
-              name="person/add" 
-              options={{ 
-                presentation: 'modal',
-                headerShown: true,
-                title: 'Add to Roster'
-              }} 
-            />
-            <Stack.Screen 
-              name="person/[id]" 
-              options={{ 
-                headerShown: true,
-                title: 'Profile'
-              }} 
-            />
-          </Stack>
-          <StatusBar style="auto" />
-        </RosterProvider>
+        <AuthProvider>
+          <RosterProvider>
+            <SystemBars style="auto" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="auth/login" />
+              <Stack.Screen name="auth/signup" />
+              <Stack.Screen name="auth-popup" />
+              <Stack.Screen name="auth-callback" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen 
+                name="person/add" 
+                options={{ 
+                  presentation: 'modal',
+                  headerShown: true,
+                  title: 'Add to Roster'
+                }} 
+              />
+              <Stack.Screen 
+                name="person/[id]" 
+                options={{ 
+                  headerShown: true,
+                  title: 'Profile'
+                }} 
+              />
+            </Stack>
+            <StatusBar style="auto" />
+          </RosterProvider>
+        </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
