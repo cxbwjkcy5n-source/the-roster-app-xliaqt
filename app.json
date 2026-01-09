@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "THE ROSTER",
+    "slug": "the-roster",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/natively-dark.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/natively-dark.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#10B981"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.theroster.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/natively-dark.png",
+        "backgroundColor": "#10B981"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.theroster.app"
+    },
+    "web": {
+      "favicon": "./assets/images/final_quest_240x240.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "scheme": "theroster",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "backendUrl": "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev"
+    }
+  }
+}
