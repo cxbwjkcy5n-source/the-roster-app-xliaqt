@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 
 // @eslint-ignore-file
@@ -6,12 +7,12 @@ import { cloneElement, PropsWithChildren, useContext } from "react";
 import { EditableContext } from "./withEditableWrapper_";
 import { Platform } from "react-native";
 
-export type ElementTypes = "Text" | "View";
+export type ElementTypes = "Text" | "View" | "Icon" | "TouchableOpacity";
 
 const isPrimitive = (item: any) => {
   if (Array.isArray(item)) return item.every((el) => isPrimitive(el));
   if (typeof item === "object")
-    Object.values(item).every((el) => isPrimitive(el));
+    return Object.values(item).every((el) => isPrimitive(el));
   if (typeof item === "string") return true;
   if (typeof item === "number") return true;
 
@@ -28,12 +29,12 @@ export const getType = (el: any): ElementTypes | undefined => {
   return undefined;
 };
 
-const toArray = (object: T | T[]): T[] => {
+const toArray = <T,>(object: T | T[]): T[] => {
   if (Array.isArray(object)) return object;
   return [object];
 };
 
-export default function EditableElement_(_props: PropsWithChildren<any>) {
+function EditableElement_(_props: PropsWithChildren<any>) {
   const {
     editModeEnabled,
     selected,
@@ -56,7 +57,7 @@ export default function EditableElement_(_props: PropsWithChildren<any>) {
   const type = getType(children);
   const __sourceLocation = props.__sourceLocation;
   const __trace = props.__trace;
-  const id = __trace.join("");
+  const id = __trace?.join("") || "";
   const attributes = overwrittenProps?.[id] ?? {};
 
   const editStyling =
@@ -135,4 +136,8 @@ export default function EditableElement_(_props: PropsWithChildren<any>) {
       children: children.props.children,
     });
   }
+
+  return children;
 }
+
+export default EditableElement_;
