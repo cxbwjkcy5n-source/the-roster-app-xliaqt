@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Alert } from 'react-native';
 import { RosterPerson, DateEvent, Reminder, Interaction, Analytics, Nudge } from '@/types/roster';
 import { authenticatedGet, authenticatedPost, authenticatedPut, authenticatedDelete, BACKEND_URL } from '@/utils/api';
+import { useAuth } from './AuthContext';
 
 interface RosterContextType {
   roster: RosterPerson[];
@@ -115,6 +116,7 @@ function mapRosterPersonToProfileData(person: RosterPerson) {
 }
 
 export function RosterProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [roster, setRoster] = useState<RosterPerson[]>([]);
   const [bench, setBench] = useState<RosterPerson[]>([]);
   const [dates, setDates] = useState<DateEvent[]>([]);
@@ -125,13 +127,28 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Only load data when user is authenticated
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user) {
+      console.log('[RosterContext] User authenticated, loading data...');
+      loadData();
+    } else {
+      console.log('[RosterContext] No user authenticated, clearing data...');
+      // Clear data when user logs out
+      setRoster([]);
+      setBench([]);
+      setDates([]);
+      setReminders([]);
+      setInteractions([]);
+      setAnalytics(null);
+      setNudges([]);
+    }
+  }, [user]);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       await Promise.all([
         refreshProfiles(),
         refreshDates(),
@@ -142,7 +159,12 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       ]);
     } catch (err) {
       console.error('[RosterContext] Error loading data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+      setError(errorMessage);
+      // Don't show alert for authentication errors - user will be redirected to login
+      if (!errorMessage.includes('Authentication')) {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Platform } from "react-native";
 import { authClient, storeWebBearerToken } from "@/lib/auth";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 
 interface User {
   id: string;
@@ -24,6 +25,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const BEARER_TOKEN_KEY = "roster-app_bearer_token";
 
 function openOAuthPopup(provider: string) {
   const width = 500;
@@ -89,6 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: session.user.name,
           image: session.user.image,
         });
+        
+        // Store bearer token for API calls
+        if (session.session?.token) {
+          console.log('[AuthContext] Storing bearer token for API calls');
+          if (Platform.OS === 'web') {
+            localStorage.setItem(BEARER_TOKEN_KEY, session.session.token);
+          } else {
+            await SecureStore.setItemAsync(BEARER_TOKEN_KEY, session.session.token);
+          }
+        }
       } else {
         console.log('[AuthContext] No active session');
         setUser(null);
@@ -111,8 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('[AuthContext] Sign in result:', result);
       
-      if (Platform.OS === 'web' && result.data?.token) {
-        await storeWebBearerToken(result.data.token);
+      // Store bearer token
+      if (result.data?.token) {
+        console.log('[AuthContext] Storing bearer token from sign in');
+        if (Platform.OS === 'web') {
+          localStorage.setItem(BEARER_TOKEN_KEY, result.data.token);
+        } else {
+          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.token);
+        }
       }
       
       await fetchUser();
@@ -134,8 +153,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('[AuthContext] Sign up result:', result);
       
-      if (Platform.OS === 'web' && result.data?.token) {
-        await storeWebBearerToken(result.data.token);
+      // Store bearer token
+      if (result.data?.token) {
+        console.log('[AuthContext] Storing bearer token from sign up');
+        if (Platform.OS === 'web') {
+          localStorage.setItem(BEARER_TOKEN_KEY, result.data.token);
+        } else {
+          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.token);
+        }
       }
       
       await fetchUser();
@@ -207,6 +232,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing out...');
       await authClient.signOut();
+      
+      // Clear bearer token
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(BEARER_TOKEN_KEY);
+      } else {
+        await SecureStore.deleteItemAsync(BEARER_TOKEN_KEY);
+      }
+      
       setUser(null);
       console.log('[AuthContext] Sign out successful');
     } catch (error) {

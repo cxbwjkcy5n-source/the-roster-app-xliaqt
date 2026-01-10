@@ -1,42 +1,34 @@
 
-/**
- * Protected Route Component
- *
- * Wraps routes that require authentication.
- * Redirects to auth screen if user is not logged in.
- */
+import React, { useEffect } from 'react';
+import { useRouter, useSegments } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { View, ActivityIndicator } from 'react-native';
 
-import React from "react";
-import { View, ActivityIndicator } from "react-native";
-import { Redirect } from "expo-router";
-import { useAuth } from "@/contexts/AuthContext";
-import { colors } from "@/styles/commonStyles";
-
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  redirectTo?: string;
-  loadingComponent?: React.ReactNode;
-}
-
-export function ProtectedRoute({
-  children,
-  redirectTo = "/auth",
-  loadingComponent,
-}: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    if (!user && !inAuthGroup) {
+      // Redirect to login if not authenticated
+      router.replace('/auth/login');
+    } else if (user && inAuthGroup) {
+      // Redirect to home if authenticated and on auth screen
+      router.replace('/(tabs)/(home)/');
+    }
+  }, [user, loading, segments]);
 
   if (loading) {
     return (
-      loadingComponent || (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      )
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
     );
-  }
-
-  if (!user) {
-    return <Redirect href={redirectTo} />;
   }
 
   return <>{children}</>;
