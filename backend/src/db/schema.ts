@@ -8,6 +8,7 @@ export const rosterProfiles = pgTable('roster_profiles', {
   name: text('name').notNull(),
   age: integer('age'),
   birthdayMonth: integer('birthday_month'),
+  birthdayDay: integer('birthday_day'),
   birthdayYear: integer('birthday_year'),
   zodiacSign: text('zodiac_sign'),
   favoriteColor: text('favorite_color'),
@@ -24,6 +25,7 @@ export const rosterProfiles = pgTable('roster_profiles', {
   profileImageUrl: text('profile_image_url'),
   profileImageKey: text('profile_image_key'),
   status: text('status', { enum: ['roster', 'bench'] }).default('roster'),
+  benchReason: text('bench_reason'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
 });
@@ -46,8 +48,10 @@ export const dates = pgTable('dates', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  dateType: text('date_type', { enum: ['upcoming', 'completed'] }).default('upcoming'),
+  status: text('status', { enum: ['upcoming', 'completed'] }).default('upcoming'),
+  type: text('type', { enum: ['casual', 'formal', 'activity'] }).default('casual'),
   dateTime: timestamp('date_time'),
+  location: text('location'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

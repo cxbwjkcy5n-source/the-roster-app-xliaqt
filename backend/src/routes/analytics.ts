@@ -66,7 +66,7 @@ export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
         .select({ value: count() })
         .from(schema.dates)
         .where(
-          eq(schema.dates.dateType, 'upcoming') && eq(schema.dates.userId, session.user.id)
+          eq(schema.dates.status, 'upcoming') && eq(schema.dates.userId, session.user.id)
         );
 
       const upcomingDates = upcomingDatesResult?.value || 0;
@@ -76,7 +76,7 @@ export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
         .select({ value: count() })
         .from(schema.dates)
         .where(
-          eq(schema.dates.dateType, 'completed') && eq(schema.dates.userId, session.user.id)
+          eq(schema.dates.status, 'completed') && eq(schema.dates.userId, session.user.id)
         );
 
       const completedDates = completedDatesResult?.value || 0;

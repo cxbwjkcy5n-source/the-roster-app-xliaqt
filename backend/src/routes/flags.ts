@@ -8,7 +8,7 @@ export function registerFlagsRoutes(app: App, fastify: FastifyInstance) {
 
   // Delete flag (red or green)
   fastify.delete<{ Params: { id: string } }>(
-    '/api/roster/flags/:id',
+    '/api/flags/:id',
     {
       schema: {
         description: 'Delete a flag (red or green)',

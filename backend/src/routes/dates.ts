@@ -7,7 +7,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
   // Create new date
-  fastify.post<{ Body: { profileId: string; dateType?: string; dateTime?: string; notes?: string } }>(
+  fastify.post<{ Body: { profileId: string; status?: string; type?: string; dateTime?: string; location?: string; notes?: string } }>(
     '/api/dates',
     {
       schema: {
@@ -17,8 +17,10 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             profileId: { type: 'string' },
-            dateType: { type: 'string', enum: ['upcoming', 'completed'] },
+            status: { type: 'string', enum: ['upcoming', 'completed'] },
+            type: { type: 'string', enum: ['casual', 'formal', 'activity'] },
             dateTime: { type: 'string' },
+            location: { type: 'string' },
             notes: { type: 'string' },
           },
           required: ['profileId'],
@@ -30,7 +32,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireAuth(request, reply);
       if (!session) return;
 
-      const body = request.body as { profileId: string; dateType?: string; dateTime?: string; notes?: string };
+      const body = request.body as { profileId: string; status?: string; type?: string; dateTime?: string; location?: string; notes?: string };
 
       // Verify that the profile belongs to the user
       const profile = await app.db.query.rosterProfiles.findFirst({
@@ -49,8 +51,10 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
         .values({
           userId: session.user.id,
           profileId: body.profileId,
-          dateType: body.dateType as 'upcoming' | 'completed' | undefined,
+          status: body.status as 'upcoming' | 'completed' | undefined,
+          type: body.type as 'casual' | 'formal' | 'activity' | undefined,
           dateTime: body.dateTime ? new Date(body.dateTime) : undefined,
+          location: body.location,
           notes: body.notes,
         })
         .returning();
@@ -59,8 +63,8 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
-  // Get all dates for user (with query params for type filtering)
-  fastify.get<{ Querystring: { type?: 'upcoming' | 'completed' } }>(
+  // Get all dates for user (with query params for status filtering)
+  fastify.get<{ Querystring: { status?: 'upcoming' | 'completed' } }>(
     '/api/dates',
     {
       schema: {
@@ -69,7 +73,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
         querystring: {
           type: 'object',
           properties: {
-            type: { type: 'string', enum: ['upcoming', 'completed'] },
+            status: { type: 'string', enum: ['upcoming', 'completed'] },
           },
         },
         response: { 200: { type: 'array' } },
@@ -79,30 +83,23 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireAuth(request, reply);
       if (!session) return;
 
-      const { type } = request.query as { type?: 'upcoming' | 'completed' };
+      const { status } = request.query as { status?: 'upcoming' | 'completed' };
 
-      let query = app.db.query.dates.findMany({
-        where: eq(schema.dates.userId, session.user.id),
-        with: {
-          profile: true,
-        },
-      });
-
-      // Type filtering happens in the findMany with condition
-      if (type) {
-        const dates = await app.db
+      // Status filtering
+      if (status) {
+        const filteredDates = await app.db
           .select()
           .from(schema.dates)
           .where(
             and(
               eq(schema.dates.userId, session.user.id),
-              eq(schema.dates.dateType, type)
+              eq(schema.dates.status, status)
             )
           );
-        return dates;
+        return filteredDates;
       }
 
-      const dates = await app.db
+      const allDates = await app.db
         .query.dates.findMany({
           where: eq(schema.dates.userId, session.user.id),
           with: {
@@ -110,7 +107,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           },
         });
 
-      return dates;
+      return allDates;
     }
   );
 

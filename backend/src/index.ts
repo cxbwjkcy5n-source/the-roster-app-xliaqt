@@ -3,7 +3,7 @@ import * as appSchema from './db/schema.js';
 import * as authSchema from './db/auth-schema.js';
 
 // Import route registration functions
-import { registerRosterRoutes } from './routes/roster.js';
+import { registerProfileRoutes } from './routes/profiles.js';
 import { registerFlagsRoutes } from './routes/flags.js';
 import { registerDatesRoutes } from './routes/dates.js';
 import { registerUploadRoutes } from './routes/upload.js';
@@ -23,7 +23,7 @@ app.withAuth();
 app.withStorage();
 
 // Register routes
-registerRosterRoutes(app, app.fastify);
+registerProfileRoutes(app, app.fastify);
 registerFlagsRoutes(app, app.fastify);
 registerDatesRoutes(app, app.fastify);
 registerUploadRoutes(app, app.fastify);
