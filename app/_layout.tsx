@@ -1,6 +1,6 @@
 
 import "react-native-reanimated";
-import { useColorScheme } from "react-native";
+import { useColorScheme, Platform } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
@@ -39,9 +39,10 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <AuthProvider>
           <RosterProvider>
-            <SystemBars style="auto" />
+            {Platform.OS !== 'web' && <SystemBars style="auto" />}
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
+              <Stack.Screen name="auth" />
               <Stack.Screen name="auth/login" />
               <Stack.Screen name="auth/signup" />
               <Stack.Screen name="auth-popup" />

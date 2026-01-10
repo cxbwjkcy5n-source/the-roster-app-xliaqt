@@ -1,50 +1,53 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import FloatingTabBar from '@/components/FloatingTabBar';
+import { Slot } from 'expo-router';
+import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 import { Href } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
-  const tabs = [
+  const router = useRouter();
+
+  const tabs: TabBarItem[] = [
     {
+      name: 'roster',
       route: '/(tabs)/roster' as Href,
+      icon: 'home',
       label: 'Roster',
-      ios_icon_name: 'house.fill',
-      android_material_icon_name: 'home',
     },
     {
+      name: 'bench',
       route: '/(tabs)/bench' as Href,
+      icon: 'pause',
       label: 'Bench',
-      ios_icon_name: 'pause.fill',
-      android_material_icon_name: 'pause',
     },
     {
-      route: '/(tabs)/add' as Href,
-      label: 'Add',
-      ios_icon_name: 'plus',
-      android_material_icon_name: 'add',
-      isCenter: true,
-    },
-    {
+      name: 'dating',
       route: '/(tabs)/dating' as Href,
+      icon: 'favorite',
       label: 'Dating',
-      ios_icon_name: 'heart.fill',
-      android_material_icon_name: 'favorite',
     },
     {
+      name: 'profile',
       route: '/(tabs)/profile' as Href,
+      icon: 'person',
       label: 'Profile',
-      ios_icon_name: 'person.fill',
-      android_material_icon_name: 'person',
     },
   ];
+
+  const handleAddPress = () => {
+    console.log('[TabLayout] Add button pressed - navigating to /person/add');
+    router.push('/person/add' as Href);
+  };
 
   return (
     <ProtectedRoute>
       <View style={styles.container}>
-        <FloatingTabBar tabs={tabs} />
+        <Slot />
+        <FloatingTabBar tabs={tabs} onAddPress={handleAddPress} />
       </View>
     </ProtectedRoute>
   );

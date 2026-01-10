@@ -38,7 +38,7 @@ interface Analytics {
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, dates } = useRoster();
+  const { roster, bench, dates } = useRoster();
   const [showDatesModal, setShowDatesModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
