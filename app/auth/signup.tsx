@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { authClient } from '@/lib/auth';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import LoadingButton from '@/components/LoadingButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { signUpWithEmail } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,15 +46,11 @@ export default function SignupScreen() {
     setLoading(true);
     try {
       console.log('[Signup] Attempting email signup...');
-      await authClient.signUp.email({
-        email,
-        password,
-        name,
-      });
-      console.log('[Signup] Signup successful');
-      router.replace('/(tabs)/roster');
+      await signUpWithEmail(email, password, name);
+      console.log('[Signup] Signup successful, redirecting to home...');
+      // AuthContext handles redirect to /(tabs)/(home)/
     } catch (error: any) {
-      console.error('Signup error:', error);
+      console.error('[Signup] Signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Could not create account');
     } finally {
       setLoading(false);
@@ -67,8 +64,10 @@ export default function SignupScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
+          colors={[colors.primaryDark, colors.primary, colors.secondary]}
           style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
           <Text style={styles.title}>THE ROSTER</Text>
           <Text style={styles.subtitle}>Where You&apos;re The Coach and MVP</Text>

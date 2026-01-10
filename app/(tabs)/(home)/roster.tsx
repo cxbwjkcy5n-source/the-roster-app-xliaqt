@@ -93,13 +93,13 @@ export default function RosterScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
-        colors={[colors.primary, colors.secondary]}
+        colors={[colors.primaryDark, colors.primary, colors.secondary]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <Text style={styles.headerTitle}>THE ROSTER</Text>
-        <Text style={styles.headerSubtitle}>Where You're The Coach and MVP</Text>
+        <Text style={styles.headerSubtitle}>Where You&apos;re The Coach and MVP</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerButton}

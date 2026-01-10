@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         await authClient.signIn.social({
           provider: "google",
-          callbackURL: "/",
+          callbackURL: "/profile",
         });
         await fetchUser();
       }
@@ -143,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         await authClient.signIn.social({
           provider: "apple",
-          callbackURL: "/",
+          callbackURL: "/profile",
         });
         await fetchUser();
       }
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         await authClient.signIn.social({
           provider: "github",
-          callbackURL: "/",
+          callbackURL: "/profile",
         });
         await fetchUser();
       }

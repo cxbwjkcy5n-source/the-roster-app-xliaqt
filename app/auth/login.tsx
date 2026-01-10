@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { authClient } from '@/lib/auth';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import LoadingButton from '@/components/LoadingButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signInWithEmail, signInWithGoogle, signInWithApple } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,14 +34,11 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       console.log('[Login] Attempting email login...');
-      await authClient.signIn.email({
-        email,
-        password,
-      });
-      console.log('[Login] Login successful');
-      router.replace('/(tabs)/roster');
+      await signInWithEmail(email, password);
+      console.log('[Login] Login successful, redirecting to home...');
+      // AuthContext handles redirect to /(tabs)/(home)/
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[Login] Login error:', error);
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setLoading(false);
@@ -50,13 +48,11 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       console.log('[Login] Attempting Google login...');
-      await authClient.signIn.social({
-        provider: 'google',
-        callbackURL: '/(tabs)/roster',
-      });
-      console.log('[Login] Google login successful');
+      await signInWithGoogle();
+      console.log('[Login] Google login successful, redirecting to home...');
+      // AuthContext handles redirect to /(tabs)/(home)/
     } catch (error: any) {
-      console.error('Google login error:', error);
+      console.error('[Login] Google login error:', error);
       Alert.alert('Login Failed', error.message || 'Could not sign in with Google');
     }
   };
@@ -64,13 +60,11 @@ export default function LoginScreen() {
   const handleAppleLogin = async () => {
     try {
       console.log('[Login] Attempting Apple login...');
-      await authClient.signIn.social({
-        provider: 'apple',
-        callbackURL: '/(tabs)/roster',
-      });
-      console.log('[Login] Apple login successful');
+      await signInWithApple();
+      console.log('[Login] Apple login successful, redirecting to home...');
+      // AuthContext handles redirect to /(tabs)/(home)/
     } catch (error: any) {
-      console.error('Apple login error:', error);
+      console.error('[Login] Apple login error:', error);
       Alert.alert('Login Failed', error.message || 'Could not sign in with Apple');
     }
   };
@@ -82,8 +76,10 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
+          colors={[colors.primaryDark, colors.primary, colors.secondary]}
           style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
           <Text style={styles.title}>THE ROSTER</Text>
           <Text style={styles.subtitle}>Where You&apos;re The Coach and MVP</Text>

@@ -247,13 +247,19 @@ export default function RosterScreen() {
                   {datesTab === 'upcoming' ? 'No upcoming dates' : 'No completed dates'}
                 </Text>
               ) : (
-                displayDates.map((date) => (
-                  <View key={date.id} style={styles.dateCard}>
-                    <Text style={styles.dateCardName}>{date.personName}</Text>
-                    <Text style={styles.dateCardDate}>{new Date(date.date).toLocaleDateString()}</Text>
-                    {date.notes && <Text style={styles.dateCardNotes}>{date.notes}</Text>}
-                  </View>
-                ))
+                displayDates.map((date) => {
+                  // Find the person's name from roster or bench
+                  const person = [...roster, ...bench].find(p => p.id === date.profileId);
+                  const personName = person?.name || date.profileName || 'Unknown';
+                  
+                  return (
+                    <View key={date.id} style={styles.dateCard}>
+                      <Text style={styles.dateCardName}>{personName}</Text>
+                      <Text style={styles.dateCardDate}>{new Date(date.date).toLocaleDateString()}</Text>
+                      {date.notes && <Text style={styles.dateCardNotes}>{date.notes}</Text>}
+                    </View>
+                  );
+                })
               )}
             </ScrollView>
           </View>

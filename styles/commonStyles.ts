@@ -2,18 +2,28 @@
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
 export const colors = {
-  primary: '#1B5E20',    // Darker green
-  secondary: '#2E7D32',  // Medium green
-  accent: '#4CAF50',     // Light green accent
-  background: '#101824',
-  backgroundAlt: '#162133',
-  text: '#e3e3e3',
-  grey: '#90CAF9',
-  card: '#1a2332',
-  red: '#EF5350',        // For bench and red flags
-  yellow: '#FFC107',     // For medium interest
-  green: '#4CAF50',      // For high interest and green flags
-  lowInterest: '#FF5252', // Red for low interest
+  // Dark green gradient colors
+  primary: '#1a4d2e',        // Dark Green
+  primaryDark: '#0d2818',    // Even Darker Green
+  secondary: '#2d6a4f',      // Medium Dark Green
+  accent: '#52b788',         // Light Green
+  
+  background: '#0f1419',     // Dark background
+  backgroundAlt: '#1a1f26',  // Alt dark background
+  text: '#e3e3e3',           // Light text
+  textSecondary: '#9ca3af',  // Secondary text
+  grey: '#6c757d',           // Grey
+  card: '#1e2329',           // Dark card background
+  border: '#374151',         // Border color
+  
+  // Status colors
+  red: '#dc3545',            // Red for flags/bench
+  lowInterest: '#dc3545',    // Red for low interest
+  yellow: '#ffc107',         // Yellow for medium interest
+  green: '#28a745',          // Green for high interest
+  
+  // Additional colors
+  white: '#ffffff',
 };
 
 export const buttonStyles = StyleSheet.create({
@@ -90,5 +100,11 @@ export const commonStyles = StyleSheet.create({
     width: 60,
     height: 60,
     tintColor: "white",
+  },
+  // Dark green gradient header
+  headerGradient: {
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
 });
