@@ -1,6 +1,6 @@
 
-import { colors } from '@/styles/commonStyles';
 import React, { useState, useEffect } from 'react';
+import { colors } from '@/styles/commonStyles';
 import {
   View,
   Text,
@@ -30,25 +30,34 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, reorderRoster } = useRoster();
-  const [showDatesModal, setShowDatesModal] = useState(false);
-  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const { roster, loading: rosterLoading, reorderRoster } = useRoster();
   const { user, loading: authLoading } = useAuth();
+  const [showMyDates, setShowMyDates] = useState(false);
+  const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
 
+  // Redirect to auth if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/auth');
     }
   }, [user, authLoading]);
 
+  if (authLoading || rosterLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   const getInterestColor = (level: string) => {
-    switch (level) {
+    switch (level?.toLowerCase()) {
       case 'high':
         return colors.success;
       case 'medium':
         return colors.warning;
       case 'low':
-        return colors.error;
+        return colors.danger;
       default:
         return colors.textSecondary;
     }
@@ -62,107 +71,153 @@ export default function RosterScreen() {
     return (
       <ScaleDecorator>
         <TouchableOpacity
-          onPress={() => router.push(`/person/${item.id}`)}
           onLongPress={drag}
           disabled={isActive}
+          onPress={() => router.push(`/person/${item.id}`)}
           style={[styles.personCard, isActive && styles.personCardActive]}
         >
-          <View style={styles.cardImageContainer}>
-            {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-            ) : (
-              <View style={[styles.cardImage, styles.placeholderImage]}>
-                <IconSymbol name="person" size={40} color={colors.textSecondary} />
+          <Image
+            source={
+              item.image
+                ? { uri: item.image }
+                : require('@/assets/images/final_quest_240x240.png')
+            }
+            style={styles.personImage}
+          />
+          <View
+            style={[
+              styles.interestBadge,
+              { backgroundColor: getInterestColor(item.interestLevel) },
+            ]}
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={styles.personInfoGradient}
+          >
+            <View style={styles.personInfo}>
+              <Text style={styles.personName}>{item.name}</Text>
+              <Text style={styles.personDetails}>
+                {item.age} • {item.location}
+              </Text>
+              <View style={styles.flagsContainer}>
+                {item.redFlags && item.redFlags.length > 0 && (
+                  <View style={styles.flagBadge}>
+                    <IconSymbol name="flag" size={12} color={colors.danger} />
+                    <Text style={styles.flagCount}>{item.redFlags.length}</Text>
+                  </View>
+                )}
+                {item.greenFlags && item.greenFlags.length > 0 && (
+                  <View style={styles.flagBadge}>
+                    <IconSymbol name="flag" size={12} color={colors.success} />
+                    <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
+                  </View>
+                )}
               </View>
-            )}
-            <View
-              style={[
-                styles.interestBadge,
-                { backgroundColor: getInterestColor(item.interestLevel) },
-              ]}
-            />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardDetails}>
-              {item.age} • {item.location}
-            </Text>
-            <View style={styles.flagsContainer}>
-              {item.redFlags && item.redFlags.length > 0 && (
-                <View style={styles.flagBadge}>
-                  <IconSymbol name="flag" size={12} color={colors.error} />
-                  <Text style={styles.flagCount}>{item.redFlags.length}</Text>
-                </View>
-              )}
-              {item.greenFlags && item.greenFlags.length > 0 && (
-                <View style={styles.flagBadge}>
-                  <IconSymbol name="flag" size={12} color={colors.success} />
-                  <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
-                </View>
-              )}
             </View>
-          </View>
+          </LinearGradient>
         </TouchableOpacity>
       </ScaleDecorator>
     );
   };
 
   const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <TouchableOpacity
-        style={styles.ghostCard}
-        onPress={() => router.push('/person/add')}
-      >
-        <IconSymbol name="add" size={48} color={colors.textSecondary} />
-        <Text style={styles.emptyText}>Add your first person to the roster</Text>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity
+      style={styles.emptyCard}
+      onPress={() => router.push('/person/add')}
+    >
+      <IconSymbol name="add.circle" size={64} color={colors.textSecondary} />
+      <Text style={styles.emptyText}>Add your first person to the roster</Text>
+    </TouchableOpacity>
   );
-
-  if (authLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerTitle}>THE ROSTER</Text>
-            <Text style={styles.headerSubtitle}>Where You're The Coach and MVP</Text>
-          </View>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => setShowDatesModal(true)}
-            >
-              <IconSymbol name="calendar-today" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => setShowAnalyticsModal(true)}
-            >
-              <IconSymbol name="bar-chart" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
+        <Text style={styles.headerTitle}>THE ROSTER</Text>
+        <Text style={styles.headerSubtitle}>Where You're The Coach and MVP</Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setShowMyDates(true)}
+          >
+            <IconSymbol name="calendar" size={24} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.push('/(tabs)/analytics')}
+          >
+            <IconSymbol name="chart.bar" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      {roster.length === 0 ? (
-        renderEmptyState()
-      ) : (
-        <DraggableFlatList
-          data={roster}
-          renderItem={renderPersonCard}
-          keyExtractor={(item) => item.id}
-          onDragEnd={handleDragEnd}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+      <View style={styles.content}>
+        {roster.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <DraggableFlatList
+            data={roster}
+            renderItem={renderPersonCard}
+            keyExtractor={(item) => item.id}
+            onDragEnd={handleDragEnd}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+      </View>
+
+      {/* My Dates Modal */}
+      <Modal
+        visible={showMyDates}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowMyDates(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>My Dates</Text>
+                <TouchableOpacity onPress={() => setShowMyDates(false)}>
+                  <IconSymbol name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.tabContainer}>
+                <TouchableOpacity
+                  style={[styles.tab, datesTab === 'upcoming' && styles.tabActive]}
+                  onPress={() => setDatesTab('upcoming')}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      datesTab === 'upcoming' && styles.tabTextActive,
+                    ]}
+                  >
+                    Upcoming
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, datesTab === 'completed' && styles.tabActive]}
+                  onPress={() => setDatesTab('completed')}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      datesTab === 'completed' && styles.tabTextActive,
+                    ]}
+                  >
+                    Completed
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.datesScroll}>
+                <Text style={styles.emptyDatesText}>No dates yet</Text>
+              </ScrollView>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -179,28 +234,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    padding: 20,
+    paddingTop: 10,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#fff',
-    opacity: 0.9,
+    textAlign: 'center',
     marginTop: 4,
+    opacity: 0.9,
   },
   headerButtons: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     gap: 12,
+    position: 'absolute',
+    top: 10,
+    right: 20,
   },
   headerButton: {
     width: 40,
@@ -210,94 +266,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  listContent: {
+  content: {
+    flex: 1,
     padding: 16,
+  },
+  listContent: {
     paddingBottom: 100,
   },
   personCard: {
-    flexDirection: 'row',
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   personCardActive: {
     opacity: 0.8,
     transform: [{ scale: 1.05 }],
   },
-  cardImageContainer: {
-    position: 'relative',
-  },
-  cardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  placeholderImage: {
-    backgroundColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
+  personImage: {
+    width: '100%',
+    height: '100%',
   },
   interestBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    top: 12,
+    left: 12,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: '#fff',
   },
-  cardInfo: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
+  personInfoGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    justifyContent: 'flex-end',
   },
-  cardName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
+  personInfo: {
+    padding: 12,
   },
-  cardDetails: {
+  personName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  personDetails: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 8,
+    color: '#fff',
+    marginTop: 2,
   },
   flagsContainer: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 4,
   },
   flagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: colors.background,
   },
   flagCount: {
     fontSize: 12,
+    color: '#fff',
     fontWeight: '600',
-    color: colors.text,
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  ghostCard: {
+  emptyCard: {
     width: '100%',
-    maxWidth: 300,
-    aspectRatio: 1,
-    borderRadius: 12,
+    height: 200,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: colors.border,
     borderStyle: 'dashed',
@@ -306,9 +351,65 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   emptyText: {
-    marginTop: 16,
     fontSize: 16,
     color: colors.textSecondary,
+    marginTop: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: '#fff',
+  },
+  datesScroll: {
+    padding: 16,
+  },
+  emptyDatesText: {
     textAlign: 'center',
+    color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 40,
   },
 });

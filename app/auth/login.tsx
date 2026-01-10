@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import LoadingButton from '@/components/LoadingButton';
+import { LoadingButton } from '@/components/LoadingButton';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
