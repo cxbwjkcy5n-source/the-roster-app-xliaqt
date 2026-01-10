@@ -374,4 +374,63 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       }
     }
   );
+
+  // Bulk update display order (for drag-to-reorder)
+  fastify.put<{
+    Body: { profiles: Array<{ id: string; displayOrder: number }> };
+  }>(
+    '/api/profiles/reorder',
+    {
+      schema: {
+        description: 'Bulk update profile display order for reordering',
+        tags: ['profiles'],
+        body: {
+          type: 'object',
+          properties: {
+            profiles: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  displayOrder: { type: 'integer' },
+                },
+                required: ['id', 'displayOrder'],
+              },
+            },
+          },
+          required: ['profiles'],
+        },
+        response: { 200: { type: 'object', properties: { updated: { type: 'integer' } } } },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireAuth(request, reply);
+      if (!session) return;
+
+      const body = request.body as { profiles: Array<{ id: string; displayOrder: number }> };
+
+      let updated = 0;
+
+      // Update each profile's display order
+      for (const item of body.profiles) {
+        const existing = await app.db.query.rosterProfiles.findFirst({
+          where: and(
+            eq(schema.rosterProfiles.id, item.id),
+            eq(schema.rosterProfiles.userId, session.user.id)
+          ),
+        });
+
+        if (existing) {
+          await app.db
+            .update(schema.rosterProfiles)
+            .set({ displayOrder: item.displayOrder, updatedAt: new Date() })
+            .where(eq(schema.rosterProfiles.id, item.id));
+          updated++;
+        }
+      }
+
+      return { updated };
+    }
+  );
 }

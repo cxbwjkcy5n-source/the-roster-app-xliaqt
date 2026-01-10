@@ -7,7 +7,21 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
   // Create new date
-  fastify.post<{ Body: { profileId: string; status?: string; type?: string; dateTime?: string; location?: string; notes?: string } }>(
+  fastify.post<{
+    Body: {
+      profileId: string;
+      status?: string;
+      type?: string;
+      dateTime?: string;
+      locationName?: string;
+      locationAddress?: string;
+      locationCoordinates?: { lat: number; lng: number };
+      notes?: string;
+      rating?: number;
+      wouldGoAgain?: boolean;
+      reminderSettings?: { oneHourBefore?: boolean; oneDayBefore?: boolean; oneWeekBefore?: boolean };
+    };
+  }>(
     '/api/dates',
     {
       schema: {
@@ -18,10 +32,25 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           properties: {
             profileId: { type: 'string' },
             status: { type: 'string', enum: ['upcoming', 'completed'] },
-            type: { type: 'string', enum: ['casual', 'formal', 'activity'] },
+            type: { type: 'string', enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee'] },
             dateTime: { type: 'string' },
-            location: { type: 'string' },
+            locationName: { type: 'string' },
+            locationAddress: { type: 'string' },
+            locationCoordinates: {
+              type: 'object',
+              properties: { lat: { type: 'number' }, lng: { type: 'number' } },
+            },
             notes: { type: 'string' },
+            rating: { type: 'integer', minimum: 1, maximum: 5 },
+            wouldGoAgain: { type: 'boolean' },
+            reminderSettings: {
+              type: 'object',
+              properties: {
+                oneHourBefore: { type: 'boolean' },
+                oneDayBefore: { type: 'boolean' },
+                oneWeekBefore: { type: 'boolean' },
+              },
+            },
           },
           required: ['profileId'],
         },
@@ -32,7 +61,19 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireAuth(request, reply);
       if (!session) return;
 
-      const body = request.body as { profileId: string; status?: string; type?: string; dateTime?: string; location?: string; notes?: string };
+      const body = request.body as {
+        profileId: string;
+        status?: string;
+        type?: string;
+        dateTime?: string;
+        locationName?: string;
+        locationAddress?: string;
+        locationCoordinates?: { lat: number; lng: number };
+        notes?: string;
+        rating?: number;
+        wouldGoAgain?: boolean;
+        reminderSettings?: { oneHourBefore?: boolean; oneDayBefore?: boolean; oneWeekBefore?: boolean };
+      };
 
       // Verify that the profile belongs to the user
       const profile = await app.db.query.rosterProfiles.findFirst({
@@ -52,10 +93,15 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           userId: session.user.id,
           profileId: body.profileId,
           status: body.status as 'upcoming' | 'completed' | undefined,
-          type: body.type as 'casual' | 'formal' | 'activity' | undefined,
+          type: body.type as 'casual' | 'formal' | 'activity' | 'dinner' | 'drinks' | 'coffee' | undefined,
           dateTime: body.dateTime ? new Date(body.dateTime) : undefined,
-          location: body.location,
+          locationName: body.locationName,
+          locationAddress: body.locationAddress,
+          locationCoordinates: body.locationCoordinates,
           notes: body.notes,
+          rating: body.rating,
+          wouldGoAgain: body.wouldGoAgain,
+          reminderSettings: body.reminderSettings,
         })
         .returning();
 

@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, uuid, foreignKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, uuid, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { user } from './auth-schema.js';
 
@@ -26,6 +26,8 @@ export const rosterProfiles = pgTable('roster_profiles', {
   profileImageKey: text('profile_image_key'),
   status: text('status', { enum: ['roster', 'bench'] }).default('roster'),
   benchReason: text('bench_reason'),
+  displayOrder: integer('display_order').default(0),
+  lastContactDate: timestamp('last_contact_date'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
 });
@@ -49,9 +51,36 @@ export const dates = pgTable('dates', {
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
   status: text('status', { enum: ['upcoming', 'completed'] }).default('upcoming'),
-  type: text('type', { enum: ['casual', 'formal', 'activity'] }).default('casual'),
+  type: text('type', { enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee'] }).default('casual'),
   dateTime: timestamp('date_time'),
-  location: text('location'),
+  locationName: text('location_name'),
+  locationAddress: text('location_address'),
+  locationCoordinates: jsonb('location_coordinates').$type<{ lat: number; lng: number }>(),
+  notes: text('notes'),
+  rating: integer('rating'),
+  wouldGoAgain: boolean('would_go_again'),
+  reminderSettings: jsonb('reminder_settings').$type<{ oneHourBefore?: boolean; oneDayBefore?: boolean; oneWeekBefore?: boolean }>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const reminders = pgTable('reminders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  profileId: uuid('profile_id').references(() => rosterProfiles.id, { onDelete: 'cascade' }),
+  type: text('type', { enum: ['morning_text', 'check_in', 'date_reminder', 'auto_nudge'] }).notNull(),
+  scheduledFor: timestamp('scheduled_for').notNull(),
+  message: text('message').notNull(),
+  sent: boolean('sent').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
+});
+
+export const interactions = pgTable('interactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
+  type: text('type', { enum: ['date', 'morning_text', 'check_in', 'call', 'message'] }).notNull(),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -65,6 +94,8 @@ export const rosterProfilesRelations = relations(rosterProfiles, ({ one, many })
   redFlags: many(redFlags),
   greenFlags: many(greenFlags),
   dates: many(dates),
+  reminders: many(reminders),
+  interactions: many(interactions),
 }));
 
 export const redFlagsRelations = relations(redFlags, ({ one }) => ({
@@ -88,6 +119,28 @@ export const datesRelations = relations(dates, ({ one }) => ({
   }),
   profile: one(rosterProfiles, {
     fields: [dates.profileId],
+    references: [rosterProfiles.id],
+  }),
+}));
+
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  user: one(user, {
+    fields: [reminders.userId],
+    references: [user.id],
+  }),
+  profile: one(rosterProfiles, {
+    fields: [reminders.profileId],
+    references: [rosterProfiles.id],
+  }),
+}));
+
+export const interactionsRelations = relations(interactions, ({ one }) => ({
+  user: one(user, {
+    fields: [interactions.userId],
+    references: [user.id],
+  }),
+  profile: one(rosterProfiles, {
+    fields: [interactions.profileId],
     references: [rosterProfiles.id],
   }),
 }));
