@@ -40,7 +40,21 @@ const relationshipTypes: { value: RelationshipType; label: string }[] = [
 ];
 
 const favoriteColors = [
-  'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Black', 'White', 'Brown', 'Gray', 'Teal', 'Lavender', 'Maroon', 'Navy'
+  { name: 'Red', hex: '#FF0000' },
+  { name: 'Blue', hex: '#0000FF' },
+  { name: 'Green', hex: '#00FF00' },
+  { name: 'Yellow', hex: '#FFFF00' },
+  { name: 'Orange', hex: '#FFA500' },
+  { name: 'Purple', hex: '#800080' },
+  { name: 'Pink', hex: '#FFC0CB' },
+  { name: 'Black', hex: '#000000' },
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Brown', hex: '#8B4513' },
+  { name: 'Gray', hex: '#808080' },
+  { name: 'Teal', hex: '#008080' },
+  { name: 'Lavender', hex: '#E6E6FA' },
+  { name: 'Maroon', hex: '#800000' },
+  { name: 'Navy', hex: '#000080' },
 ];
 
 const favoriteFoodTypes = [
@@ -59,6 +73,7 @@ export default function AddPersonScreen() {
   const [birthDay, setBirthDay] = useState(1);
   const [interestLevel, setInterestLevel] = useState<InterestLevel>('medium');
   const [favoriteColor, setFavoriteColor] = useState('');
+  const [favoriteColorHex, setFavoriteColorHex] = useState('');
   const [favoriteFoodType, setFavoriteFoodType] = useState('');
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('dating');
   const [customRelationshipType, setCustomRelationshipType] = useState('');
@@ -221,7 +236,9 @@ export default function AddPersonScreen() {
       console.log('[AddPerson] Saving person:', person.name);
       await addPerson(person);
       console.log('[AddPerson] Person saved successfully');
-      router.back();
+      
+      // Navigate to home screen after saving
+      router.replace('/(tabs)/(home)');
     } catch (error: any) {
       console.error('[AddPerson] Error saving person:', error);
       Alert.alert('Error', error.message || 'Failed to save person');
@@ -352,12 +369,17 @@ export default function AddPersonScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Favorite Color</Text>
             <TouchableOpacity 
-              style={styles.input} 
+              style={[styles.input, styles.colorInput]} 
               onPress={() => setShowColorPicker(true)}
             >
-              <Text style={[styles.inputText, !favoriteColor && styles.placeholderText]}>
-                {favoriteColor || 'Select favorite color'}
-              </Text>
+              {favoriteColor ? (
+                <View style={styles.colorPreview}>
+                  <View style={[styles.colorSwatch, { backgroundColor: favoriteColorHex }]} />
+                  <Text style={styles.inputText}>{favoriteColor}</Text>
+                </View>
+              ) : (
+                <Text style={styles.placeholderText}>Select favorite color</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -648,16 +670,20 @@ export default function AddPersonScreen() {
                   <ScrollView style={styles.pickerScroll}>
                     {favoriteColors.map((color) => (
                       <TouchableOpacity
-                        key={color}
-                        style={[styles.pickerItem, favoriteColor === color && styles.pickerItemActive]}
+                        key={color.name}
+                        style={[styles.pickerItem, favoriteColor === color.name && styles.pickerItemActive]}
                         onPress={() => {
-                          setFavoriteColor(color);
+                          setFavoriteColor(color.name);
+                          setFavoriteColorHex(color.hex);
                           setShowColorPicker(false);
                         }}
                       >
-                        <Text style={[styles.pickerItemText, favoriteColor === color && styles.pickerItemTextActive]}>
-                          {color}
-                        </Text>
+                        <View style={styles.colorPickerItem}>
+                          <View style={[styles.colorSwatch, { backgroundColor: color.hex }]} />
+                          <Text style={[styles.pickerItemText, favoriteColor === color.name && styles.pickerItemTextActive]}>
+                            {color.name}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -794,6 +820,21 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.grey + '30',
+  },
+  colorInput: {
+    justifyContent: 'center',
+  },
+  colorPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  colorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.grey + '50',
   },
   inputText: {
     fontSize: 16,
@@ -943,5 +984,10 @@ const styles = StyleSheet.create({
   pickerItemTextActive: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  colorPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 });
