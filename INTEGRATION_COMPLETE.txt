@@ -36,18 +36,34 @@ INTEGRATED ENDPOINTS
   - PUT /api/dates/:id - Update date
   - DELETE /api/dates/:id - Delete date
 
+✅ REMINDERS
+  - GET /api/reminders - Get all reminders (with optional type/sent filters)
+  - POST /api/reminders - Create new reminder
+  - PUT /api/reminders/:id - Update reminder
+  - DELETE /api/reminders/:id - Delete reminder
+
+✅ INTERACTIONS
+  - POST /api/interactions - Log interaction with profile
+  - GET /api/interactions/:profileId - Get chemistry timeline for profile
+
+✅ NUDGES
+  - GET /api/nudges - Get profiles to nudge (not contacted in 10+ days)
+
 ✅ ANALYTICS
   - GET /api/analytics - Get dating analytics
 
 ✅ UPLOAD
   - POST /api/upload/profile-image - Upload profile image (multipart/form-data)
 
+✅ PROFILE REORDERING
+  - PUT /api/profiles/reorder - Bulk update profile display order
+
 ================================================================================
 FILES MODIFIED
 ================================================================================
 
 ✅ utils/api.ts
-  - Updated BEARER_TOKEN_KEY to "theroster_bearer_token"
+  - Updated BEARER_TOKEN_KEY to "roster-app_bearer_token" (matches lib/auth.ts)
   - All helper functions ready (authenticatedGet, authenticatedPost, etc.)
   - Added detailed console logging for all API calls
   - Added request/response logging with full details
@@ -55,16 +71,20 @@ FILES MODIFIED
 
 ✅ contexts/RosterContext.tsx
   - Completely rewritten to use backend API
+  - Removed all TODO comments - fully implemented
   - Fixed data mapping to match backend schema exactly:
     * birthdayMonth/birthdayDay (not birthday_month/birthday_day)
     * favoriteColor/favoriteFood (not favorite_color/favorite_food_type)
     * profileImageUrl (not image_url)
     * flagText field for flags (not text)
-  - Added all CRUD operations for profiles, dates, and flags
+    * locationName/locationCoordinates for dates (lat/lng format)
+    * reminderSettings for date reminders (oneHourBefore, oneDayBefore, oneWeekBefore)
+    * displayOrder for profile reordering (not sortOrder)
+  - Added all CRUD operations for profiles, dates, flags, reminders, interactions
   - Added proper error handling and loading states
   - Added extensive console logging for debugging
   - Maps between frontend RosterPerson type and backend profile schema
-  - Fixed date format mapping (dateTime field)
+  - Fixed date format mapping (dateTime field in ISO 8601 format)
 
 ✅ app/(tabs)/roster.tsx
   - Added analytics integration with /api/analytics endpoint
@@ -78,6 +98,9 @@ FILES MODIFIED
   - Added sign out functionality with confirmation
   - Shows actual user name and email
   - Updated UI to show authenticated user info
+  - Implemented profile image upload to /api/upload/profile-image
+  - Removed TODO comments - fully implemented
+  - Added proper error handling for image upload
 
 ✅ app/(tabs)/_layout.tsx
   - Wrapped with ProtectedRoute component
@@ -113,8 +136,11 @@ FILES CREATED BY setup_auth TOOL
 ✅ lib/auth.ts
   - BetterAuth client configuration
   - Configured for email/password + Google + Apple OAuth
-  - Uses backend URL from app.json
+  - Uses backend URL from app.json (Constants.expoConfig?.extra?.backendUrl)
   - Handles token storage in SecureStore (native) / localStorage (web)
+  - Bearer token key: "roster-app_bearer_token"
+  - App scheme: "theroster" (matches app.json)
+  - Added console logging for backend URL on module load
 
 ✅ contexts/AuthContext.tsx
   - Auth provider with useAuth hook
@@ -138,9 +164,10 @@ FILES CREATED BY setup_auth TOOL
 
 ✅ app/auth-callback.tsx
   - OAuth callback handler for web
-  - Extracts token and sends to parent window
+  - Sends auth-success/auth-error messages to parent window
   - Handles errors gracefully
   - Closes popup automatically
+  - BetterAuth handles token storage via cookies automatically
 
 ================================================================================
 AUTHENTICATION FLOW
@@ -261,7 +288,7 @@ NOTES
 2. All endpoints require authentication except /api/auth/*
    - Bearer token automatically added by authenticatedGet/Post/etc.
    - Token stored in SecureStore (native) or localStorage (web)
-   - Token key: "theroster_bearer_token"
+   - Token key: "roster-app_bearer_token" (consistent across lib/auth.ts and utils/api.ts)
 
 3. Backend URL configured in app.json
    - Never hardcoded in code
@@ -318,8 +345,9 @@ FINAL VERIFICATION - DECEMBER 2024
 ✅ Data Flow
   - Backend URL: https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev
   - Backend URL configured in app.json (never hardcoded)
+  - Backend URL read from Constants.expoConfig?.extra?.backendUrl
   - Bearer token stored securely (SecureStore/localStorage)
-  - Token key: "theroster_bearer_token"
+  - Token key: "roster-app_bearer_token" (consistent everywhere)
   - All authenticated requests include Bearer token automatically
 
 ✅ Bug Fixes Applied

@@ -4,7 +4,10 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 
-const API_URL = "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev";
+// Read backend URL from app.json configuration
+const API_URL = Constants.expoConfig?.extra?.backendUrl || "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev";
+
+console.log('[Auth] Backend URL configured:', API_URL);
 
 const BEARER_TOKEN_KEY = "roster-app_bearer_token";
 
@@ -21,7 +24,7 @@ export const authClient = createAuthClient({
   baseURL: API_URL,
   plugins: [
     expoClient({
-      scheme: "roster-app",
+      scheme: "theroster",
       storagePrefix: "roster-app",
       storage,
     }),

@@ -16,10 +16,11 @@ export default function Index() {
     );
   }
 
-  // Redirect to auth screen if not logged in, otherwise to roster
+  // Redirect to auth screen if not logged in, otherwise to roster home
   if (!user) {
     return <Redirect href="/auth" />;
   }
 
-  return <Redirect href="/(tabs)/roster" />;
+  // Redirect to roster home page after login
+  return <Redirect href="/(tabs)/(home)/roster" />;
 }

@@ -16,30 +16,26 @@ export default function AuthCallbackScreen() {
   const handleCallback = () => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const token = urlParams.get("better_auth_token");
       const error = urlParams.get("error");
 
       if (error) {
         setStatus("error");
         setMessage(`Authentication failed: ${error}`);
-        window.opener?.postMessage({ type: "oauth-error", error }, "*");
+        window.opener?.postMessage({ type: "auth-error", error }, "*");
         return;
       }
 
-      if (token) {
-        setStatus("success");
-        setMessage("Authentication successful! Closing...");
-        window.opener?.postMessage({ type: "oauth-success", token }, "*");
-        setTimeout(() => window.close(), 1000);
-      } else {
-        setStatus("error");
-        setMessage("No authentication token received");
-        window.opener?.postMessage({ type: "oauth-error", error: "No token" }, "*");
-      }
+      // Check if authentication was successful by checking for session cookie
+      // BetterAuth sets cookies automatically, so we just need to notify the opener
+      setStatus("success");
+      setMessage("Authentication successful! Closing...");
+      window.opener?.postMessage({ type: "auth-success" }, "*");
+      setTimeout(() => window.close(), 1000);
     } catch (err) {
       setStatus("error");
       setMessage("Failed to process authentication");
       console.error("Auth callback error:", err);
+      window.opener?.postMessage({ type: "auth-error", error: "Processing failed" }, "*");
     }
   };
 

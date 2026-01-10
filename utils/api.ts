@@ -36,7 +36,7 @@ console.log('[API] Backend URL configured:', BACKEND_URL);
  * Bearer token storage key
  * Matches the key used in lib/auth.ts
  */
-const BEARER_TOKEN_KEY = "theroster_bearer_token";
+const BEARER_TOKEN_KEY = "roster-app_bearer_token";
 
 /**
  * Check if backend is properly configured

@@ -1,10 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
   Modal,
@@ -12,6 +11,8 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   Keyboard,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,16 +21,30 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
+import DraggableFlatList, {
+  ScaleDecorator,
+  RenderItemParams,
+} from 'react-native-draggable-flatlist';
 
 const { width } = Dimensions.get('window');
-const cardWidth = (width - 48) / 2; // 2 columns with padding
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, dates } = useRoster();
+  const { roster, dates, analytics, nudges, reorderRoster, refreshAnalytics, refreshNudges } = useRoster();
   const [showDatesModal, setShowDatesModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showNudgesModal, setShowNudgesModal] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
+  const [localRoster, setLocalRoster] = useState<RosterPerson[]>([]);
+
+  useEffect(() => {
+    setLocalRoster(roster);
+  }, [roster]);
+
+  useEffect(() => {
+    refreshAnalytics();
+    refreshNudges();
+  }, []);
 
   const upcomingDates = dates.filter(d => d.status === 'upcoming');
   const completedDates = dates.filter(d => d.status === 'completed');
@@ -43,39 +58,51 @@ export default function RosterScreen() {
     }
   };
 
-  const renderPersonCard = (person: RosterPerson) => (
-    <TouchableOpacity
-      key={person.id}
-      style={styles.personCard}
-      onPress={() => router.push(`/person/${person.id}`)}
-    >
-      <View style={styles.cardImageContainer}>
-        {person.imageUrl ? (
-          <Image source={{ uri: person.imageUrl }} style={styles.cardImage} />
-        ) : (
-          <View style={[styles.cardImage, styles.placeholderImage]}>
-            <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={40} color={colors.grey} />
-          </View>
-        )}
-        <View style={[styles.interestBadge, { backgroundColor: getInterestColor(person.interestLevel) }]} />
-        <View style={styles.cardOverlay}>
-          <Text style={styles.cardName}>{person.name}</Text>
-          <Text style={styles.cardInfo}>{person.age} • {person.location}</Text>
-          <View style={styles.flagsContainer}>
-            {person.redFlags.length > 0 && (
-              <View style={styles.flagBadge}>
-                <Text style={styles.flagText}>🚩 {person.redFlags.length}</Text>
-              </View>
-            )}
-            {person.greenFlags.length > 0 && (
-              <View style={styles.flagBadge}>
-                <Text style={styles.flagText}>✅ {person.greenFlags.length}</Text>
-              </View>
-            )}
+  const handleDragEnd = async ({ data }: { data: RosterPerson[] }) => {
+    setLocalRoster(data);
+    try {
+      await reorderRoster(data);
+    } catch (error) {
+      console.error('[Roster] Error reordering:', error);
+    }
+  };
+
+  const renderPersonCard = ({ item, drag, isActive }: RenderItemParams<RosterPerson>) => (
+    <ScaleDecorator>
+      <TouchableOpacity
+        onPress={() => router.push(`/person/${item.id}`)}
+        onLongPress={drag}
+        disabled={isActive}
+        style={[styles.personCard, isActive && styles.personCardActive]}
+      >
+        <View style={styles.cardImageContainer}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+          ) : (
+            <View style={[styles.cardImage, styles.placeholderImage]}>
+              <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={40} color={colors.grey} />
+            </View>
+          )}
+          <View style={[styles.interestBadge, { backgroundColor: getInterestColor(item.interestLevel) }]} />
+          <View style={styles.cardOverlay}>
+            <Text style={styles.cardName}>{item.name}</Text>
+            <Text style={styles.cardInfo}>{item.age} • {item.location}</Text>
+            <View style={styles.flagsContainer}>
+              {item.redFlags.length > 0 && (
+                <View style={styles.flagBadge}>
+                  <Text style={styles.flagText}>🚩 {item.redFlags.length}</Text>
+                </View>
+              )}
+              {item.greenFlags.length > 0 && (
+                <View style={styles.flagBadge}>
+                  <Text style={styles.flagText}>✅ {item.greenFlags.length}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </ScaleDecorator>
   );
 
   const renderEmptyState = () => (
@@ -116,19 +143,38 @@ export default function RosterScreen() {
         </View>
       </LinearGradient>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.cardsGrid}>
-          {roster.length === 0 ? (
-            renderEmptyState()
-          ) : (
-            roster.map(renderPersonCard)
-          )}
+      {/* Nudges Banner */}
+      {nudges.length > 0 && (
+        <TouchableOpacity
+          style={styles.nudgesBanner}
+          onPress={() => setShowNudgesModal(true)}
+        >
+          <IconSymbol
+            ios_icon_name="bell.fill"
+            android_material_icon_name="notifications"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.nudgesText}>
+            {nudges.length} reminder{nudges.length > 1 ? 's' : ''} - Tap to view
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {localRoster.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          {renderEmptyState()}
         </View>
-      </ScrollView>
+      ) : (
+        <DraggableFlatList
+          data={localRoster}
+          renderItem={renderPersonCard}
+          keyExtractor={(item) => item.id}
+          onDragEnd={handleDragEnd}
+          numColumns={2}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
 
       {/* Floating Add Button */}
       <TouchableOpacity
@@ -197,6 +243,161 @@ export default function RosterScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Analytics Modal */}
+      <Modal
+        visible={showAnalyticsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAnalyticsModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowAnalyticsModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.analyticsModal}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Analytics</Text>
+                  <TouchableOpacity onPress={() => setShowAnalyticsModal(false)}>
+                    <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.analyticsContent}>
+                  {analytics ? (
+                    <>
+                      {/* Overview Stats */}
+                      <View style={styles.statsGrid}>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statValue}>{analytics.totalDates}</Text>
+                          <Text style={styles.statLabel}>Total Dates</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statValue}>{analytics.upcomingDates}</Text>
+                          <Text style={styles.statLabel}>Upcoming</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statValue}>{analytics.dateFrequency.thisMonth}</Text>
+                          <Text style={styles.statLabel}>This Month</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statValue}>{analytics.dateFrequency.thisWeek}</Text>
+                          <Text style={styles.statLabel}>This Week</Text>
+                        </View>
+                      </View>
+
+                      {/* Dates Per Month */}
+                      {analytics.datesPerMonth && analytics.datesPerMonth.length > 0 && (
+                        <View style={styles.analyticsSection}>
+                          <Text style={styles.sectionTitle}>Dates Per Month</Text>
+                          {analytics.datesPerMonth.map((item, index) => (
+                            <View key={index} style={styles.barChartRow}>
+                              <Text style={styles.barLabel}>{item.month}</Text>
+                              <View style={styles.barContainer}>
+                                <View
+                                  style={[
+                                    styles.bar,
+                                    {
+                                      width: `${(item.count / Math.max(...analytics.datesPerMonth.map(d => d.count))) * 100}%`,
+                                    },
+                                  ]}
+                                />
+                                <Text style={styles.barValue}>{item.count}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Common Red Flags */}
+                      {analytics.commonRedFlags && analytics.commonRedFlags.length > 0 && (
+                        <View style={styles.analyticsSection}>
+                          <Text style={styles.sectionTitle}>Common Red Flags</Text>
+                          {analytics.commonRedFlags.slice(0, 5).map((item, index) => (
+                            <View key={index} style={styles.flagRow}>
+                              <Text style={styles.flagEmoji}>🚩</Text>
+                              <Text style={styles.flagText}>{item.flag}</Text>
+                              <Text style={styles.flagCount}>{item.count}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Common Green Flags */}
+                      {analytics.commonGreenFlags && analytics.commonGreenFlags.length > 0 && (
+                        <View style={styles.analyticsSection}>
+                          <Text style={styles.sectionTitle}>Common Green Flags</Text>
+                          {analytics.commonGreenFlags.slice(0, 5).map((item, index) => (
+                            <View key={index} style={styles.flagRow}>
+                              <Text style={styles.flagEmoji}>✅</Text>
+                              <Text style={styles.flagText}>{item.flag}</Text>
+                              <Text style={styles.flagCount}>{item.count}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={styles.emptyText}>Loading analytics...</Text>
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Nudges Modal */}
+      <Modal
+        visible={showNudgesModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowNudgesModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowNudgesModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.nudgesModal}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Reminders</Text>
+                  <TouchableOpacity onPress={() => setShowNudgesModal(false)}>
+                    <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.nudgesContent}>
+                  {nudges.map((nudge) => (
+                    <TouchableOpacity
+                      key={nudge.id}
+                      style={styles.nudgeItem}
+                      onPress={() => {
+                        setShowNudgesModal(false);
+                        router.push(`/person/${nudge.profileId}`);
+                      }}
+                    >
+                      <IconSymbol
+                        ios_icon_name="bell.fill"
+                        android_material_icon_name="notifications"
+                        size={24}
+                        color={colors.primary}
+                      />
+                      <View style={styles.nudgeContent}>
+                        <Text style={styles.nudgeMessage}>{nudge.message}</Text>
+                        <Text style={styles.nudgeDate}>
+                          Last contact: {nudge.daysSinceLastContact} days ago
+                        </Text>
+                      </View>
+                      <IconSymbol
+                        ios_icon_name="chevron.right"
+                        android_material_icon_name="chevron-right"
+                        size={20}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -239,24 +440,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scrollView: {
-    flex: 1,
+  nudgesBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    gap: 8,
   },
-  scrollContent: {
+  nudgesText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  listContent: {
     padding: 16,
     paddingBottom: 100,
   },
-  cardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
   personCard: {
-    width: cardWidth,
+    width: (width - 48) / 2,
     marginBottom: 16,
+    marginHorizontal: 4,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.card,
+  },
+  personCardActive: {
+    opacity: 0.8,
+    transform: [{ scale: 1.05 }],
   },
   cardImageContainer: {
     position: 'relative',
@@ -317,7 +537,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   emptyCard: {
-    width: cardWidth,
+    width: (width - 48) / 2,
     height: 200,
     borderRadius: 12,
     borderWidth: 2,
@@ -366,6 +586,20 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  analyticsModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '85%',
+    paddingBottom: 20,
+  },
+  nudgesModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
     paddingBottom: 20,
   },
   modalHeader: {
@@ -438,5 +672,112 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     textAlign: 'center',
     marginTop: 20,
+  },
+  analyticsContent: {
+    padding: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: colors.background,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  analyticsSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  barChartRow: {
+    marginBottom: 12,
+  },
+  barLabel: {
+    fontSize: 12,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  barContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bar: {
+    height: 24,
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+    minWidth: 20,
+  },
+  barValue: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  flagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  flagEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  flagText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+  },
+  flagCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  nudgesContent: {
+    padding: 16,
+  },
+  nudgeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 12,
+  },
+  nudgeContent: {
+    flex: 1,
+  },
+  nudgeMessage: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  nudgeDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });
