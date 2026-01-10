@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "THE ROSTER",
-    "slug": "the-roster",
+    "name": "The Roster",
+    "slug": "The Roster",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -44,5 +44,6 @@
       "router": {},
       "backendUrl": "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev"
     }
-  }
+  },
+  "scheme": "The Roster"
 }
