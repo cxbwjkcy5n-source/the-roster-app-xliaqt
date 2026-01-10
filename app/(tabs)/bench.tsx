@@ -21,7 +21,7 @@ export default function BenchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.header}>
+      <LinearGradient colors={['#D32F2F', '#C62828']} style={styles.header}>
         <Text style={styles.headerTitle}>The Bench</Text>
         <Text style={styles.headerSubtitle}>Paused connections</Text>
       </LinearGradient>
@@ -33,7 +33,7 @@ export default function BenchScreen() {
               ios_icon_name="pause.circle"
               android_material_icon_name="pause-circle-outline"
               size={64}
-              color={colors.textSecondary}
+              color={colors.grey}
             />
             <Text style={styles.emptyText}>No one on the bench</Text>
             <Text style={styles.emptySubtext}>
@@ -49,15 +49,15 @@ export default function BenchScreen() {
                 onPress={() => router.push(`/person/${person.id}` as any)}
               >
                 <View style={styles.cardImageContainer}>
-                  {person.photoUri ? (
-                    <Image source={{ uri: person.photoUri }} style={styles.cardImage} />
+                  {person.imageUrl ? (
+                    <Image source={{ uri: person.imageUrl }} style={styles.cardImage} />
                   ) : (
                     <View style={[styles.cardImage, styles.placeholderImage]}>
                       <IconSymbol
                         ios_icon_name="person.fill"
                         android_material_icon_name="person"
                         size={48}
-                        color={colors.textSecondary}
+                        color={colors.grey}
                       />
                     </View>
                   )}
@@ -69,6 +69,11 @@ export default function BenchScreen() {
                     <Text style={styles.cardInfo}>
                       {person.age} • {person.location}
                     </Text>
+                    {person.benchReason && (
+                      <View style={styles.reasonBadge}>
+                        <Text style={styles.reasonText} numberOfLines={2}>{person.benchReason}</Text>
+                      </View>
+                    )}
                   </LinearGradient>
                 </View>
               </TouchableOpacity>
@@ -88,15 +93,17 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingVertical: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.white,
+    color: '#fff',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: colors.white,
+    color: '#fff',
     opacity: 0.9,
     marginTop: 4,
   },
@@ -120,20 +127,21 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.grey,
     marginTop: 8,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
   },
   personCard: {
-    width: '47%',
+    width: '48%',
     aspectRatio: 0.75,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: colors.card,
+    marginBottom: 16,
   },
   cardImageContainer: {
     flex: 1,
@@ -158,12 +166,24 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.white,
+    color: '#fff',
     marginBottom: 4,
   },
   cardInfo: {
     fontSize: 12,
-    color: colors.white,
+    color: '#fff',
     opacity: 0.9,
+  },
+  reasonBadge: {
+    marginTop: 6,
+    backgroundColor: 'rgba(211, 47, 47, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  reasonText: {
+    fontSize: 10,
+    color: '#fff',
+    fontStyle: 'italic',
   },
 });

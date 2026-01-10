@@ -89,8 +89,8 @@ export default function RosterScreen() {
       onPress={() => router.push(`/person/${person.id}` as any)}
     >
       <View style={styles.cardImageContainer}>
-        {person.photoUri ? (
-          <Image source={{ uri: person.photoUri }} style={styles.cardImage} />
+        {person.imageUrl ? (
+          <Image source={{ uri: person.imageUrl }} style={styles.cardImage} />
         ) : (
           <View style={[styles.cardImage, styles.placeholderImage]}>
             <IconSymbol

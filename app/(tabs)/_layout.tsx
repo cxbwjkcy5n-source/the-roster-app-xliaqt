@@ -4,6 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import FloatingTabBar from '@/components/FloatingTabBar';
 import { Href } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 export default function TabLayout() {
   const tabs = [
@@ -41,9 +42,11 @@ export default function TabLayout() {
   ];
 
   return (
-    <View style={styles.container}>
-      <FloatingTabBar tabs={tabs} />
-    </View>
+    <ProtectedRoute>
+      <View style={styles.container}>
+        <FloatingTabBar tabs={tabs} />
+      </View>
+    </ProtectedRoute>
   );
 }
 

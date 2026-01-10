@@ -1,15 +1,7 @@
 
 export type InterestLevel = 'low' | 'medium' | 'high';
-
-export type RelationshipType = 
-  | 'dating' 
-  | 'casual' 
-  | 'serious' 
-  | 'friendzone' 
-  | 'booty-call' 
-  | 'drink-buddy' 
-  | 'exploring' 
-  | 'other';
+export type RelationshipType = 'dating' | 'casual' | 'serious' | 'friendzone' | 'booty call' | 'someone to drink with' | 'exploring' | 'other';
+export type ProfileStatus = 'roster' | 'bench';
 
 export interface Flag {
   id: string;
@@ -21,38 +13,36 @@ export interface RosterPerson {
   id: string;
   name: string;
   age: number;
-  birthday: {
-    month: number;
-    year: number;
-  };
+  birthdayMonth: number;
+  birthdayDay: number;
   zodiacSign: string;
-  favoriteColor?: string;
-  favoriteFoodType?: string;
+  favoriteColor: string;
+  favoriteFoodType: string;
   relationshipType: RelationshipType;
   customRelationshipType?: string;
   location: string;
-  phoneNumber?: string;
+  phoneNumber: string;
   instagram?: string;
   twitter?: string;
   facebook?: string;
   snapchat?: string;
   notes?: string;
+  interestLevel: InterestLevel;
+  imageUrl?: string;
   redFlags: Flag[];
   greenFlags: Flag[];
-  interestLevel: InterestLevel;
-  photoUri?: string;
-  createdAt: string;
-  updatedAt: string;
+  status: ProfileStatus;
+  benchReason?: string;
 }
 
 export interface DateEvent {
   id: string;
-  personId: string;
-  personName: string;
-  title: string;
+  profileId: string;
+  profileName?: string;
   date: string;
-  location?: string;
+  time: string;
+  location: string;
   notes?: string;
   status: 'upcoming' | 'completed';
-  type: 'have-date' | 'on-date' | 'planned';
+  type: 'casual' | 'formal' | 'activity';
 }

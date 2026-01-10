@@ -29,6 +29,9 @@ import * as SecureStore from "expo-secure-store";
  */
 export const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || "";
 
+// Log backend URL on module load for debugging
+console.log('[API] Backend URL configured:', BACKEND_URL);
+
 /**
  * Bearer token storage key
  * Matches the key used in lib/auth.ts
@@ -75,11 +78,17 @@ export const apiCall = async <T = any>(
   options?: RequestInit
 ): Promise<T> => {
   if (!isBackendConfigured()) {
+    console.error("[API] Backend URL not configured!");
     throw new Error("Backend URL not configured. Please rebuild the app.");
   }
 
   const url = `${BACKEND_URL}${endpoint}`;
-  console.log("[API] Calling:", url, options?.method || "GET");
+  console.log("[API] Request:", {
+    method: options?.method || "GET",
+    url,
+    headers: options?.headers,
+    body: options?.body ? JSON.parse(options.body as string) : undefined,
+  });
 
   try {
     const response = await fetch(url, {
@@ -90,14 +99,20 @@ export const apiCall = async <T = any>(
       },
     });
 
+    console.log("[API] Response status:", response.status, response.statusText);
+
     if (!response.ok) {
       const text = await response.text();
-      console.error("[API] Error response:", response.status, text);
+      console.error("[API] Error response:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: text,
+      });
       throw new Error(`API error: ${response.status} - ${text}`);
     }
 
     const data = await response.json();
-    console.log("[API] Success:", data);
+    console.log("[API] Success response:", data);
     return data;
   } catch (error) {
     console.error("[API] Request failed:", error);
@@ -174,8 +189,11 @@ export const authenticatedApiCall = async <T = any>(
   const token = await getBearerToken();
 
   if (!token) {
+    console.error("[API] No authentication token found");
     throw new Error("Authentication token not found. Please sign in.");
   }
+
+  console.log("[API] Using authentication token:", token.substring(0, 20) + "...");
 
   return apiCall<T>(endpoint, {
     ...options,

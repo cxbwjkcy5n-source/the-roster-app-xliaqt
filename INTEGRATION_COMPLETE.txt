@@ -10,26 +10,28 @@ INTEGRATED ENDPOINTS
 ================================================================================
 
 ✅ AUTHENTICATION (BetterAuth)
-  - POST /api/auth/signin/email - Email/password login
-  - POST /api/auth/signup/email - Email/password signup
-  - POST /api/auth/signout - Logout
-  - GET/POST /api/auth/signin/google - Google OAuth
-  - GET/POST /api/auth/signin/apple - Apple OAuth
-  - GET/POST /api/auth/signin/github - GitHub OAuth
+  - POST /api/auth/sign-in/email - Email/password login
+  - POST /api/auth/sign-up/email - Email/password signup
+  - POST /api/auth/sign-out - Logout
+  - GET/POST /api/auth/sign-in/social - Google OAuth
+  - GET/POST /api/auth/sign-in/social - Apple OAuth
+  - All auth handled by BetterAuth client library
 
-✅ ROSTER PROFILES
-  - GET /api/roster/profiles - Get all profiles (roster + bench)
-  - POST /api/roster/profiles - Create new profile
-  - GET /api/roster/profiles/:id - Get single profile
-  - PUT /api/roster/profiles/:id - Update profile
-  - DELETE /api/roster/profiles/:id - Delete profile
+✅ PROFILES
+  - GET /api/profiles - Get all profiles (roster + bench)
+  - POST /api/profiles - Create new profile
+  - GET /api/profiles/:id - Get single profile
+  - PUT /api/profiles/:id - Update profile
+  - DELETE /api/profiles/:id - Delete profile
+  - PUT /api/profiles/:id/bench - Move profile to bench
+  - PUT /api/profiles/:id/roster - Move profile back to roster
 
 ✅ FLAGS
-  - POST /api/roster/profiles/:id/flags - Add red/green flag
-  - DELETE /api/roster/flags/:id - Delete flag
+  - POST /api/profiles/:id/flags - Add red/green flag
+  - DELETE /api/flags/:id - Delete flag
 
 ✅ DATES
-  - GET /api/dates - Get all dates (with optional type filter)
+  - GET /api/dates - Get all dates (with optional status filter)
   - POST /api/dates - Create new date
   - PUT /api/dates/:id - Update date
   - DELETE /api/dates/:id - Delete date
@@ -38,74 +40,107 @@ INTEGRATED ENDPOINTS
   - GET /api/analytics - Get dating analytics
 
 ✅ UPLOAD
-  - POST /api/upload/profile-image - Upload profile image (noted for future)
+  - POST /api/upload/profile-image - Upload profile image (multipart/form-data)
 
 ================================================================================
 FILES MODIFIED
 ================================================================================
 
 ✅ utils/api.ts
-  - Updated BEARER_TOKEN_KEY to match auth setup
+  - Updated BEARER_TOKEN_KEY to "theroster_bearer_token"
   - All helper functions ready (authenticatedGet, authenticatedPost, etc.)
+  - Added detailed console logging for all API calls
+  - Added request/response logging with full details
+  - Added backend URL logging on module load
 
 ✅ contexts/RosterContext.tsx
-  - Completely rewritten to use backend API instead of AsyncStorage
+  - Completely rewritten to use backend API
+  - Fixed data mapping to match backend schema exactly:
+    * birthdayMonth/birthdayDay (not birthday_month/birthday_day)
+    * favoriteColor/favoriteFood (not favorite_color/favorite_food_type)
+    * profileImageUrl (not image_url)
+    * flagText field for flags (not text)
   - Added all CRUD operations for profiles, dates, and flags
   - Added proper error handling and loading states
-  - Added console logging for debugging
+  - Added extensive console logging for debugging
   - Maps between frontend RosterPerson type and backend profile schema
+  - Fixed date format mapping (dateTime field)
 
 ✅ app/(tabs)/roster.tsx
   - Added analytics integration with /api/analytics endpoint
   - Added dates display from backend
   - Added loading states and error handling
   - Added console logging
+  - Fixed imageUrl property (was photoUri)
 
 ✅ app/(tabs)/profile.tsx
-  - Removed TODO comment
-  - Added console logging for logout
+  - Added useAuth hook integration
+  - Added sign out functionality with confirmation
+  - Shows actual user name and email
+  - Updated UI to show authenticated user info
 
-✅ app/auth/login.tsx
-  - Removed TODO comments
-  - Added console logging for all auth methods
-  - Already using authClient properly
-
-✅ app/auth/signup.tsx
-  - Removed TODO comments
-  - Added console logging
-  - Already using authClient properly
+✅ app/(tabs)/_layout.tsx
+  - Wrapped with ProtectedRoute component
+  - All tabs now require authentication
 
 ✅ app/person/add.tsx
-  - Added saving state
-  - Added error handling
+  - Removed all TODO comments
+  - Added image upload implementation using multipart/form-data
+  - Uploads to /api/upload/profile-image endpoint
+  - Handles upload errors gracefully
   - Added console logging
-  - Integrated with RosterContext API calls
+
+✅ app/person/[id].tsx
+  - Removed all TODO comments
+  - All functionality already implemented via RosterContext
 
 ✅ app/index.tsx
-  - Added backend URL logging on startup
-
-✅ app/_layout.tsx
-  - Added auth-popup and auth-callback routes
+  - Added authentication check
+  - Redirects to /auth if not logged in
+  - Redirects to /(tabs)/roster if logged in
+  - Shows loading spinner during auth check
 
 ✅ components/ProtectedRoute.tsx
-  - Removed TODO comment
+  - Completely rewritten to actually protect routes
+  - Uses useAuth hook to check authentication
+  - Shows loading spinner during auth check
+  - Redirects to /auth if not authenticated
+
+================================================================================
+FILES CREATED BY setup_auth TOOL
+================================================================================
+
+✅ lib/auth.ts
+  - BetterAuth client configuration
+  - Configured for email/password + Google + Apple OAuth
+  - Uses backend URL from app.json
+  - Handles token storage in SecureStore (native) / localStorage (web)
 
 ✅ contexts/AuthContext.tsx
-  - Updated all OAuth methods with console logging
-  - Updated callback URLs to /(tabs)/roster
+  - Auth provider with useAuth hook
+  - Manages user session state
+  - Provides signIn, signUp, signOut methods
+  - Provides OAuth methods (signInWithGoogle, signInWithApple)
+  - Handles session refresh on app start
+  - Integrated with BetterAuth client
 
-================================================================================
-FILES CREATED
-================================================================================
+✅ app/auth.tsx
+  - Main authentication screen
+  - Email/password login form
+  - Social login buttons (Google, Apple)
+  - Link to signup screen
+  - Redirects to home after successful auth
 
 ✅ app/auth-popup.tsx
   - OAuth popup page for web authentication
   - Redirects to OAuth provider
+  - Used for Google/Apple OAuth on web
 
 ✅ app/auth-callback.tsx
   - OAuth callback handler for web
   - Extracts token and sends to parent window
   - Handles errors gracefully
+  - Closes popup automatically
 
 ================================================================================
 AUTHENTICATION FLOW
@@ -162,18 +197,17 @@ DEBUGGING
 ================================================================================
 
 Console logs added with prefixes:
+- [API] - All API calls (request details, response status, errors)
 - [RosterContext] - All roster/date/flag operations
 - [RosterScreen] - Analytics loading
-- [AddPerson] - Person creation
-- [Login] - Authentication attempts
-- [Signup] - Registration attempts
-- [Profile] - Logout
-- [Auth] - OAuth flows
-- [AuthPopup] - OAuth popup
-- [AuthCallback] - OAuth callback
-- [API] - All API calls
+- [AddPerson] - Person creation and image upload
+- [Auth] - Authentication context operations
+- [AuthContext] - Session management
 
-Backend URL logged on app startup.
+Backend URL logged on module load.
+All API requests logged with full details (method, URL, headers, body).
+All API responses logged with status and data.
+Authentication token logged (first 20 chars) for debugging.
 
 ================================================================================
 TESTING CHECKLIST
@@ -218,28 +252,46 @@ Analytics:
 NOTES
 ================================================================================
 
-1. Image upload endpoint exists but not fully implemented
-   - Currently stores local URI
-   - Production would need multipart/form-data upload
+1. Image upload fully implemented
+   - Uses multipart/form-data upload
+   - Uploads to /api/upload/profile-image endpoint
+   - Returns { url, key } from backend
+   - Handles errors gracefully with user notification
 
 2. All endpoints require authentication except /api/auth/*
    - Bearer token automatically added by authenticatedGet/Post/etc.
    - Token stored in SecureStore (native) or localStorage (web)
+   - Token key: "theroster_bearer_token"
 
 3. Backend URL configured in app.json
    - Never hardcoded in code
    - Always read from Constants.expoConfig?.extra?.backendUrl
+   - Logged on app startup for debugging
 
 4. BetterAuth handles all authentication
    - Session management
    - Token storage
-   - OAuth flows
-   - Deep linking
+   - OAuth flows (Google, Apple)
+   - Deep linking (theroster:// scheme)
+   - Web popup flows for OAuth
 
 5. RosterContext is the single source of truth
    - All components use useRoster() hook
    - No direct API calls from components
    - Consistent error handling
+   - Automatic data refresh after mutations
+
+6. Data mapping between frontend and backend
+   - Frontend uses camelCase (birthdayMonth, favoriteColor)
+   - Backend uses camelCase (birthdayMonth, favoriteColor)
+   - Flags use flagText field (not text)
+   - Dates use dateTime field (ISO 8601 format)
+   - Profile images use profileImageUrl field
+
+7. All routes protected by authentication
+   - ProtectedRoute component wraps tab layout
+   - Index screen checks auth and redirects
+   - Unauthenticated users sent to /auth screen
 
 ================================================================================
 READY FOR TESTING

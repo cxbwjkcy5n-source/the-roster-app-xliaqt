@@ -10,6 +10,9 @@ import {
   Image,
   Alert,
   Platform,
+  Modal,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,10 +33,18 @@ const relationshipTypes: { value: RelationshipType; label: string }[] = [
   { value: 'casual', label: 'Casual' },
   { value: 'serious', label: 'Serious' },
   { value: 'friendzone', label: 'Friend Zone' },
-  { value: 'booty-call', label: 'Booty Call' },
-  { value: 'drink-buddy', label: 'Someone to Drink With' },
+  { value: 'booty call', label: 'Booty Call' },
+  { value: 'someone to drink with', label: 'Someone to Drink With' },
   { value: 'exploring', label: 'Exploring' },
   { value: 'other', label: 'Other' },
+];
+
+const favoriteColors = [
+  'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Black', 'White', 'Brown', 'Gray', 'Teal', 'Lavender', 'Maroon', 'Navy'
+];
+
+const favoriteFoodTypes = [
+  'Italian', 'Mexican', 'Chinese', 'Japanese', 'Thai', 'Indian', 'American', 'French', 'Mediterranean', 'Korean', 'Vietnamese', 'Greek', 'Spanish', 'Vegan', 'Pescetarian', 'Vegetarian', 'BBQ', 'Seafood', 'Fast Food', 'Other'
 ];
 
 export default function AddPersonScreen() {
@@ -45,7 +56,7 @@ export default function AddPersonScreen() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [birthMonth, setBirthMonth] = useState(1);
-  const [birthYear, setBirthYear] = useState(new Date().getFullYear());
+  const [birthDay, setBirthDay] = useState(1);
   const [interestLevel, setInterestLevel] = useState<InterestLevel>('medium');
   const [favoriteColor, setFavoriteColor] = useState('');
   const [favoriteFoodType, setFavoriteFoodType] = useState('');
@@ -62,6 +73,12 @@ export default function AddPersonScreen() {
   const [greenFlagInput, setGreenFlagInput] = useState('');
   const [redFlags, setRedFlags] = useState<string[]>([]);
   const [greenFlags, setGreenFlags] = useState<string[]>([]);
+
+  // Dropdown states
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFoodPicker, setShowFoodPicker] = useState(false);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -105,6 +122,11 @@ export default function AddPersonScreen() {
     setGreenFlags(greenFlags.filter((_, i) => i !== index));
   };
 
+  const getDaysInMonth = (month: number) => {
+    const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return daysInMonth[month - 1];
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a name');
@@ -124,42 +146,76 @@ export default function AddPersonScreen() {
     try {
       setSaving(true);
       
-      // Upload image if one was selected
+      // Upload image to backend if selected
       let uploadedImageUrl: string | undefined;
+      let uploadedImageKey: string | undefined;
+      
       if (photoUri) {
-        console.log('[AddPerson] Uploading image...');
-        // Note: Image upload would require multipart/form-data
-        // For now, we'll use the local URI and let the backend handle it later
-        // In production, you'd want to implement proper image upload
-        uploadedImageUrl = photoUri;
+        try {
+          console.log('[AddPerson] Uploading image to backend...');
+          
+          // Create form data for image upload
+          const formData = new FormData();
+          const filename = photoUri.split('/').pop() || 'profile-image.jpg';
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image/jpeg';
+          
+          formData.append('file', {
+            uri: photoUri,
+            name: filename,
+            type,
+          } as any);
+
+          // Upload to backend
+          const token = await import('@/utils/api').then(m => m.getBearerToken());
+          const backendUrl = await import('@/utils/api').then(m => m.BACKEND_URL);
+          
+          const uploadResponse = await fetch(`${backendUrl}/api/upload/profile-image`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload image');
+          }
+
+          const uploadData = await uploadResponse.json();
+          uploadedImageUrl = uploadData.url;
+          uploadedImageKey = uploadData.key;
+          
+          console.log('[AddPerson] Image uploaded successfully:', uploadedImageUrl);
+        } catch (uploadError) {
+          console.error('[AddPerson] Image upload failed:', uploadError);
+          Alert.alert('Warning', 'Failed to upload image. Profile will be saved without photo.');
+        }
       }
 
       const person: RosterPerson = {
         id: Date.now().toString(),
         name: name.trim(),
         age: Number(age),
-        birthday: {
-          month: birthMonth,
-          year: birthYear,
-        },
-        zodiacSign: getZodiacFromBirthday(birthMonth, birthYear),
-        favoriteColor: favoriteColor.trim() || undefined,
-        favoriteFoodType: favoriteFoodType.trim() || undefined,
+        birthdayMonth: birthMonth,
+        birthdayDay: birthDay,
+        zodiacSign: getZodiacFromBirthday(birthMonth, birthDay),
+        favoriteColor: favoriteColor.trim(),
+        favoriteFoodType: favoriteFoodType.trim(),
         relationshipType,
         customRelationshipType: relationshipType === 'other' ? customRelationshipType.trim() : undefined,
         location: location.trim(),
-        phoneNumber: phoneNumber.trim() || undefined,
+        phoneNumber: phoneNumber.trim(),
         instagram: instagram.trim() || undefined,
         twitter: twitter.trim() || undefined,
         facebook: facebook.trim() || undefined,
         snapchat: snapchat.trim() || undefined,
         notes: notes.trim() || undefined,
-        redFlags: redFlags.map((text, index) => ({ id: `red-${index}`, text, type: 'red' })),
-        greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' })),
+        redFlags: redFlags.map((text, index) => ({ id: `red-${index}`, text, type: 'red' as const })),
+        greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' as const })),
         interestLevel,
-        photoUri: uploadedImageUrl,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        imageUrl: uploadedImageUrl,
+        status: 'roster',
       };
 
       console.log('[AddPerson] Saving person:', person.name);
@@ -176,318 +232,481 @@ export default function AddPersonScreen() {
 
   const getInterestColor = (level: InterestLevel) => {
     switch (level) {
-      case 'high': return colors.primary;
-      case 'medium': return colors.accent;
-      case 'low': return colors.highlight;
+      case 'high': return colors.green;
+      case 'medium': return colors.yellow;
+      case 'low': return colors.lowInterest;
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} disabled={saving}>
-          <Text style={[styles.cancelButton, saving && { opacity: 0.5 }]}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add to Roster</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving}>
-          <Text style={[styles.saveButton, saving && { opacity: 0.5 }]}>
-            {saving ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} disabled={saving}>
+            <Text style={[styles.cancelButton, saving && { opacity: 0.5 }]}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add to Roster</Text>
+          <TouchableOpacity onPress={handleSave} disabled={saving}>
+            <Text style={[styles.saveButton, saving && { opacity: 0.5 }]}>
+              {saving ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
-          {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.photo} />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <IconSymbol
-                ios_icon_name="camera.fill"
-                android_material_icon_name="camera"
-                size={48}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.photoPlaceholderText}>Add Photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.photo} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <IconSymbol
+                  ios_icon_name="camera.fill"
+                  android_material_icon_name="camera"
+                  size={48}
+                  color={colors.grey}
+                />
+                <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interest Level</Text>
-          <View style={styles.interestContainer}>
-            {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.interestButton,
-                  interestLevel === level && { backgroundColor: getInterestColor(level) },
-                ]}
-                onPress={() => setInterestLevel(level)}
-              >
-                <Text
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Interest Level</Text>
+            <View style={styles.interestContainer}>
+              {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => (
+                <TouchableOpacity
+                  key={level}
                   style={[
-                    styles.interestButtonText,
-                    interestLevel === level && styles.interestButtonTextActive,
+                    styles.interestButton,
+                    interestLevel === level && { backgroundColor: getInterestColor(level) },
                   ]}
+                  onPress={() => setInterestLevel(level)}
                 >
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.interestButtonText,
+                      interestLevel === level && styles.interestButtonTextActive,
+                    ]}
+                  >
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter name"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.section, { flex: 1 }]}>
-            <Text style={styles.label}>Age *</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Name *</Text>
             <TextInput
               style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              placeholder="Age"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="number-pad"
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter name"
+              placeholderTextColor={colors.grey}
             />
           </View>
-          <View style={[styles.section, { flex: 2, marginLeft: 12 }]}>
-            <Text style={styles.label}>Birthday</Text>
-            <View style={styles.birthdayContainer}>
+
+          <View style={styles.row}>
+            <View style={[styles.section, { flex: 1 }]}>
+              <Text style={styles.label}>Age *</Text>
               <TextInput
-                style={[styles.input, { flex: 2 }]}
-                value={months[birthMonth - 1]}
-                placeholder="Month"
-                placeholderTextColor={colors.textSecondary}
-                editable={false}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1, marginLeft: 8 }]}
-                value={birthYear.toString()}
-                placeholder="Year"
-                placeholderTextColor={colors.textSecondary}
-                editable={false}
+                style={styles.input}
+                value={age}
+                onChangeText={setAge}
+                placeholder="Age"
+                placeholderTextColor={colors.grey}
+                keyboardType="number-pad"
               />
             </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Zodiac Sign</Text>
-          <View style={styles.zodiacContainer}>
-            <Text style={styles.zodiacText}>{getZodiacFromBirthday(birthMonth, birthYear)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Favorite Color</Text>
-          <TextInput
-            style={styles.input}
-            value={favoriteColor}
-            onChangeText={setFavoriteColor}
-            placeholder="Enter favorite color"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Favorite Food Type</Text>
-          <TextInput
-            style={styles.input}
-            value={favoriteFoodType}
-            onChangeText={setFavoriteFoodType}
-            placeholder="Enter favorite food type"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Relationship Type</Text>
-          <View style={styles.relationshipGrid}>
-            {relationshipTypes.map((type) => (
-              <TouchableOpacity
-                key={type.value}
-                style={[
-                  styles.relationshipButton,
-                  relationshipType === type.value && styles.relationshipButtonActive,
-                ]}
-                onPress={() => setRelationshipType(type.value)}
+          <View style={styles.section}>
+            <Text style={styles.label}>Birthday</Text>
+            <View style={styles.birthdayContainer}>
+              <TouchableOpacity 
+                style={[styles.input, { flex: 2 }]} 
+                onPress={() => setShowMonthPicker(true)}
               >
-                <Text
-                  style={[
-                    styles.relationshipButtonText,
-                    relationshipType === type.value && styles.relationshipButtonTextActive,
-                  ]}
-                >
-                  {type.label}
-                </Text>
+                <Text style={styles.inputText}>{months[birthMonth - 1]}</Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity 
+                style={[styles.input, { flex: 1, marginLeft: 8 }]} 
+                onPress={() => setShowDayPicker(true)}
+              >
+                <Text style={styles.inputText}>{birthDay}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          {relationshipType === 'other' && (
-            <TextInput
-              style={[styles.input, { marginTop: 12 }]}
-              value={customRelationshipType}
-              onChangeText={setCustomRelationshipType}
-              placeholder="Enter custom relationship type"
-              placeholderTextColor={colors.textSecondary}
-            />
-          )}
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Location *</Text>
-          <TextInput
-            style={styles.input}
-            value={location}
-            onChangeText={setLocation}
-            placeholder="Enter location"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Zodiac Sign</Text>
+            <View style={styles.zodiacContainer}>
+              <Text style={styles.zodiacText}>{getZodiacFromBirthday(birthMonth, birthDay)}</Text>
+            </View>
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            placeholder="Enter phone number"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="phone-pad"
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Social Media</Text>
-          <TextInput
-            style={styles.input}
-            value={instagram}
-            onChangeText={setInstagram}
-            placeholder="Instagram"
-            placeholderTextColor={colors.textSecondary}
-          />
-          <TextInput
-            style={[styles.input, { marginTop: 8 }]}
-            value={twitter}
-            onChangeText={setTwitter}
-            placeholder="Twitter (X)"
-            placeholderTextColor={colors.textSecondary}
-          />
-          <TextInput
-            style={[styles.input, { marginTop: 8 }]}
-            value={facebook}
-            onChangeText={setFacebook}
-            placeholder="Facebook"
-            placeholderTextColor={colors.textSecondary}
-          />
-          <TextInput
-            style={[styles.input, { marginTop: 8 }]}
-            value={snapchat}
-            onChangeText={setSnapchat}
-            placeholder="Snapchat"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Notes</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Add notes..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Red Flags 🚩</Text>
-          <View style={styles.flagInputContainer}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={redFlagInput}
-              onChangeText={setRedFlagInput}
-              placeholder="Add a red flag"
-              placeholderTextColor={colors.textSecondary}
-              onSubmitEditing={addRedFlag}
-            />
-            <TouchableOpacity style={styles.addButton} onPress={addRedFlag}>
-              <IconSymbol
-                ios_icon_name="plus"
-                android_material_icon_name="add"
-                size={20}
-                color={colors.white}
-              />
+          <View style={styles.section}>
+            <Text style={styles.label}>Favorite Color</Text>
+            <TouchableOpacity 
+              style={styles.input} 
+              onPress={() => setShowColorPicker(true)}
+            >
+              <Text style={[styles.inputText, !favoriteColor && styles.placeholderText]}>
+                {favoriteColor || 'Select favorite color'}
+              </Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.flagsContainer}>
-            {redFlags.map((flag, index) => (
-              <View key={index} style={[styles.flagChip, { backgroundColor: colors.highlight }]}>
-                <Text style={styles.flagChipText}>{flag}</Text>
-                <TouchableOpacity onPress={() => removeRedFlag(index)}>
-                  <IconSymbol
-                    ios_icon_name="xmark"
-                    android_material_icon_name="close"
-                    size={16}
-                    color={colors.white}
-                  />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Green Flags ✅</Text>
-          <View style={styles.flagInputContainer}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={greenFlagInput}
-              onChangeText={setGreenFlagInput}
-              placeholder="Add a green flag"
-              placeholderTextColor={colors.textSecondary}
-              onSubmitEditing={addGreenFlag}
-            />
-            <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={addGreenFlag}>
-              <IconSymbol
-                ios_icon_name="plus"
-                android_material_icon_name="add"
-                size={20}
-                color={colors.white}
-              />
+          <View style={styles.section}>
+            <Text style={styles.label}>Favorite Food Type</Text>
+            <TouchableOpacity 
+              style={styles.input} 
+              onPress={() => setShowFoodPicker(true)}
+            >
+              <Text style={[styles.inputText, !favoriteFoodType && styles.placeholderText]}>
+                {favoriteFoodType || 'Select favorite food type'}
+              </Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.flagsContainer}>
-            {greenFlags.map((flag, index) => (
-              <View key={index} style={[styles.flagChip, { backgroundColor: colors.primary }]}>
-                <Text style={styles.flagChipText}>{flag}</Text>
-                <TouchableOpacity onPress={() => removeGreenFlag(index)}>
-                  <IconSymbol
-                    ios_icon_name="xmark"
-                    android_material_icon_name="close"
-                    size={16}
-                    color={colors.white}
-                  />
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Relationship Type</Text>
+            <View style={styles.relationshipGrid}>
+              {relationshipTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.relationshipButton,
+                    relationshipType === type.value && styles.relationshipButtonActive,
+                  ]}
+                  onPress={() => setRelationshipType(type.value)}
+                >
+                  <Text
+                    style={[
+                      styles.relationshipButtonText,
+                      relationshipType === type.value && styles.relationshipButtonTextActive,
+                    ]}
+                  >
+                    {type.label}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            ))}
+              ))}
+            </View>
+            {relationshipType === 'other' && (
+              <TextInput
+                style={[styles.input, { marginTop: 12 }]}
+                value={customRelationshipType}
+                onChangeText={setCustomRelationshipType}
+                placeholder="Enter custom relationship type"
+                placeholderTextColor={colors.grey}
+              />
+            )}
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Location *</Text>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="Enter location"
+              placeholderTextColor={colors.grey}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Enter phone number"
+              placeholderTextColor={colors.grey}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Social Media</Text>
+            <TextInput
+              style={styles.input}
+              value={instagram}
+              onChangeText={setInstagram}
+              placeholder="Instagram"
+              placeholderTextColor={colors.grey}
+            />
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              value={twitter}
+              onChangeText={setTwitter}
+              placeholder="Twitter (X)"
+              placeholderTextColor={colors.grey}
+            />
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              value={facebook}
+              onChangeText={setFacebook}
+              placeholder="Facebook"
+              placeholderTextColor={colors.grey}
+            />
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              value={snapchat}
+              onChangeText={setSnapchat}
+              placeholder="Snapchat"
+              placeholderTextColor={colors.grey}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Notes</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Add notes..."
+              placeholderTextColor={colors.grey}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Red Flags 🚩</Text>
+            <View style={styles.flagInputContainer}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={redFlagInput}
+                onChangeText={setRedFlagInput}
+                placeholder="Add a red flag"
+                placeholderTextColor={colors.grey}
+                onSubmitEditing={addRedFlag}
+              />
+              <TouchableOpacity style={styles.addButton} onPress={addRedFlag}>
+                <IconSymbol
+                  ios_icon_name="plus"
+                  android_material_icon_name="add"
+                  size={20}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.flagsContainer}>
+              {redFlags.map((flag, index) => (
+                <View key={index} style={[styles.flagChip, { backgroundColor: colors.lowInterest }]}>
+                  <Text style={styles.flagChipText}>{flag}</Text>
+                  <TouchableOpacity onPress={() => removeRedFlag(index)}>
+                    <IconSymbol
+                      ios_icon_name="xmark"
+                      android_material_icon_name="close"
+                      size={16}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Green Flags ✅</Text>
+            <View style={styles.flagInputContainer}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={greenFlagInput}
+                onChangeText={setGreenFlagInput}
+                placeholder="Add a green flag"
+                placeholderTextColor={colors.grey}
+                onSubmitEditing={addGreenFlag}
+              />
+              <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.green }]} onPress={addGreenFlag}>
+                <IconSymbol
+                  ios_icon_name="plus"
+                  android_material_icon_name="add"
+                  size={20}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.flagsContainer}>
+              {greenFlags.map((flag, index) => (
+                <View key={index} style={[styles.flagChip, { backgroundColor: colors.green }]}>
+                  <Text style={styles.flagChipText}>{flag}</Text>
+                  <TouchableOpacity onPress={() => removeGreenFlag(index)}>
+                    <IconSymbol
+                      ios_icon_name="xmark"
+                      android_material_icon_name="close"
+                      size={16}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Month Picker Modal */}
+        <Modal
+          visible={showMonthPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowMonthPicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowMonthPicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Month</Text>
+                    <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={styles.pickerScroll}>
+                    {months.map((month, index) => (
+                      <TouchableOpacity
+                        key={month}
+                        style={[styles.pickerItem, birthMonth === index + 1 && styles.pickerItemActive]}
+                        onPress={() => {
+                          setBirthMonth(index + 1);
+                          setShowMonthPicker(false);
+                        }}
+                      >
+                        <Text style={[styles.pickerItemText, birthMonth === index + 1 && styles.pickerItemTextActive]}>
+                          {month}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* Day Picker Modal */}
+        <Modal
+          visible={showDayPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowDayPicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowDayPicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Day</Text>
+                    <TouchableOpacity onPress={() => setShowDayPicker(false)}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={styles.pickerScroll}>
+                    {Array.from({ length: getDaysInMonth(birthMonth) }, (_, i) => i + 1).map((day) => (
+                      <TouchableOpacity
+                        key={day}
+                        style={[styles.pickerItem, birthDay === day && styles.pickerItemActive]}
+                        onPress={() => {
+                          setBirthDay(day);
+                          setShowDayPicker(false);
+                        }}
+                      >
+                        <Text style={[styles.pickerItemText, birthDay === day && styles.pickerItemTextActive]}>
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* Color Picker Modal */}
+        <Modal
+          visible={showColorPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowColorPicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowColorPicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Favorite Color</Text>
+                    <TouchableOpacity onPress={() => setShowColorPicker(false)}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={styles.pickerScroll}>
+                    {favoriteColors.map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[styles.pickerItem, favoriteColor === color && styles.pickerItemActive]}
+                        onPress={() => {
+                          setFavoriteColor(color);
+                          setShowColorPicker(false);
+                        }}
+                      >
+                        <Text style={[styles.pickerItemText, favoriteColor === color && styles.pickerItemTextActive]}>
+                          {color}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* Food Type Picker Modal */}
+        <Modal
+          visible={showFoodPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFoodPicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowFoodPicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Favorite Food Type</Text>
+                    <TouchableOpacity onPress={() => setShowFoodPicker(false)}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={styles.pickerScroll}>
+                    {favoriteFoodTypes.map((food) => (
+                      <TouchableOpacity
+                        key={food}
+                        style={[styles.pickerItem, favoriteFoodType === food && styles.pickerItemActive]}
+                        onPress={() => {
+                          setFavoriteFoodType(food);
+                          setShowFoodPicker(false);
+                        }}
+                      >
+                        <Text style={[styles.pickerItemText, favoriteFoodType === food && styles.pickerItemTextActive]}>
+                          {food}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -503,7 +722,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.grey + '30',
   },
   headerTitle: {
     fontSize: 18,
@@ -512,7 +731,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.grey,
   },
   saveButton: {
     fontSize: 16,
@@ -524,6 +743,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   photoContainer: {
     alignSelf: 'center',
@@ -542,13 +762,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.grey + '50',
     borderStyle: 'dashed',
   },
   photoPlaceholderText: {
     marginTop: 8,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.grey,
   },
   section: {
     marginBottom: 20,
@@ -573,7 +793,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.grey + '30',
+  },
+  inputText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  placeholderText: {
+    color: colors.grey,
   },
   textArea: {
     height: 100,
@@ -591,7 +818,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.grey + '30',
   },
   zodiacText: {
     fontSize: 16,
@@ -608,7 +835,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.grey + '30',
   },
   interestButtonText: {
     fontSize: 14,
@@ -616,7 +843,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   interestButtonTextActive: {
-    color: colors.white,
+    color: '#fff',
   },
   relationshipGrid: {
     flexDirection: 'row',
@@ -629,7 +856,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.grey + '30',
   },
   relationshipButtonActive: {
     backgroundColor: colors.primary,
@@ -640,7 +867,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   relationshipButtonTextActive: {
-    color: colors.white,
+    color: '#fff',
     fontWeight: '600',
   },
   flagInputContainer: {
@@ -651,7 +878,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: colors.highlight,
+    backgroundColor: colors.lowInterest,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -671,6 +898,50 @@ const styles = StyleSheet.create({
   },
   flagChipText: {
     fontSize: 14,
-    color: colors.white,
+    color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grey + '30',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  pickerScroll: {
+    maxHeight: 400,
+  },
+  pickerItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grey + '20',
+  },
+  pickerItemActive: {
+    backgroundColor: colors.primary + '20',
+  },
+  pickerItemText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  pickerItemTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

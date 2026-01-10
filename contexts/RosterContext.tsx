@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Alert } from 'react-native';
 import { RosterPerson, DateEvent } from '@/types/roster';
 import { authenticatedGet, authenticatedPost, authenticatedPut, authenticatedDelete, BACKEND_URL } from '@/utils/api';
-import { Alert } from 'react-native';
 
 interface RosterContextType {
   roster: RosterPerson[];
@@ -11,7 +11,7 @@ interface RosterContextType {
   addPerson: (person: RosterPerson) => Promise<void>;
   updatePerson: (person: RosterPerson) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
-  moveToBench: (id: string) => Promise<void>;
+  moveToBench: (id: string, reason: string) => Promise<void>;
   moveToRoster: (id: string) => Promise<void>;
   addDate: (date: DateEvent) => Promise<void>;
   updateDate: (date: DateEvent) => Promise<void>;
@@ -26,28 +26,36 @@ interface RosterContextType {
 
 const RosterContext = createContext<RosterContextType | undefined>(undefined);
 
-// Helper to map backend profile to RosterPerson
+export function useRoster() {
+  const context = useContext(RosterContext);
+  if (!context) {
+    throw new Error('useRoster must be used within a RosterProvider');
+  }
+  return context;
+}
+
+// Helper function to map API profile to RosterPerson
 function mapProfileToRosterPerson(profile: any): RosterPerson {
   return {
     id: profile.id,
     name: profile.name,
     age: profile.age,
-    birthday: {
-      month: profile.birthdayMonth || 1,
-      year: profile.birthdayYear || new Date().getFullYear(),
-    },
-    zodiacSign: profile.zodiacSign || '',
-    favoriteColor: profile.favoriteColor,
-    favoriteFoodType: profile.favoriteFood,
+    birthdayMonth: profile.birthdayMonth,
+    birthdayDay: profile.birthdayDay,
+    zodiacSign: profile.zodiacSign,
+    favoriteColor: profile.favoriteColor || '',
+    favoriteFoodType: profile.favoriteFood || '',
     relationshipType: profile.relationshipType || 'dating',
-    customRelationshipType: undefined,
+    customRelationshipType: profile.customRelationshipType,
     location: profile.location || '',
-    phoneNumber: profile.phoneNumber,
+    phoneNumber: profile.phoneNumber || '',
     instagram: profile.instagram,
     twitter: profile.twitter,
     facebook: profile.facebook,
     snapchat: profile.snapchat,
     notes: profile.notes,
+    interestLevel: profile.interestLevel || 'medium',
+    imageUrl: profile.profileImageUrl,
     redFlags: (profile.redFlags || []).map((flag: any) => ({
       id: flag.id,
       text: flag.flagText,
@@ -58,20 +66,19 @@ function mapProfileToRosterPerson(profile: any): RosterPerson {
       text: flag.flagText,
       type: 'green' as const,
     })),
-    interestLevel: profile.interestLevel || 'medium',
-    photoUri: profile.profileImageUrl,
-    createdAt: profile.createdAt || new Date().toISOString(),
-    updatedAt: profile.updatedAt || new Date().toISOString(),
+    status: profile.status || 'roster',
+    benchReason: profile.benchReason,
   };
 }
 
-// Helper to map RosterPerson to backend profile data
+// Helper function to map RosterPerson to API profile data
 function mapRosterPersonToProfileData(person: RosterPerson) {
   return {
     name: person.name,
     age: person.age,
-    birthdayMonth: person.birthday.month,
-    birthdayYear: person.birthday.year,
+    birthdayMonth: person.birthdayMonth,
+    birthdayDay: person.birthdayDay,
+    birthdayYear: new Date().getFullYear(), // Default to current year if not provided
     zodiacSign: person.zodiacSign,
     favoriteColor: person.favoriteColor,
     favoriteFood: person.favoriteFoodType,
@@ -84,8 +91,9 @@ function mapRosterPersonToProfileData(person: RosterPerson) {
     snapchat: person.snapchat,
     notes: person.notes,
     interestLevel: person.interestLevel,
-    profileImageUrl: person.photoUri,
-    status: 'roster', // Default to roster when creating
+    profileImageUrl: person.imageUrl,
+    status: person.status,
+    benchReason: person.benchReason,
   };
 }
 
@@ -93,49 +101,19 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const [roster, setRoster] = useState<RosterPerson[]>([]);
   const [bench, setBench] = useState<RosterPerson[]>([]);
   const [dates, setDates] = useState<DateEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('[RosterContext] Initializing...');
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      console.log('[RosterContext] Loading data from backend:', BACKEND_URL);
-      
-      // Load profiles and dates in parallel
-      const [profilesData, datesData] = await Promise.all([
-        authenticatedGet<any[]>('/api/roster/profiles'),
-        authenticatedGet<any[]>('/api/dates'),
-      ]);
-
-      console.log('[RosterContext] Loaded profiles:', profilesData?.length || 0);
-      console.log('[RosterContext] Loaded dates:', datesData?.length || 0);
-
-      // Separate profiles into roster and bench based on status
-      const rosterProfiles: RosterPerson[] = [];
-      const benchProfiles: RosterPerson[] = [];
-
-      (profilesData || []).forEach((profile: any) => {
-        const person = mapProfileToRosterPerson(profile);
-        if (profile.status === 'bench') {
-          benchProfiles.push(person);
-        } else {
-          rosterProfiles.push(person);
-        }
-      });
-
-      setRoster(rosterProfiles);
-      setBench(benchProfiles);
-      setDates(datesData || []);
-    } catch (error: any) {
-      console.error('[RosterContext] Error loading data:', error);
-      setError(error.message || 'Failed to load data');
-      // Don't show alert on initial load - user might not be logged in yet
+      await Promise.all([refreshProfiles(), refreshDates()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -143,219 +121,160 @@ export function RosterProvider({ children }: { children: ReactNode }) {
 
   const refreshProfiles = async () => {
     try {
-      console.log('[RosterContext] Refreshing profiles...');
-      const profilesData = await authenticatedGet<any[]>('/api/roster/profiles');
-      
-      const rosterProfiles: RosterPerson[] = [];
-      const benchProfiles: RosterPerson[] = [];
-
-      (profilesData || []).forEach((profile: any) => {
-        const person = mapProfileToRosterPerson(profile);
-        if (profile.status === 'bench') {
-          benchProfiles.push(person);
-        } else {
-          rosterProfiles.push(person);
-        }
-      });
-
-      setRoster(rosterProfiles);
-      setBench(benchProfiles);
-    } catch (error: any) {
-      console.error('[RosterContext] Error refreshing profiles:', error);
-      throw error;
+      console.log('[RosterContext] Fetching profiles...');
+      const response = await authenticatedGet('/api/profiles');
+      console.log('[RosterContext] Profiles fetched:', response);
+      const profiles = response.map(mapProfileToRosterPerson);
+      console.log('[RosterContext] Mapped profiles:', profiles);
+      setRoster(profiles.filter((p: RosterPerson) => p.status === 'roster'));
+      setBench(profiles.filter((p: RosterPerson) => p.status === 'bench'));
+    } catch (err) {
+      console.error('[RosterContext] Failed to refresh profiles:', err);
+      throw err;
     }
   };
 
   const refreshDates = async () => {
     try {
-      console.log('[RosterContext] Refreshing dates...');
-      const datesData = await authenticatedGet<any[]>('/api/dates');
-      setDates(datesData || []);
-    } catch (error: any) {
-      console.error('[RosterContext] Error refreshing dates:', error);
-      throw error;
+      const response = await authenticatedGet('/api/dates');
+      // Map backend date format to frontend format
+      const mappedDates = response.map((date: any) => ({
+        id: date.id,
+        profileId: date.profileId,
+        profileName: date.profileName,
+        date: date.dateTime ? new Date(date.dateTime).toISOString().split('T')[0] : '',
+        time: date.dateTime ? new Date(date.dateTime).toISOString().split('T')[1].substring(0, 5) : '',
+        location: date.location || '',
+        notes: date.notes,
+        status: date.status || 'upcoming',
+        type: date.type || 'casual',
+      }));
+      setDates(mappedDates);
+    } catch (err) {
+      console.error('Failed to refresh dates:', err);
     }
   };
 
   const addPerson = async (person: RosterPerson) => {
     try {
-      console.log('[RosterContext] Adding person:', person.name);
       const profileData = mapRosterPersonToProfileData(person);
-      
-      const createdProfile = await authenticatedPost<any>('/api/roster/profiles', profileData);
-      console.log('[RosterContext] Person added successfully:', createdProfile.id);
-      
-      // Add flags if any
-      if (person.redFlags.length > 0 || person.greenFlags.length > 0) {
-        const flagPromises = [
-          ...person.redFlags.map(flag => 
-            authenticatedPost(`/api/roster/profiles/${createdProfile.id}/flags`, {
-              flagText: flag.text,
-              flagType: 'red',
-            })
-          ),
-          ...person.greenFlags.map(flag => 
-            authenticatedPost(`/api/roster/profiles/${createdProfile.id}/flags`, {
-              flagText: flag.text,
-              flagType: 'green',
-            })
-          ),
-        ];
-        await Promise.all(flagPromises);
-      }
-      
-      // Refresh to get updated data with flags
+      console.log('[RosterContext] Adding person:', profileData);
+      const response = await authenticatedPost('/api/profiles', profileData);
+      console.log('[RosterContext] Person added:', response);
       await refreshProfiles();
-    } catch (error: any) {
-      console.error('[RosterContext] Error adding person:', error);
-      Alert.alert('Error', error.message || 'Failed to add person');
-      throw error;
+    } catch (err) {
+      console.error('[RosterContext] Failed to add person:', err);
+      Alert.alert('Error', 'Failed to add person');
+      throw err;
     }
   };
 
   const updatePerson = async (person: RosterPerson) => {
     try {
-      console.log('[RosterContext] Updating person:', person.id);
       const profileData = mapRosterPersonToProfileData(person);
-      
-      await authenticatedPut(`/api/roster/profiles/${person.id}`, profileData);
-      console.log('[RosterContext] Person updated successfully');
-      
+      await authenticatedPut(`/api/profiles/${person.id}`, profileData);
       await refreshProfiles();
-    } catch (error: any) {
-      console.error('[RosterContext] Error updating person:', error);
-      Alert.alert('Error', error.message || 'Failed to update person');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update person');
+      throw err;
     }
   };
 
   const deletePerson = async (id: string) => {
     try {
-      console.log('[RosterContext] Deleting person:', id);
-      await authenticatedDelete(`/api/roster/profiles/${id}`);
-      console.log('[RosterContext] Person deleted successfully');
-      
-      // Update local state immediately
-      setRoster(roster.filter(p => p.id !== id));
-      setBench(bench.filter(p => p.id !== id));
-    } catch (error: any) {
-      console.error('[RosterContext] Error deleting person:', error);
-      Alert.alert('Error', error.message || 'Failed to delete person');
-      throw error;
+      await authenticatedDelete(`/api/profiles/${id}`);
+      await refreshProfiles();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to delete person');
+      throw err;
     }
   };
 
-  const moveToBench = async (id: string) => {
+  const moveToBench = async (id: string, reason: string) => {
     try {
-      console.log('[RosterContext] Moving to bench:', id);
-      await authenticatedPut(`/api/roster/profiles/${id}`, { status: 'bench' });
-      console.log('[RosterContext] Moved to bench successfully');
-      
+      await authenticatedPut(`/api/profiles/${id}/bench`, { reason });
       await refreshProfiles();
-    } catch (error: any) {
-      console.error('[RosterContext] Error moving to bench:', error);
-      Alert.alert('Error', error.message || 'Failed to move to bench');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to move to bench');
+      throw err;
     }
   };
 
   const moveToRoster = async (id: string) => {
     try {
-      console.log('[RosterContext] Moving to roster:', id);
-      await authenticatedPut(`/api/roster/profiles/${id}`, { status: 'roster' });
-      console.log('[RosterContext] Moved to roster successfully');
-      
+      await authenticatedPut(`/api/profiles/${id}/roster`, {});
       await refreshProfiles();
-    } catch (error: any) {
-      console.error('[RosterContext] Error moving to roster:', error);
-      Alert.alert('Error', error.message || 'Failed to move to roster');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to move to roster');
+      throw err;
     }
   };
 
   const addDate = async (date: DateEvent) => {
     try {
-      console.log('[RosterContext] Adding date:', date);
+      // Map frontend date format to backend format
       const dateData = {
-        profileId: date.personId,
-        dateType: date.status,
-        dateTime: date.date,
+        profileId: date.profileId,
+        status: date.status,
+        type: date.type,
+        dateTime: `${date.date}T${date.time}:00.000Z`,
+        location: date.location,
         notes: date.notes,
       };
-      
       await authenticatedPost('/api/dates', dateData);
-      console.log('[RosterContext] Date added successfully');
-      
       await refreshDates();
-    } catch (error: any) {
-      console.error('[RosterContext] Error adding date:', error);
-      Alert.alert('Error', error.message || 'Failed to add date');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to add date');
+      throw err;
     }
   };
 
   const updateDate = async (date: DateEvent) => {
     try {
-      console.log('[RosterContext] Updating date:', date.id);
+      // Map frontend date format to backend format
       const dateData = {
-        dateType: date.status,
-        dateTime: date.date,
+        profileId: date.profileId,
+        status: date.status,
+        type: date.type,
+        dateTime: `${date.date}T${date.time}:00.000Z`,
+        location: date.location,
         notes: date.notes,
       };
-      
       await authenticatedPut(`/api/dates/${date.id}`, dateData);
-      console.log('[RosterContext] Date updated successfully');
-      
       await refreshDates();
-    } catch (error: any) {
-      console.error('[RosterContext] Error updating date:', error);
-      Alert.alert('Error', error.message || 'Failed to update date');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update date');
+      throw err;
     }
   };
 
   const deleteDate = async (id: string) => {
     try {
-      console.log('[RosterContext] Deleting date:', id);
       await authenticatedDelete(`/api/dates/${id}`);
-      console.log('[RosterContext] Date deleted successfully');
-      
-      setDates(dates.filter(d => d.id !== id));
-    } catch (error: any) {
-      console.error('[RosterContext] Error deleting date:', error);
-      Alert.alert('Error', error.message || 'Failed to delete date');
-      throw error;
+      await refreshDates();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to delete date');
+      throw err;
     }
   };
 
   const addFlag = async (profileId: string, flagText: string, flagType: 'red' | 'green') => {
     try {
-      console.log('[RosterContext] Adding flag:', flagType, 'to profile:', profileId);
-      await authenticatedPost(`/api/roster/profiles/${profileId}/flags`, {
-        flagText,
-        flagType,
-      });
-      console.log('[RosterContext] Flag added successfully');
-      
+      await authenticatedPost(`/api/profiles/${profileId}/flags`, { flagText, type: flagType });
       await refreshProfiles();
-    } catch (error: any) {
-      console.error('[RosterContext] Error adding flag:', error);
-      Alert.alert('Error', error.message || 'Failed to add flag');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to add flag');
+      throw err;
     }
   };
 
   const deleteFlag = async (flagId: string) => {
     try {
-      console.log('[RosterContext] Deleting flag:', flagId);
-      await authenticatedDelete(`/api/roster/flags/${flagId}`);
-      console.log('[RosterContext] Flag deleted successfully');
-      
+      await authenticatedDelete(`/api/flags/${flagId}`);
       await refreshProfiles();
-    } catch (error: any) {
-      console.error('[RosterContext] Error deleting flag:', error);
-      Alert.alert('Error', error.message || 'Failed to delete flag');
-      throw error;
+    } catch (err) {
+      Alert.alert('Error', 'Failed to delete flag');
+      throw err;
     }
   };
 
@@ -384,12 +303,4 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       {children}
     </RosterContext.Provider>
   );
-}
-
-export function useRoster() {
-  const context = useContext(RosterContext);
-  if (!context) {
-    throw new Error('useRoster must be used within RosterProvider');
-  }
-  return context;
 }

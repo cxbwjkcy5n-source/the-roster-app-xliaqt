@@ -7,11 +7,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/contexts/AuthContext';
 
 const styles = StyleSheet.create({
   container: {
@@ -73,16 +75,50 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginTop: 20,
+    marginBottom: 100,
   },
   noteText: {
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
   },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D32F2F',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
 });
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            router.replace('/auth');
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <LinearGradient
@@ -92,7 +128,7 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerSubtitle}>Guest Mode</Text>
+          <Text style={styles.headerSubtitle}>{user?.name || user?.email || 'User'}</Text>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -108,7 +144,7 @@ export default function ProfileScreen() {
                   color={colors.text} 
                 />
                 <Text style={styles.infoLabel}>Name</Text>
-                <Text style={styles.infoValue}>Guest User</Text>
+                <Text style={styles.infoValue}>{user?.name || 'Not set'}</Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -119,7 +155,7 @@ export default function ProfileScreen() {
                   color={colors.text} 
                 />
                 <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>guest@app.com</Text>
+                <Text style={styles.infoValue}>{user?.email || 'Not set'}</Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -135,9 +171,24 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          <View style={styles.section}>
+            <TouchableOpacity 
+              style={styles.signOutButton}
+              onPress={handleSignOut}
+            >
+              <IconSymbol 
+                ios_icon_name="arrow.right.square" 
+                android_material_icon_name="logout" 
+                size={24} 
+                color="#fff" 
+              />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.noteCard}>
             <Text style={styles.noteText}>
-              Authentication has been disabled. You are using the app in guest mode. All features are available without login.
+              Your data is securely stored and synced across all your devices. Sign in with email/password, Google, or Apple.
             </Text>
           </View>
         </ScrollView>

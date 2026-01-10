@@ -1,122 +1,53 @@
+import React, { useEffect, useState } from "react";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { Platform } from "react-native";
 
-/**
- * OAuth Callback Page for Web
- * 
- * This page receives the OAuth callback and extracts the token,
- * then sends it back to the parent window (opener).
- */
+type Status = "processing" | "success" | "error";
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '@/styles/commonStyles';
-import { storeWebBearerToken } from '@/lib/auth';
-
-export default function AuthCallback() {
-  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
-  const [message, setMessage] = useState('Processing authentication...');
+export default function AuthCallbackScreen() {
+  const [status, setStatus] = useState<Status>("processing");
+  const [message, setMessage] = useState("Processing authentication...");
 
   useEffect(() => {
+    if (Platform.OS !== "web") return;
     handleCallback();
   }, []);
 
-  const handleCallback = async () => {
+  const handleCallback = () => {
     try {
-      console.log('[AuthCallback] Processing OAuth callback...');
-      console.log('[AuthCallback] Current URL:', window.location.href);
-      
-      // Extract token from URL hash or query params
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash || window.location.search);
-      
-      // Check for error first
-      const error = params.get('error');
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get("better_auth_token");
+      const error = urlParams.get("error");
+
       if (error) {
-        console.error('[AuthCallback] OAuth error:', error);
-        setStatus('error');
+        setStatus("error");
         setMessage(`Authentication failed: ${error}`);
-        
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'oauth-error',
-            error: error,
-          }, window.location.origin);
-          
-          setTimeout(() => window.close(), 2000);
-        }
+        window.opener?.postMessage({ type: "oauth-error", error }, "*");
         return;
       }
 
-      // Look for token in various possible locations
-      const token = params.get('token') || 
-                   params.get('access_token') || 
-                   params.get('bearer_token');
-
-      console.log('[AuthCallback] Token found:', !!token);
-
       if (token) {
-        // Store token
-        storeWebBearerToken(token);
-        
-        setStatus('success');
-        setMessage('Authentication successful! Closing window...');
-        
-        // Send token to parent window
-        if (window.opener) {
-          console.log('[AuthCallback] Sending token to parent window');
-          window.opener.postMessage({
-            type: 'oauth-success',
-            token: token,
-          }, window.location.origin);
-          
-          // Close popup after a short delay
-          setTimeout(() => {
-            window.close();
-          }, 1000);
-        } else {
-          console.warn('[AuthCallback] No opener window found');
-          setMessage('Authentication successful! Please close this window.');
-        }
+        setStatus("success");
+        setMessage("Authentication successful! Closing...");
+        window.opener?.postMessage({ type: "oauth-success", token }, "*");
+        setTimeout(() => window.close(), 1000);
       } else {
-        console.error('[AuthCallback] No token found in callback URL');
-        setStatus('error');
-        setMessage('No authentication token received');
-        
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'oauth-error',
-            error: 'No token received',
-          }, window.location.origin);
-          
-          setTimeout(() => window.close(), 2000);
-        }
+        setStatus("error");
+        setMessage("No authentication token received");
+        window.opener?.postMessage({ type: "oauth-error", error: "No token" }, "*");
       }
-    } catch (error: any) {
-      console.error('[AuthCallback] Error processing callback:', error);
-      setStatus('error');
-      setMessage(`Error: ${error.message}`);
-      
-      if (window.opener) {
-        window.opener.postMessage({
-          type: 'oauth-error',
-          error: error.message,
-        }, window.location.origin);
-        
-        setTimeout(() => window.close(), 2000);
-      }
+    } catch (err) {
+      setStatus("error");
+      setMessage("Failed to process authentication");
+      console.error("Auth callback error:", err);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={[
-        styles.status,
-        status === 'success' && styles.success,
-        status === 'error' && styles.error,
-      ]}>
-        {status === 'processing' && '⏳'}
-        {status === 'success' && '✅'}
-        {status === 'error' && '❌'}
-      </Text>
+      {status === "processing" && <ActivityIndicator size="large" color="#007AFF" />}
+      {status === "success" && <Text style={styles.successIcon}>✓</Text>}
+      {status === "error" && <Text style={styles.errorIcon}>✗</Text>}
       <Text style={styles.message}>{message}</Text>
     </View>
   );
@@ -125,24 +56,23 @@ export default function AuthCallback() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
+    backgroundColor: "#fff",
   },
-  status: {
+  successIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    color: "#34C759",
+  },
+  errorIcon: {
+    fontSize: 48,
+    color: "#FF3B30",
   },
   message: {
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  success: {
-    color: colors.primary,
-  },
-  error: {
-    color: colors.highlight,
+    fontSize: 18,
+    marginTop: 20,
+    textAlign: "center",
+    color: "#333",
   },
 });

@@ -9,6 +9,10 @@ import {
   Image,
   Alert,
   Linking,
+  Modal,
+  TextInput,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +28,8 @@ export default function PersonDetailScreen() {
   const { roster, bench, deletePerson, moveToBench, moveToRoster } = useRoster();
   const [person, setPerson] = useState<RosterPerson | null>(null);
   const [isOnBench, setIsOnBench] = useState(false);
+  const [showBenchModal, setShowBenchModal] = useState(false);
+  const [benchReason, setBenchReason] = useState('');
 
   useEffect(() => {
     const foundInRoster = roster.find(p => p.id === id);
@@ -48,10 +54,10 @@ export default function PersonDetailScreen() {
 
   const getInterestColor = (level: string) => {
     switch (level) {
-      case 'high': return colors.primary;
-      case 'medium': return colors.accent;
-      case 'low': return colors.highlight;
-      default: return colors.textSecondary;
+      case 'high': return colors.green;
+      case 'medium': return colors.yellow;
+      case 'low': return colors.lowInterest;
+      default: return colors.grey;
     }
   };
 
@@ -70,7 +76,7 @@ export default function PersonDetailScreen() {
   const handleDelete = () => {
     Alert.alert(
       'Delete Person',
-      `Are you sure you want to remove ${person.name} from your roster?`,
+      `Are you sure you want to remove ${person.name} from your roster completely? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -85,15 +91,35 @@ export default function PersonDetailScreen() {
     );
   };
 
-  const handleToggleBench = async () => {
-    if (isOnBench) {
+  const handleMoveToBench = () => {
+    setShowBenchModal(true);
+  };
+
+  const confirmMoveToBench = async () => {
+    if (!benchReason.trim()) {
+      Alert.alert('Required', 'Please provide a reason for moving to bench');
+      return;
+    }
+
+    try {
+      await moveToBench(person.id, benchReason.trim());
+      setShowBenchModal(false);
+      setBenchReason('');
+      Alert.alert('Success', `${person.name} moved to bench`);
+      router.back();
+    } catch (error) {
+      console.error('Error moving to bench:', error);
+    }
+  };
+
+  const handleMoveToRoster = async () => {
+    try {
       await moveToRoster(person.id);
       Alert.alert('Success', `${person.name} moved back to roster`);
-    } else {
-      await moveToBench(person.id);
-      Alert.alert('Success', `${person.name} moved to bench`);
+      router.back();
+    } catch (error) {
+      console.error('Error moving to roster:', error);
     }
-    router.back();
   };
 
   return (
@@ -103,7 +129,7 @@ export default function PersonDetailScreen() {
           headerShown: true,
           title: person.name,
           headerRight: () => (
-            <TouchableOpacity onPress={() => console.log('Edit')}>
+            <TouchableOpacity onPress={() => console.log('Edit - TODO: Navigate to edit screen')}>
               <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
                 Edit
               </Text>
@@ -114,15 +140,15 @@ export default function PersonDetailScreen() {
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           <View style={styles.photoContainer}>
-            {person.photoUri ? (
-              <Image source={{ uri: person.photoUri }} style={styles.photo} />
+            {person.imageUrl ? (
+              <Image source={{ uri: person.imageUrl }} style={styles.photo} />
             ) : (
               <View style={[styles.photo, styles.photoPlaceholder]}>
                 <IconSymbol
                   ios_icon_name="person.fill"
                   android_material_icon_name="person"
                   size={80}
-                  color={colors.textSecondary}
+                  color={colors.grey}
                 />
               </View>
             )}
@@ -150,7 +176,7 @@ export default function PersonDetailScreen() {
                   ios_icon_name="phone.fill"
                   android_material_icon_name="phone"
                   size={24}
-                  color={colors.white}
+                  color="#fff"
                 />
                 <Text style={styles.actionButtonText}>Call</Text>
               </TouchableOpacity>
@@ -159,7 +185,7 @@ export default function PersonDetailScreen() {
                   ios_icon_name="message.fill"
                   android_material_icon_name="message"
                   size={24}
-                  color={colors.white}
+                  color="#fff"
                 />
                 <Text style={styles.actionButtonText}>Message</Text>
               </TouchableOpacity>
@@ -202,7 +228,7 @@ export default function PersonDetailScreen() {
                 <View style={styles.flagsSection}>
                   <Text style={styles.flagsTitle}>🚩 Red Flags</Text>
                   {person.redFlags.map((flag) => (
-                    <View key={flag.id} style={[styles.flagItem, { backgroundColor: colors.highlight }]}>
+                    <View key={flag.id} style={[styles.flagItem, { backgroundColor: colors.lowInterest }]}>
                       <Text style={styles.flagText}>{flag.text}</Text>
                     </View>
                   ))}
@@ -212,7 +238,7 @@ export default function PersonDetailScreen() {
                 <View style={styles.flagsSection}>
                   <Text style={styles.flagsTitle}>✅ Green Flags</Text>
                   {person.greenFlags.map((flag) => (
-                    <View key={flag.id} style={[styles.flagItem, { backgroundColor: colors.primary }]}>
+                    <View key={flag.id} style={[styles.flagItem, { backgroundColor: colors.green }]}>
                       <Text style={styles.flagText}>{flag.text}</Text>
                     </View>
                   ))}
@@ -259,29 +285,83 @@ export default function PersonDetailScreen() {
           )}
 
           <View style={styles.dangerZone}>
-            <TouchableOpacity style={styles.benchButton} onPress={handleToggleBench}>
-              <IconSymbol
-                ios_icon_name={isOnBench ? 'play.fill' : 'pause.fill'}
-                android_material_icon_name={isOnBench ? 'play-arrow' : 'pause'}
-                size={20}
-                color={colors.text}
-              />
-              <Text style={styles.benchButtonText}>
-                {isOnBench ? 'Move to Roster' : 'Move to Bench'}
-              </Text>
-            </TouchableOpacity>
+            {isOnBench ? (
+              <TouchableOpacity style={styles.rosterButton} onPress={handleMoveToRoster}>
+                <IconSymbol
+                  ios_icon_name="play.fill"
+                  android_material_icon_name="play-arrow"
+                  size={20}
+                  color="#fff"
+                />
+                <Text style={styles.rosterButtonText}>Move Back to Roster</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.benchButton} onPress={handleMoveToBench}>
+                <IconSymbol
+                  ios_icon_name="pause.fill"
+                  android_material_icon_name="pause"
+                  size={20}
+                  color={colors.text}
+                />
+                <Text style={styles.benchButtonText}>Move to Bench</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
               <IconSymbol
                 ios_icon_name="trash.fill"
                 android_material_icon_name="delete"
                 size={20}
-                color={colors.white}
+                color="#fff"
               />
-              <Text style={styles.deleteButtonText}>Delete</Text>
+              <Text style={styles.deleteButtonText}>Delete Person</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Move to Bench Modal */}
+        <Modal
+          visible={showBenchModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowBenchModal(false)}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.benchModal}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Move to Bench</Text>
+                    <TouchableOpacity onPress={() => {
+                      setShowBenchModal(false);
+                      setBenchReason('');
+                    }}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.modalContent}>
+                    <Text style={styles.modalText}>
+                      Why are you moving {person.name} to the bench?
+                    </Text>
+                    <TextInput
+                      style={styles.reasonInput}
+                      value={benchReason}
+                      onChangeText={setBenchReason}
+                      placeholder="Enter reason..."
+                      placeholderTextColor={colors.grey}
+                      multiline
+                      numberOfLines={4}
+                      autoFocus
+                    />
+                    <TouchableOpacity style={styles.confirmButton} onPress={confirmMoveToBench}>
+                      <Text style={styles.confirmButtonText}>Confirm</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
       </SafeAreaView>
     </>
   );
@@ -325,7 +405,7 @@ const styles = StyleSheet.create({
   interestBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.white,
+    color: '#fff',
   },
   name: {
     fontSize: 28,
@@ -336,7 +416,7 @@ const styles = StyleSheet.create({
   },
   info: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.grey,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -359,7 +439,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: '#fff',
   },
   section: {
     paddingHorizontal: 20,
@@ -376,11 +456,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.grey + '30',
   },
   detailLabel: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.grey,
   },
   detailValue: {
     fontSize: 16,
@@ -404,7 +484,7 @@ const styles = StyleSheet.create({
   },
   flagText: {
     fontSize: 14,
-    color: colors.white,
+    color: '#fff',
   },
   notesText: {
     fontSize: 16,
@@ -417,7 +497,7 @@ const styles = StyleSheet.create({
   },
   socialLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.grey,
     width: 100,
   },
   socialValue: {
@@ -438,18 +518,32 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.grey + '30',
   },
   benchButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
   },
+  rosterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  rosterButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.highlight,
+    backgroundColor: colors.lowInterest,
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
@@ -457,12 +551,70 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: '#fff',
   },
   errorText: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.grey,
     textAlign: 'center',
     marginTop: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  benchModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grey + '30',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  modalContent: {
+    padding: 20,
+  },
+  modalText: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 16,
+  },
+  reasonInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.grey + '30',
+    height: 100,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  confirmButton: {
+    backgroundColor: '#D32F2F',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

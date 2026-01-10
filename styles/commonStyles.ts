@@ -2,48 +2,30 @@
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
 export const colors = {
-  background: '#FFFFFF',
-  text: '#1A1A1A',
-  textSecondary: '#6B7280',
-  primary: '#10B981',
-  primaryDark: '#059669',
-  secondary: '#34D399',
-  accent: '#F59E0B',
-  card: '#F9FAFB',
-  highlight: '#EF4444',
-  border: '#E5E7EB',
-  white: '#FFFFFF',
-  black: '#1A1A1A',
+  primary: '#1B5E20',    // Darker green
+  secondary: '#2E7D32',  // Medium green
+  accent: '#4CAF50',     // Light green accent
+  background: '#101824',
+  backgroundAlt: '#162133',
+  text: '#e3e3e3',
+  grey: '#90CAF9',
+  card: '#1a2332',
+  red: '#EF5350',        // For bench and red flags
+  yellow: '#FFC107',     // For medium interest
+  green: '#4CAF50',      // For high interest and green flags
+  lowInterest: '#FF5252', // Red for low interest
 };
 
 export const buttonStyles = StyleSheet.create({
-  primary: {
+  instructionsButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'center',
+    width: '100%',
   },
-  primaryText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondary: {
-    backgroundColor: colors.card,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondaryText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
+  backButton: {
+    backgroundColor: colors.backgroundAlt,
+    alignSelf: 'center',
+    width: '100%',
   },
 });
 
@@ -58,6 +40,8 @@ export const commonStyles = StyleSheet.create({
     backgroundColor: colors.background,
     width: '100%',
     height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -92,18 +76,19 @@ export const commonStyles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.grey,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 10,
+    padding: 10,
     marginVertical: 8,
     width: '100%',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     elevation: 2,
   },
   icon: {
     width: 60,
     height: 60,
+    tintColor: "white",
   },
 });

@@ -1,13 +1,14 @@
-
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 
-const API_URL = Constants.expoConfig?.extra?.backendUrl || "";
-const BEARER_TOKEN_KEY = "theroster_bearer_token";
+const API_URL = "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev";
 
+const BEARER_TOKEN_KEY = "roster-app_bearer_token";
+
+// Platform-specific storage: localStorage for web, SecureStore for native
 const storage = Platform.OS === "web"
   ? {
       getItem: (key: string) => localStorage.getItem(key),
@@ -20,11 +21,12 @@ export const authClient = createAuthClient({
   baseURL: API_URL,
   plugins: [
     expoClient({
-      scheme: "theroster",
-      storagePrefix: "theroster",
+      scheme: "roster-app",
+      storagePrefix: "roster-app",
       storage,
     }),
   ],
+  // On web, use bearer token for authenticated requests
   ...(Platform.OS === "web" && {
     fetchOptions: {
       auth: {
@@ -46,3 +48,5 @@ export function clearAuthTokens() {
     localStorage.removeItem(BEARER_TOKEN_KEY);
   }
 }
+
+export { API_URL };
