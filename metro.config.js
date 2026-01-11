@@ -5,12 +5,19 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+// Enable package exports for better module resolution
 config.resolver.unstable_enablePackageExports = true;
 
-// IMPORTANT: Platform-specific extensions order matters!
-// For web builds, web extensions should be checked first
-// For native builds, native extensions should be checked first
+// Platform-specific extensions - web MUST come first for web builds
 config.resolver.sourceExts = [
+  'web.tsx',
+  'web.ts',
+  'web.jsx',
+  'web.js',
+  'tsx',
+  'ts',
+  'jsx',
+  'js',
   'native.tsx',
   'native.ts',
   'native.jsx',
@@ -23,20 +30,12 @@ config.resolver.sourceExts = [
   'android.ts',
   'android.jsx',
   'android.js',
-  'web.tsx',
-  'web.ts',
-  'web.jsx',
-  'web.js',
-  'tsx',
-  'ts',
-  'jsx',
-  'js',
   'json',
   'cjs',
   'mjs',
 ];
 
-// Ensure proper asset handling for web
+// Asset extensions
 config.resolver.assetExts = [
   ...config.resolver.assetExts.filter(ext => ext !== 'svg'),
   'png',
@@ -46,10 +45,10 @@ config.resolver.assetExts = [
   'webp',
 ];
 
-// Add platform-specific extensions
-config.resolver.platforms = ['ios', 'android', 'native', 'web'];
+// Platform order - web first
+config.resolver.platforms = ['web', 'ios', 'android', 'native'];
 
-// Fix for nanoid/non-secure module resolution issue and web-specific module handling
+// Custom resolver to handle web-specific module resolution and block native-only modules
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Fix nanoid/non-secure module resolution
   if (moduleName === 'nanoid/non-secure') {
@@ -59,25 +58,78 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
   
-  // Prevent native-only expo-router modules from being loaded on web
-  if (platform === 'web' && moduleName === 'expo-router/unstable-native-tabs') {
-    // Return a dummy module that won't be used since we have _layout.web.tsx
-    return {
-      filePath: path.resolve(__dirname, 'node_modules/expo-router/build/index.js'),
-      type: 'sourceFile',
-    };
+  // For web platform, intercept and redirect native-only modules
+  if (platform === 'web') {
+    // Block expo-router native tabs
+    if (moduleName === 'expo-router/unstable-native-tabs') {
+      return {
+        filePath: path.resolve(__dirname, 'node_modules/expo-router/build/index.js'),
+        type: 'sourceFile',
+      };
+    }
+
+    // Block react-native-gesture-handler - return empty module
+    if (moduleName === 'react-native-gesture-handler') {
+      return {
+        filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
+        type: 'sourceFile',
+      };
+    }
+
+    // Block @react-native-community/datetimepicker
+    if (moduleName === '@react-native-community/datetimepicker') {
+      return {
+        filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
+        type: 'sourceFile',
+      };
+    }
+
+    // Block React Native internal/private modules
+    if (
+      moduleName.startsWith('react-native/Libraries/ReactPrivate') ||
+      moduleName.startsWith('react-native/Libraries/Utilities/codegenNativeComponent') ||
+      moduleName.startsWith('react-native/Libraries/Core/InitializeCore') ||
+      moduleName.startsWith('react-native/src/private/setup') ||
+      moduleName.includes('ReactNativePrivateInitializeCore')
+    ) {
+      // Return react-native-web instead
+      return {
+        filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
+        type: 'sourceFile',
+      };
+    }
+
+    // Block @expo/metro-runtime native-specific files
+    if (
+      moduleName.includes('@expo/metro-runtime/src/location/install.native') ||
+      moduleName.includes('@expo/metro-runtime') && moduleName.includes('.native')
+    ) {
+      // Return a minimal module
+      return {
+        filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
+        type: 'sourceFile',
+      };
+    }
+
+    // Block any .native.ts/.native.js files when on web
+    if (moduleName.includes('.native.')) {
+      return {
+        filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
+        type: 'sourceFile',
+      };
+    }
   }
   
-  // Default resolver
+  // Use default resolver for everything else
   return context.resolveRequest(context, moduleName, platform);
 };
 
-// Use turborepo to restore the cache when possible
+// Cache configuration
 config.cacheStores = [
   new FileStore({ root: path.join(__dirname, 'node_modules', '.cache', 'metro') }),
 ];
 
-// Transformer configuration for web
+// Transformer configuration
 config.transformer = {
   ...config.transformer,
   getTransformOptions: async () => ({
@@ -86,6 +138,19 @@ config.transformer = {
       inlineRequires: true,
     },
   }),
+};
+
+// Additional web-specific configuration
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware) => {
+    return (req, res, next) => {
+      // Add headers for better web compatibility
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      return middleware(req, res, next);
+    };
+  },
 };
 
 module.exports = config;
