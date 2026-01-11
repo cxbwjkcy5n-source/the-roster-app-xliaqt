@@ -13,6 +13,7 @@ import {
   Keyboard,
   ScrollView,
   Alert,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,10 +22,6 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
-import DraggableFlatList, {
-  ScaleDecorator,
-  RenderItemParams,
-} from 'react-native-draggable-flatlist';
 
 const { width } = Dimensions.get('window');
 
@@ -58,51 +55,39 @@ export default function RosterScreen() {
     }
   };
 
-  const handleDragEnd = async ({ data }: { data: RosterPerson[] }) => {
-    setLocalRoster(data);
-    try {
-      await reorderRoster(data);
-    } catch (error) {
-      console.error('[Roster] Error reordering:', error);
-    }
-  };
-
-  const renderPersonCard = ({ item, drag, isActive }: RenderItemParams<RosterPerson>) => (
-    <ScaleDecorator>
-      <TouchableOpacity
-        onPress={() => router.push(`/person/${item.id}`)}
-        onLongPress={drag}
-        disabled={isActive}
-        style={[styles.personCard, isActive && styles.personCardActive]}
-      >
-        <View style={styles.cardImageContainer}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-          ) : (
-            <View style={[styles.cardImage, styles.placeholderImage]}>
-              <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={40} color={colors.grey} />
-            </View>
-          )}
-          <View style={[styles.interestBadge, { backgroundColor: getInterestColor(item.interestLevel) }]} />
-          <View style={styles.cardOverlay}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardInfo}>{item.age} • {item.location}</Text>
-            <View style={styles.flagsContainer}>
-              {item.redFlags.length > 0 && (
-                <View style={styles.flagBadge}>
-                  <Text style={styles.flagText}>🚩 {item.redFlags.length}</Text>
-                </View>
-              )}
-              {item.greenFlags.length > 0 && (
-                <View style={styles.flagBadge}>
-                  <Text style={styles.flagText}>✅ {item.greenFlags.length}</Text>
-                </View>
-              )}
-            </View>
+  const renderPersonCard = ({ item, index }: { item: RosterPerson; index: number }) => (
+    <TouchableOpacity
+      key={item.id}
+      onPress={() => router.push(`/person/${item.id}`)}
+      style={styles.personCard}
+    >
+      <View style={styles.cardImageContainer}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+        ) : (
+          <View style={[styles.cardImage, styles.placeholderImage]}>
+            <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={40} color={colors.grey} />
+          </View>
+        )}
+        <View style={[styles.interestBadge, { backgroundColor: getInterestColor(item.interestLevel) }]} />
+        <View style={styles.cardOverlay}>
+          <Text style={styles.cardName}>{item.name}</Text>
+          <Text style={styles.cardInfo}>{item.age} • {item.location}</Text>
+          <View style={styles.flagsContainer}>
+            {item.redFlags.length > 0 && (
+              <View style={styles.flagBadge}>
+                <Text style={styles.flagText}>🚩 {item.redFlags.length}</Text>
+              </View>
+            )}
+            {item.greenFlags.length > 0 && (
+              <View style={styles.flagBadge}>
+                <Text style={styles.flagText}>✅ {item.greenFlags.length}</Text>
+              </View>
+            )}
           </View>
         </View>
-      </TouchableOpacity>
-    </ScaleDecorator>
+      </View>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
@@ -166,11 +151,10 @@ export default function RosterScreen() {
           {renderEmptyState()}
         </View>
       ) : (
-        <DraggableFlatList
+        <FlatList
           data={localRoster}
           renderItem={renderPersonCard}
           keyExtractor={(item) => item.id}
-          onDragEnd={handleDragEnd}
           numColumns={2}
           contentContainerStyle={styles.listContent}
         />
@@ -227,8 +211,8 @@ export default function RosterScreen() {
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.datesContent}>
-                  {(datesTab === 'upcoming' ? upcomingDates : completedDates).map(date => (
-                    <View key={date.id} style={styles.dateItem}>
+                  {(datesTab === 'upcoming' ? upcomingDates : completedDates).map((date, index) => (
+                    <View key={date.id || index} style={styles.dateItem}>
                       <Text style={styles.dateTitle}>{date.profileName}</Text>
                       <Text style={styles.dateDetails}>{date.date} at {date.time}</Text>
                       <Text style={styles.dateLocation}>{date.location}</Text>
@@ -363,9 +347,9 @@ export default function RosterScreen() {
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.nudgesContent}>
-                  {nudges.map((nudge) => (
+                  {nudges.map((nudge, index) => (
                     <TouchableOpacity
-                      key={nudge.id}
+                      key={nudge.id || index}
                       style={styles.nudgeItem}
                       onPress={() => {
                         setShowNudgesModal(false);
@@ -473,10 +457,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.card,
-  },
-  personCardActive: {
-    opacity: 0.8,
-    transform: [{ scale: 1.05 }],
   },
   cardImageContainer: {
     position: 'relative',
