@@ -1,5 +1,4 @@
 
-import "react-native-reanimated";
 import "react-native-url-polyfill/auto";
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
@@ -92,6 +91,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="person/add" />
                 <Stack.Screen name="person/[id]" />
+                <Stack.Screen name="privacy-policy" />
               </Stack>
               {Platform.OS !== 'web' && <SystemBars style="auto" />}
             </GestureHandlerRootView>

@@ -7,17 +7,12 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@react-navigation/native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  interpolate,
-} from 'react-native-reanimated';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
 
@@ -48,7 +43,7 @@ export default function FloatingTabBar({
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
-  const animatedValue = useSharedValue(0);
+  const animatedValue = React.useRef(new Animated.Value(0)).current;
 
   const activeTabIndex = React.useMemo(() => {
     let bestMatch = -1;
@@ -75,11 +70,13 @@ export default function FloatingTabBar({
 
   React.useEffect(() => {
     if (activeTabIndex >= 0) {
-      animatedValue.value = withSpring(activeTabIndex, {
+      Animated.spring(animatedValue, {
+        toValue: activeTabIndex,
+        useNativeDriver: true,
         damping: 20,
         stiffness: 120,
         mass: 1,
-      });
+      }).start();
     }
   }, [activeTabIndex, animatedValue]);
 
@@ -100,20 +97,11 @@ export default function FloatingTabBar({
   };
 
   const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
+  const tabWidth = (containerWidth - 8) / tabs.length;
 
-  const indicatorStyle = useAnimatedStyle(() => {
-    const tabWidth = (containerWidth - 8) / tabs.length;
-    return {
-      transform: [
-        {
-          translateX: interpolate(
-            animatedValue.value,
-            [0, tabs.length - 1],
-            [0, tabWidth * (tabs.length - 1)]
-          ),
-        },
-      ],
-    };
+  const indicatorTranslateX = animatedValue.interpolate({
+    inputRange: [0, tabs.length - 1],
+    outputRange: [0, tabWidth * (tabs.length - 1)],
   });
 
   const dynamicStyles = {
@@ -184,7 +172,14 @@ export default function FloatingTabBar({
           style={[dynamicStyles.blurContainer, { borderRadius }]}
         >
           <View style={dynamicStyles.background} />
-          <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
+          <Animated.View 
+            style={[
+              dynamicStyles.indicator, 
+              {
+                transform: [{ translateX: indicatorTranslateX }]
+              }
+            ]} 
+          />
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
