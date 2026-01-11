@@ -15,6 +15,9 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       location: string;
       locationAddress?: string;
       coordinates?: { latitude: number; longitude: number };
+      notes?: string;
+      profilePhotoUrl?: string;
+      rosterProfileId?: string;
       emergencyContacts?: Array<{ contactName: string; phoneNumber: string }>;
     };
   }>(
@@ -38,6 +41,9 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
                 longitude: { type: 'number' },
               },
             },
+            notes: { type: 'string' },
+            profilePhotoUrl: { type: 'string' },
+            rosterProfileId: { type: 'string' },
             emergencyContacts: {
               type: 'array',
               items: {
@@ -67,6 +73,9 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
         location: string;
         locationAddress?: string;
         coordinates?: { latitude: number; longitude: number };
+        notes?: string;
+        profilePhotoUrl?: string;
+        rosterProfileId?: string;
         emergencyContacts?: Array<{ contactName: string; phoneNumber: string }>;
       };
 
@@ -84,6 +93,17 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
         }
       }
 
+      // Auto-fetch profile photo if rosterProfileId provided
+      let profilePhotoUrl = body.profilePhotoUrl;
+      if (body.rosterProfileId) {
+        const rosterProfile = await app.db.query.rosterProfiles.findFirst({
+          where: eq(schema.rosterProfiles.id, body.rosterProfileId),
+        });
+        if (rosterProfile?.profileImageUrl) {
+          profilePhotoUrl = rosterProfile.profileImageUrl;
+        }
+      }
+
       const [safetyDate] = await app.db
         .insert(schema.safetyDates)
         .values({
@@ -94,6 +114,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
           location: body.location,
           locationAddress: body.locationAddress,
           coordinates: body.coordinates,
+          notes: body.notes,
+          profilePhotoUrl: profilePhotoUrl,
           startTime: new Date(),
         })
         .returning();
@@ -443,7 +465,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       }
 
       // Prevent updating status through this endpoint
-      const allowedFields = ['profileName', 'dateWithName', 'dateWithDescription', 'location', 'locationAddress', 'coordinates'];
+      const allowedFields = ['profileName', 'dateWithName', 'dateWithDescription', 'location', 'locationAddress', 'coordinates', 'notes', 'profilePhotoUrl'];
       const updateData: Record<string, any> = { updatedAt: new Date() };
 
       for (const field of allowedFields) {

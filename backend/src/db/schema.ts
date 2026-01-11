@@ -94,6 +94,8 @@ export const safetyDates = pgTable('safety_dates', {
   location: text('location').notNull(),
   locationAddress: text('location_address'),
   coordinates: jsonb('coordinates').$type<{ latitude: number; longitude: number }>(),
+  notes: text('notes'),
+  profilePhotoUrl: text('profile_photo_url'),
   status: text('status', { enum: ['active', 'completed', 'emergency'] }).default('active').notNull(),
   startTime: timestamp('start_time').notNull(),
   endTime: timestamp('end_time'),
