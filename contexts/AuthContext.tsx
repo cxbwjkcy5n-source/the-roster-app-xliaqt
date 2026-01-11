@@ -30,7 +30,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const BEARER_TOKEN_KEY = "roster-app_bearer_token";
 
-function openOAuthPopup(provider: string) {
+// Only define this function on web platform
+function openOAuthPopup(provider: string): Promise<void> {
+  if (Platform.OS !== 'web') {
+    return Promise.reject(new Error('OAuth popup is only available on web'));
+  }
+
+  // Type guard to ensure we're on web
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Window object not available'));
+  }
+
   const width = 500;
   const height = 600;
   const left = window.screenX + (window.outerWidth - width) / 2;
@@ -50,17 +60,21 @@ function openOAuthPopup(provider: string) {
       }
     }, 1000);
 
-    window.addEventListener('message', (event) => {
+    const messageHandler = (event: MessageEvent) => {
       if (event.data.type === 'auth-success') {
         clearInterval(checkPopup);
         if (popup) popup.close();
+        window.removeEventListener('message', messageHandler);
         resolve();
       } else if (event.data.type === 'auth-error') {
         clearInterval(checkPopup);
         if (popup) popup.close();
+        window.removeEventListener('message', messageHandler);
         reject(new Error(event.data.error));
       }
-    });
+    };
+
+    window.addEventListener('message', messageHandler);
   });
 }
 
