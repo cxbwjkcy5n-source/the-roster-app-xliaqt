@@ -30,54 +30,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const BEARER_TOKEN_KEY = "roster-app_bearer_token";
 
-// Only define this function on web platform
-function openOAuthPopup(provider: string): Promise<void> {
-  if (Platform.OS !== 'web') {
-    return Promise.reject(new Error('OAuth popup is only available on web'));
-  }
-
-  // Type guard to ensure we're on web
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('Window object not available'));
-  }
-
-  const width = 500;
-  const height = 600;
-  const left = window.screenX + (window.outerWidth - width) / 2;
-  const top = window.screenY + (window.outerHeight - height) / 2;
-  
-  const popup = window.open(
-    `/auth-popup?provider=${provider}`,
-    `${provider}-auth`,
-    `width=${width},height=${height},left=${left},top=${top}`
-  );
-  
-  return new Promise<void>((resolve, reject) => {
-    const checkPopup = setInterval(() => {
-      if (!popup || popup.closed) {
-        clearInterval(checkPopup);
-        reject(new Error('Popup closed'));
-      }
-    }, 1000);
-
-    const messageHandler = (event: MessageEvent) => {
-      if (event.data.type === 'auth-success') {
-        clearInterval(checkPopup);
-        if (popup) popup.close();
-        window.removeEventListener('message', messageHandler);
-        resolve();
-      } else if (event.data.type === 'auth-error') {
-        clearInterval(checkPopup);
-        if (popup) popup.close();
-        window.removeEventListener('message', messageHandler);
-        reject(new Error(event.data.error));
-      }
-    };
-
-    window.addEventListener('message', messageHandler);
-  });
-}
-
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
@@ -393,10 +345,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing in with Google...');
       if (Platform.OS === 'web') {
-        await openOAuthPopup('google');
+        // Web OAuth flow using popup
+        const width = 500;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          `/auth-popup?provider=google`,
+          `google-auth`,
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+        
+        await new Promise<void>((resolve, reject) => {
+          const checkPopup = setInterval(() => {
+            if (!popup || popup.closed) {
+              clearInterval(checkPopup);
+              reject(new Error('Popup closed'));
+            }
+          }, 1000);
+
+          const messageHandler = (event: MessageEvent) => {
+            if (event.data.type === 'auth-success') {
+              clearInterval(checkPopup);
+              if (popup) popup.close();
+              window.removeEventListener('message', messageHandler);
+              resolve();
+            } else if (event.data.type === 'auth-error') {
+              clearInterval(checkPopup);
+              if (popup) popup.close();
+              window.removeEventListener('message', messageHandler);
+              reject(new Error(event.data.error));
+            }
+          };
+
+          window.addEventListener('message', messageHandler);
+        });
+        
         await fetchUser();
         router.replace('/(tabs)/(home)/');
       } else {
+        // Native OAuth flow
         await authClient.signIn.social({
           provider: 'google',
         });
@@ -414,10 +403,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing in with Apple...');
       if (Platform.OS === 'web') {
-        await openOAuthPopup('apple');
+        // Web OAuth flow using popup
+        const width = 500;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          `/auth-popup?provider=apple`,
+          `apple-auth`,
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+        
+        await new Promise<void>((resolve, reject) => {
+          const checkPopup = setInterval(() => {
+            if (!popup || popup.closed) {
+              clearInterval(checkPopup);
+              reject(new Error('Popup closed'));
+            }
+          }, 1000);
+
+          const messageHandler = (event: MessageEvent) => {
+            if (event.data.type === 'auth-success') {
+              clearInterval(checkPopup);
+              if (popup) popup.close();
+              window.removeEventListener('message', messageHandler);
+              resolve();
+            } else if (event.data.type === 'auth-error') {
+              clearInterval(checkPopup);
+              if (popup) popup.close();
+              window.removeEventListener('message', messageHandler);
+              reject(new Error(event.data.error));
+            }
+          };
+
+          window.addEventListener('message', messageHandler);
+        });
+        
         await fetchUser();
         router.replace('/(tabs)/(home)/');
       } else {
+        // Native OAuth flow
         await authClient.signIn.social({
           provider: 'apple',
         });
@@ -435,10 +461,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing in with GitHub...');
       if (Platform.OS === 'web') {
-        await openOAuthPopup('github');
+        // Web OAuth flow using popup
+        const width = 500;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          `/auth-popup?provider=github`,
+          `github-auth`,
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+        
+        await new Promise<void>((resolve, reject) => {
+          const checkPopup = setInterval(() => {
+            if (!popup || popup.closed) {
+              clearInterval(checkPopup);
+              reject(new Error('Popup closed'));
+            }
+          }, 1000);
+
+          const messageHandler = (event: MessageEvent) => {
+            if (event.data.type === 'auth-success') {
+              clearInterval(checkPopup);
+              if (popup) popup.close();
+              window.removeEventListener('message', messageHandler);
+              resolve();
+            } else if (event.data.type === 'auth-error') {
+              clearInterval(checkPopup);
+              if (popup) popup.close();
+              window.removeEventListener('message', messageHandler);
+              reject(new Error(event.data.error));
+            }
+          };
+
+          window.addEventListener('message', messageHandler);
+        });
+        
         await fetchUser();
         router.replace('/(tabs)/(home)/');
       } else {
+        // Native OAuth flow
         await authClient.signIn.social({
           provider: 'github',
         });
