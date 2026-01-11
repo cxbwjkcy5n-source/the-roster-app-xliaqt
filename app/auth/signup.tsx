@@ -20,26 +20,15 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { signUpWithEmail } = useAuth();
+  const { signUpWithEmail, signInWithGoogle, signInWithApple } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
       return;
     }
 
@@ -47,12 +36,39 @@ export default function SignupScreen() {
     try {
       console.log('[Signup] Attempting email signup...');
       await signUpWithEmail(email, password, name);
-      console.log('[Signup] Signup successful, redirecting to home...');
-      // AuthContext handles redirect to /(tabs)/(home)/
+      console.log('[Signup] Signup successful');
+      // AuthContext handles navigation
     } catch (error: any) {
       console.error('[Signup] Signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Could not create account');
-    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    try {
+      console.log('[Signup] Attempting Google signup...');
+      await signInWithGoogle();
+      console.log('[Signup] Google signup successful');
+      // AuthContext handles navigation
+    } catch (error: any) {
+      console.error('[Signup] Google signup error:', error);
+      Alert.alert('Signup Failed', error.message || 'Could not sign up with Google');
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignup = async () => {
+    setLoading(true);
+    try {
+      console.log('[Signup] Attempting Apple signup...');
+      await signInWithApple();
+      console.log('[Signup] Apple signup successful');
+      // AuthContext handles navigation
+    } catch (error: any) {
+      console.error('[Signup] Apple signup error:', error);
+      Alert.alert('Signup Failed', error.message || 'Could not sign up with Apple');
       setLoading(false);
     }
   };
@@ -85,10 +101,12 @@ export default function SignupScreen() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Name"
+              placeholder="Name (optional)"
               placeholderTextColor={colors.textSecondary}
               value={name}
               onChangeText={setName}
+              autoCapitalize="words"
+              editable={!loading}
             />
           </View>
 
@@ -107,6 +125,7 @@ export default function SignupScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              editable={!loading}
             />
           </View>
 
@@ -124,35 +143,58 @@ export default function SignupScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <IconSymbol
-              ios_icon_name="lock.fill"
-              android_material_icon_name="lock"
-              size={20}
-              color={colors.textSecondary}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor={colors.textSecondary}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
+              editable={!loading}
             />
           </View>
 
           <LoadingButton
-            title="Create Account"
+            title="Sign Up"
             onPress={handleSignup}
             loading={loading}
             style={styles.signupButton}
             textStyle={styles.signupButtonText}
           />
 
-          <TouchableOpacity onPress={() => router.back()}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity 
+            style={styles.socialButton} 
+            onPress={handleGoogleSignup}
+            disabled={loading}
+          >
+            <IconSymbol
+              ios_icon_name="g.circle.fill"
+              android_material_icon_name="account-circle"
+              size={24}
+              color={colors.text}
+            />
+            <Text style={styles.socialButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity 
+              style={styles.socialButton} 
+              onPress={handleAppleSignup}
+              disabled={loading}
+            >
+              <IconSymbol
+                ios_icon_name="apple.logo"
+                android_material_icon_name="account-circle"
+                size={24}
+                color={colors.text}
+              />
+              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity 
+            onPress={() => router.push('/auth/login')}
+            disabled={loading}
+          >
             <Text style={styles.loginText}>
               Already have an account? <Text style={styles.loginLink}>Login</Text>
             </Text>
@@ -227,6 +269,38 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  socialButtonText: {
+    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
   loginText: {
     textAlign: 'center',

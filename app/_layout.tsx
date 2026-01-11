@@ -20,10 +20,6 @@ import { RosterProvider } from "@/contexts/RosterContext";
 
 SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  initialRouteName: "auth/login",
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
@@ -88,8 +84,12 @@ export default function RootLayout() {
           <RosterProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="auth" />
                 <Stack.Screen name="auth/login" />
                 <Stack.Screen name="auth/signup" />
+                <Stack.Screen name="auth-callback" />
+                <Stack.Screen name="auth-popup" />
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="person/add" />
                 <Stack.Screen name="person/[id]" />

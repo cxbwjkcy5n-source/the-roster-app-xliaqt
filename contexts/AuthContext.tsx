@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
 import { authClient, storeWebBearerToken } from "@/lib/auth";
-import { useRouter } from "expo-router";
+import { useRouter, useSegments } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
 interface User {
@@ -73,10 +73,29 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     fetchUser();
   }, []);
+
+  // Protected route navigation
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    if (!user && !inAuthGroup) {
+      // Redirect to login if not authenticated and not in auth screens
+      console.log('[AuthContext] Not authenticated, redirecting to login');
+      router.replace('/auth/login');
+    } else if (user && inAuthGroup) {
+      // Redirect to home if authenticated and in auth screens
+      console.log('[AuthContext] Authenticated, redirecting to home');
+      router.replace('/(tabs)/(home)/');
+    }
+  }, [user, loading, segments]);
 
   const fetchUser = async () => {
     try {
@@ -125,46 +144,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Sign in result:', result);
       
       // Store bearer token
-      if (result.data?.token) {
+      if (result.data?.session?.token) {
         console.log('[AuthContext] Storing bearer token from sign in');
         if (Platform.OS === 'web') {
-          localStorage.setItem(BEARER_TOKEN_KEY, result.data.token);
+          localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
         } else {
-          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.token);
+          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
         }
       }
       
       await fetchUser();
-      console.log('[AuthContext] Sign in successful');
+      console.log('[AuthContext] Sign in successful, navigating to home');
+      router.replace('/(tabs)/(home)/');
     } catch (error) {
       console.error('[AuthContext] Sign in error:', error);
       throw error;
     }
   };
 
-  const signUpWithEmail = async (email: string, password: string) => {
+  const signUpWithEmail = async (email: string, password: string, name?: string) => {
     try {
       console.log('[AuthContext] Signing up with email:', email);
       const result = await authClient.signUp.email({
         email,
         password,
-        name: email.split('@')[0],
+        name: name || email.split('@')[0],
       });
       
       console.log('[AuthContext] Sign up result:', result);
       
       // Store bearer token
-      if (result.data?.token) {
+      if (result.data?.session?.token) {
         console.log('[AuthContext] Storing bearer token from sign up');
         if (Platform.OS === 'web') {
-          localStorage.setItem(BEARER_TOKEN_KEY, result.data.token);
+          localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
         } else {
-          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.token);
+          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
         }
       }
       
       await fetchUser();
-      console.log('[AuthContext] Sign up successful');
+      console.log('[AuthContext] Sign up successful, navigating to home');
+      router.replace('/(tabs)/(home)/');
     } catch (error) {
       console.error('[AuthContext] Sign up error:', error);
       throw error;
@@ -177,11 +198,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('google');
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'google',
         });
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] Google sign in successful');
     } catch (error) {
@@ -196,11 +219,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('apple');
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'apple',
         });
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] Apple sign in successful');
     } catch (error) {
@@ -215,11 +240,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('github');
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'github',
         });
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] GitHub sign in successful');
     } catch (error) {
@@ -241,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       setUser(null);
+      router.replace('/auth/login');
       console.log('[AuthContext] Sign out successful');
     } catch (error) {
       console.error('[AuthContext] Sign out error:', error);

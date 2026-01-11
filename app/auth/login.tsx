@@ -35,37 +35,40 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting email login...');
       await signInWithEmail(email, password);
-      console.log('[Login] Login successful, redirecting to home...');
-      // AuthContext handles redirect to /(tabs)/(home)/
+      console.log('[Login] Login successful');
+      // AuthContext handles navigation
     } catch (error: any) {
       console.error('[Login] Login error:', error);
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
-    } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
       console.log('[Login] Attempting Google login...');
       await signInWithGoogle();
-      console.log('[Login] Google login successful, redirecting to home...');
-      // AuthContext handles redirect to /(tabs)/(home)/
+      console.log('[Login] Google login successful');
+      // AuthContext handles navigation
     } catch (error: any) {
       console.error('[Login] Google login error:', error);
       Alert.alert('Login Failed', error.message || 'Could not sign in with Google');
+      setLoading(false);
     }
   };
 
   const handleAppleLogin = async () => {
+    setLoading(true);
     try {
       console.log('[Login] Attempting Apple login...');
       await signInWithApple();
-      console.log('[Login] Apple login successful, redirecting to home...');
-      // AuthContext handles redirect to /(tabs)/(home)/
+      console.log('[Login] Apple login successful');
+      // AuthContext handles navigation
     } catch (error: any) {
       console.error('[Login] Apple login error:', error);
       Alert.alert('Login Failed', error.message || 'Could not sign in with Apple');
+      setLoading(false);
     }
   };
 
@@ -103,6 +106,7 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              editable={!loading}
             />
           </View>
 
@@ -120,6 +124,7 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              editable={!loading}
             />
           </View>
 
@@ -137,7 +142,11 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin}>
+          <TouchableOpacity 
+            style={styles.socialButton} 
+            onPress={handleGoogleLogin}
+            disabled={loading}
+          >
             <IconSymbol
               ios_icon_name="g.circle.fill"
               android_material_icon_name="account-circle"
@@ -147,17 +156,26 @@ export default function LoginScreen() {
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
-            <IconSymbol
-              ios_icon_name="apple.logo"
-              android_material_icon_name="account-circle"
-              size={24}
-              color={colors.text}
-            />
-            <Text style={styles.socialButtonText}>Continue with Apple</Text>
-          </TouchableOpacity>
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity 
+              style={styles.socialButton} 
+              onPress={handleAppleLogin}
+              disabled={loading}
+            >
+              <IconSymbol
+                ios_icon_name="apple.logo"
+                android_material_icon_name="account-circle"
+                size={24}
+                color={colors.text}
+              />
+              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+          <TouchableOpacity 
+            onPress={() => router.push('/auth/signup')}
+            disabled={loading}
+          >
             <Text style={styles.signupText}>
               Don&apos;t have an account? <Text style={styles.signupLink}>Sign Up</Text>
             </Text>
