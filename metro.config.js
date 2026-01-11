@@ -35,9 +35,9 @@ config.resolver.sourceExts = [
   'mjs',
 ];
 
-// Asset extensions
+// Asset extensions - DO NOT include 'css' here as it causes resolution issues
 config.resolver.assetExts = [
-  ...config.resolver.assetExts.filter(ext => ext !== 'svg'),
+  ...config.resolver.assetExts.filter(ext => ext !== 'svg' && ext !== 'css'),
   'png',
   'jpg',
   'jpeg',
@@ -58,18 +58,37 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
   
+  // Block ALL CSS module imports - they're not supported in React Native
+  if (moduleName.endsWith('.css') || moduleName.endsWith('.module.css') || moduleName.includes('.css')) {
+    console.log(`[Metro] Blocking CSS import: ${moduleName}`);
+    // Return an empty module
+    return {
+      filePath: path.resolve(__dirname, 'node_modules/react/index.js'),
+      type: 'sourceFile',
+    };
+  }
+  
   // For web platform, intercept and redirect native-only modules
   if (platform === 'web') {
-    // Block expo-router native tabs
-    if (moduleName === 'expo-router/unstable-native-tabs') {
+    // Block ALL expo-router native tabs related imports
+    if (
+      moduleName === 'expo-router/unstable-native-tabs' ||
+      moduleName.includes('expo-router/build/native-tabs') ||
+      moduleName.includes('expo-router/assets/native-tabs') ||
+      moduleName.includes('NativeBottomTabs') ||
+      moduleName.includes('NativeTabsView')
+    ) {
+      console.log(`[Metro] Blocking native tabs module on web: ${moduleName}`);
+      // Return a minimal empty module that exports nothing
       return {
-        filePath: path.resolve(__dirname, 'node_modules/expo-router/build/index.js'),
+        filePath: path.resolve(__dirname, 'node_modules/react/index.js'),
         type: 'sourceFile',
       };
     }
 
     // Block react-native-gesture-handler - return empty module
     if (moduleName === 'react-native-gesture-handler') {
+      console.log(`[Metro] Blocking gesture handler on web: ${moduleName}`);
       return {
         filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
         type: 'sourceFile',
@@ -78,6 +97,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
     // Block @react-native-community/datetimepicker
     if (moduleName === '@react-native-community/datetimepicker') {
+      console.log(`[Metro] Blocking datetimepicker on web: ${moduleName}`);
       return {
         filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
         type: 'sourceFile',
@@ -92,6 +112,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       moduleName.startsWith('react-native/src/private/setup') ||
       moduleName.includes('ReactNativePrivateInitializeCore')
     ) {
+      console.log(`[Metro] Blocking React Native internal module on web: ${moduleName}`);
       // Return react-native-web instead
       return {
         filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
@@ -102,8 +123,9 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     // Block @expo/metro-runtime native-specific files
     if (
       moduleName.includes('@expo/metro-runtime/src/location/install.native') ||
-      moduleName.includes('@expo/metro-runtime') && moduleName.includes('.native')
+      (moduleName.includes('@expo/metro-runtime') && moduleName.includes('.native'))
     ) {
+      console.log(`[Metro] Blocking metro-runtime native module on web: ${moduleName}`);
       // Return a minimal module
       return {
         filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
@@ -113,10 +135,32 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
     // Block any .native.ts/.native.js files when on web
     if (moduleName.includes('.native.')) {
+      console.log(`[Metro] Blocking .native file on web: ${moduleName}`);
       return {
         filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
         type: 'sourceFile',
       };
+    }
+
+    // Block any .ios.tsx/.ios.ts files when on web - redirect to .web or base version
+    if (moduleName.includes('.ios.')) {
+      console.log(`[Metro] Blocking .ios file on web: ${moduleName}`);
+      // Try to resolve the .web or base version instead
+      const webVersion = moduleName.replace('.ios.', '.web.');
+      const baseVersion = moduleName.replace(/\.ios\.(tsx?|jsx?)$/, '.$1');
+      
+      try {
+        return context.resolveRequest(context, webVersion, platform);
+      } catch {
+        try {
+          return context.resolveRequest(context, baseVersion, platform);
+        } catch {
+          return {
+            filePath: path.resolve(__dirname, 'node_modules/react-native-web/dist/index.js'),
+            type: 'sourceFile',
+          };
+        }
+      }
     }
   }
   
