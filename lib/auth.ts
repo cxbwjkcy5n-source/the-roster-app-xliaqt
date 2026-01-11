@@ -18,7 +18,10 @@ const storage = Platform.OS === "web"
   ? {
       getItem: (key: string) => {
         try {
-          return localStorage.getItem(key);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            return localStorage.getItem(key);
+          }
+          return null;
         } catch (error) {
           console.error('[Auth] localStorage.getItem error:', error);
           return null;
@@ -26,14 +29,18 @@ const storage = Platform.OS === "web"
       },
       setItem: (key: string, value: string) => {
         try {
-          localStorage.setItem(key, value);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(key, value);
+          }
         } catch (error) {
           console.error('[Auth] localStorage.setItem error:', error);
         }
       },
       deleteItem: (key: string) => {
         try {
-          localStorage.removeItem(key);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.removeItem(key);
+          }
         } catch (error) {
           console.error('[Auth] localStorage.deleteItem error:', error);
         }
@@ -57,7 +64,10 @@ export const authClient = createAuthClient({
         type: "Bearer" as const,
         token: () => {
           try {
-            return localStorage.getItem(BEARER_TOKEN_KEY) || "";
+            if (typeof window !== 'undefined' && window.localStorage) {
+              return localStorage.getItem(BEARER_TOKEN_KEY) || "";
+            }
+            return "";
           } catch (error) {
             console.error('[Auth] Error getting bearer token:', error);
             return "";
@@ -71,8 +81,10 @@ export const authClient = createAuthClient({
 export function storeWebBearerToken(token: string) {
   if (Platform.OS === "web") {
     try {
-      localStorage.setItem(BEARER_TOKEN_KEY, token);
-      console.log('[Auth] Bearer token stored for web');
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(BEARER_TOKEN_KEY, token);
+        console.log('[Auth] Bearer token stored for web');
+      }
     } catch (error) {
       console.error('[Auth] Error storing bearer token:', error);
     }
@@ -82,8 +94,10 @@ export function storeWebBearerToken(token: string) {
 export function clearAuthTokens() {
   if (Platform.OS === "web") {
     try {
-      localStorage.removeItem(BEARER_TOKEN_KEY);
-      console.log('[Auth] Bearer token cleared for web');
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(BEARER_TOKEN_KEY);
+        console.log('[Auth] Bearer token cleared for web');
+      }
     } catch (error) {
       console.error('[Auth] Error clearing bearer token:', error);
     }

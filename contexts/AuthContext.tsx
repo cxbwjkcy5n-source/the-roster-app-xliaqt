@@ -76,7 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session.session?.token) {
           console.log('[AuthContext] Storing bearer token for API calls');
           if (Platform.OS === 'web') {
-            localStorage.setItem(BEARER_TOKEN_KEY, session.session.token);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              localStorage.setItem(BEARER_TOKEN_KEY, session.session.token);
+            }
           } else {
             await SecureStore.setItemAsync(BEARER_TOKEN_KEY, session.session.token);
           }
@@ -160,7 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Get bearer token
       let token: string | null = null;
       if (Platform.OS === 'web') {
-        token = localStorage.getItem(BEARER_TOKEN_KEY);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          token = localStorage.getItem(BEARER_TOKEN_KEY);
+        }
       } else {
         token = await SecureStore.getItemAsync(BEARER_TOKEN_KEY);
       }
@@ -215,7 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.data?.session?.token) {
         console.log('[AuthContext] Storing bearer token from sign in');
         if (Platform.OS === 'web') {
-          localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
+          }
         } else {
           await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
         }
@@ -322,7 +328,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.data?.session?.token) {
         console.log('[AuthContext] Storing bearer token from sign up');
         if (Platform.OS === 'web') {
-          localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
+          }
         } else {
           await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
         }
@@ -345,45 +353,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing in with Google...');
       if (Platform.OS === 'web') {
-        // Web OAuth flow using popup
-        const width = 500;
-        const height = 600;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        const popup = window.open(
-          `/auth-popup?provider=google`,
-          `google-auth`,
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-        
-        await new Promise<void>((resolve, reject) => {
-          const checkPopup = setInterval(() => {
-            if (!popup || popup.closed) {
-              clearInterval(checkPopup);
-              reject(new Error('Popup closed'));
-            }
-          }, 1000);
+        // Web OAuth flow using popup - only execute on web
+        if (typeof window !== 'undefined' && window.open && window.addEventListener) {
+          const width = 500;
+          const height = 600;
+          const left = window.screenX + (window.outerWidth - width) / 2;
+          const top = window.screenY + (window.outerHeight - height) / 2;
+          
+          const popup = window.open(
+            `/auth-popup?provider=google`,
+            `google-auth`,
+            `width=${width},height=${height},left=${left},top=${top}`
+          );
+          
+          await new Promise<void>((resolve, reject) => {
+            const checkPopup = setInterval(() => {
+              if (!popup || popup.closed) {
+                clearInterval(checkPopup);
+                reject(new Error('Popup closed'));
+              }
+            }, 1000);
 
-          const messageHandler = (event: MessageEvent) => {
-            if (event.data.type === 'auth-success') {
-              clearInterval(checkPopup);
-              if (popup) popup.close();
-              window.removeEventListener('message', messageHandler);
-              resolve();
-            } else if (event.data.type === 'auth-error') {
-              clearInterval(checkPopup);
-              if (popup) popup.close();
-              window.removeEventListener('message', messageHandler);
-              reject(new Error(event.data.error));
-            }
-          };
+            const messageHandler = (event: MessageEvent) => {
+              if (event.data.type === 'auth-success') {
+                clearInterval(checkPopup);
+                if (popup) popup.close();
+                window.removeEventListener('message', messageHandler);
+                resolve();
+              } else if (event.data.type === 'auth-error') {
+                clearInterval(checkPopup);
+                if (popup) popup.close();
+                window.removeEventListener('message', messageHandler);
+                reject(new Error(event.data.error));
+              }
+            };
 
-          window.addEventListener('message', messageHandler);
-        });
-        
-        await fetchUser();
-        router.replace('/(tabs)/(home)/');
+            window.addEventListener('message', messageHandler);
+          });
+          
+          await fetchUser();
+          router.replace('/(tabs)/(home)/');
+        }
       } else {
         // Native OAuth flow
         await authClient.signIn.social({
@@ -403,45 +413,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing in with Apple...');
       if (Platform.OS === 'web') {
-        // Web OAuth flow using popup
-        const width = 500;
-        const height = 600;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        const popup = window.open(
-          `/auth-popup?provider=apple`,
-          `apple-auth`,
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-        
-        await new Promise<void>((resolve, reject) => {
-          const checkPopup = setInterval(() => {
-            if (!popup || popup.closed) {
-              clearInterval(checkPopup);
-              reject(new Error('Popup closed'));
-            }
-          }, 1000);
+        // Web OAuth flow using popup - only execute on web
+        if (typeof window !== 'undefined' && window.open && window.addEventListener) {
+          const width = 500;
+          const height = 600;
+          const left = window.screenX + (window.outerWidth - width) / 2;
+          const top = window.screenY + (window.outerHeight - height) / 2;
+          
+          const popup = window.open(
+            `/auth-popup?provider=apple`,
+            `apple-auth`,
+            `width=${width},height=${height},left=${left},top=${top}`
+          );
+          
+          await new Promise<void>((resolve, reject) => {
+            const checkPopup = setInterval(() => {
+              if (!popup || popup.closed) {
+                clearInterval(checkPopup);
+                reject(new Error('Popup closed'));
+              }
+            }, 1000);
 
-          const messageHandler = (event: MessageEvent) => {
-            if (event.data.type === 'auth-success') {
-              clearInterval(checkPopup);
-              if (popup) popup.close();
-              window.removeEventListener('message', messageHandler);
-              resolve();
-            } else if (event.data.type === 'auth-error') {
-              clearInterval(checkPopup);
-              if (popup) popup.close();
-              window.removeEventListener('message', messageHandler);
-              reject(new Error(event.data.error));
-            }
-          };
+            const messageHandler = (event: MessageEvent) => {
+              if (event.data.type === 'auth-success') {
+                clearInterval(checkPopup);
+                if (popup) popup.close();
+                window.removeEventListener('message', messageHandler);
+                resolve();
+              } else if (event.data.type === 'auth-error') {
+                clearInterval(checkPopup);
+                if (popup) popup.close();
+                window.removeEventListener('message', messageHandler);
+                reject(new Error(event.data.error));
+              }
+            };
 
-          window.addEventListener('message', messageHandler);
-        });
-        
-        await fetchUser();
-        router.replace('/(tabs)/(home)/');
+            window.addEventListener('message', messageHandler);
+          });
+          
+          await fetchUser();
+          router.replace('/(tabs)/(home)/');
+        }
       } else {
         // Native OAuth flow
         await authClient.signIn.social({
@@ -461,45 +473,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Signing in with GitHub...');
       if (Platform.OS === 'web') {
-        // Web OAuth flow using popup
-        const width = 500;
-        const height = 600;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        const popup = window.open(
-          `/auth-popup?provider=github`,
-          `github-auth`,
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-        
-        await new Promise<void>((resolve, reject) => {
-          const checkPopup = setInterval(() => {
-            if (!popup || popup.closed) {
-              clearInterval(checkPopup);
-              reject(new Error('Popup closed'));
-            }
-          }, 1000);
+        // Web OAuth flow using popup - only execute on web
+        if (typeof window !== 'undefined' && window.open && window.addEventListener) {
+          const width = 500;
+          const height = 600;
+          const left = window.screenX + (window.outerWidth - width) / 2;
+          const top = window.screenY + (window.outerHeight - height) / 2;
+          
+          const popup = window.open(
+            `/auth-popup?provider=github`,
+            `github-auth`,
+            `width=${width},height=${height},left=${left},top=${top}`
+          );
+          
+          await new Promise<void>((resolve, reject) => {
+            const checkPopup = setInterval(() => {
+              if (!popup || popup.closed) {
+                clearInterval(checkPopup);
+                reject(new Error('Popup closed'));
+              }
+            }, 1000);
 
-          const messageHandler = (event: MessageEvent) => {
-            if (event.data.type === 'auth-success') {
-              clearInterval(checkPopup);
-              if (popup) popup.close();
-              window.removeEventListener('message', messageHandler);
-              resolve();
-            } else if (event.data.type === 'auth-error') {
-              clearInterval(checkPopup);
-              if (popup) popup.close();
-              window.removeEventListener('message', messageHandler);
-              reject(new Error(event.data.error));
-            }
-          };
+            const messageHandler = (event: MessageEvent) => {
+              if (event.data.type === 'auth-success') {
+                clearInterval(checkPopup);
+                if (popup) popup.close();
+                window.removeEventListener('message', messageHandler);
+                resolve();
+              } else if (event.data.type === 'auth-error') {
+                clearInterval(checkPopup);
+                if (popup) popup.close();
+                window.removeEventListener('message', messageHandler);
+                reject(new Error(event.data.error));
+              }
+            };
 
-          window.addEventListener('message', messageHandler);
-        });
-        
-        await fetchUser();
-        router.replace('/(tabs)/(home)/');
+            window.addEventListener('message', messageHandler);
+          });
+          
+          await fetchUser();
+          router.replace('/(tabs)/(home)/');
+        }
       } else {
         // Native OAuth flow
         await authClient.signIn.social({
@@ -522,7 +536,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Clear bearer token
       if (Platform.OS === 'web') {
-        localStorage.removeItem(BEARER_TOKEN_KEY);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.removeItem(BEARER_TOKEN_KEY);
+        }
       } else {
         await SecureStore.deleteItemAsync(BEARER_TOKEN_KEY);
       }
