@@ -15,22 +15,19 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { useRouter } from 'expo-router';
-import DraggableFlatList, {
-  ScaleDecorator,
-  RenderItemParams,
-} from 'react-native-draggable-flatlist';
 import { RosterPerson } from '@/types/roster';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, reorderRoster } = useRoster();
+  const { roster } = useRoster();
   const [showDatesModal, setShowDatesModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -54,71 +51,63 @@ export default function RosterScreen() {
     }
   };
 
-  const handleDragEnd = ({ data }: { data: RosterPerson[] }) => {
-    reorderRoster(data);
-  };
-
-  const renderPersonCard = ({ item, drag, isActive }: RenderItemParams<RosterPerson>) => {
+  const renderPersonCard = ({ item }: { item: RosterPerson }) => {
     return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          onPress={() => router.push(`/person/${item.id}`)}
-          onLongPress={drag}
-          disabled={isActive}
-          style={[styles.personCard, isActive && styles.personCardActive]}
-        >
-          <View style={styles.cardImageContainer}>
-            {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-            ) : (
-              <View style={[styles.cardImage, styles.placeholderImage]}>
+      <TouchableOpacity
+        onPress={() => router.push(`/person/${item.id}`)}
+        style={styles.personCard}
+      >
+        <View style={styles.cardImageContainer}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+          ) : (
+            <View style={[styles.cardImage, styles.placeholderImage]}>
+              <IconSymbol 
+                ios_icon_name="person.fill" 
+                android_material_icon_name="person" 
+                size={40} 
+                color={colors.textSecondary} 
+              />
+            </View>
+          )}
+          <View
+            style={[
+              styles.interestBadge,
+              { backgroundColor: getInterestColor(item.interestLevel) },
+            ]}
+          />
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardName}>{item.name}</Text>
+          <Text style={styles.cardDetails}>
+            {item.age} • {item.location}
+          </Text>
+          <View style={styles.flagsContainer}>
+            {item.redFlags && item.redFlags.length > 0 && (
+              <View style={styles.flagBadge}>
                 <IconSymbol 
-                  ios_icon_name="person.fill" 
-                  android_material_icon_name="person" 
-                  size={40} 
-                  color={colors.textSecondary} 
+                  ios_icon_name="flag.fill" 
+                  android_material_icon_name="flag" 
+                  size={12} 
+                  color={colors.error} 
                 />
+                <Text style={styles.flagCount}>{item.redFlags.length}</Text>
               </View>
             )}
-            <View
-              style={[
-                styles.interestBadge,
-                { backgroundColor: getInterestColor(item.interestLevel) },
-              ]}
-            />
+            {item.greenFlags && item.greenFlags.length > 0 && (
+              <View style={styles.flagBadge}>
+                <IconSymbol 
+                  ios_icon_name="flag.fill" 
+                  android_material_icon_name="flag" 
+                  size={12} 
+                  color={colors.success} 
+                />
+                <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardDetails}>
-              {item.age} • {item.location}
-            </Text>
-            <View style={styles.flagsContainer}>
-              {item.redFlags && item.redFlags.length > 0 && (
-                <View style={styles.flagBadge}>
-                  <IconSymbol 
-                    ios_icon_name="flag.fill" 
-                    android_material_icon_name="flag" 
-                    size={12} 
-                    color={colors.error} 
-                  />
-                  <Text style={styles.flagCount}>{item.redFlags.length}</Text>
-                </View>
-              )}
-              {item.greenFlags && item.greenFlags.length > 0 && (
-                <View style={styles.flagBadge}>
-                  <IconSymbol 
-                    ios_icon_name="flag.fill" 
-                    android_material_icon_name="flag" 
-                    size={12} 
-                    color={colors.success} 
-                  />
-                  <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-      </ScaleDecorator>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -185,11 +174,10 @@ export default function RosterScreen() {
       {roster.length === 0 ? (
         renderEmptyState()
       ) : (
-        <DraggableFlatList
+        <FlatList
           data={roster}
           renderItem={renderPersonCard}
           keyExtractor={(item) => item.id}
-          onDragEnd={handleDragEnd}
           contentContainerStyle={styles.listContent}
         />
       )}
@@ -255,10 +243,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  personCardActive: {
-    opacity: 0.8,
-    transform: [{ scale: 1.05 }],
   },
   cardImageContainer: {
     position: 'relative',

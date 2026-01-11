@@ -15,22 +15,19 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { useRouter } from 'expo-router';
-import DraggableFlatList, {
-  ScaleDecorator,
-  RenderItemParams,
-} from 'react-native-draggable-flatlist';
 import { RosterPerson } from '@/types/roster';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, loading: rosterLoading, reorderRoster } = useRoster();
+  const { roster, loading: rosterLoading } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showMyDates, setShowMyDates] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
@@ -63,60 +60,62 @@ export default function RosterScreen() {
     }
   };
 
-  const handleDragEnd = ({ data }: { data: RosterPerson[] }) => {
-    reorderRoster(data);
-  };
-
-  const renderPersonCard = ({ item, drag, isActive }: RenderItemParams<RosterPerson>) => {
+  const renderPersonCard = ({ item }: { item: RosterPerson }) => {
     return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          onLongPress={drag}
-          disabled={isActive}
-          onPress={() => router.push(`/person/${item.id}`)}
-          style={[styles.personCard, isActive && styles.personCardActive]}
+      <TouchableOpacity
+        onPress={() => router.push(`/person/${item.id}`)}
+        style={styles.personCard}
+      >
+        <Image
+          source={
+            item.imageUrl
+              ? { uri: item.imageUrl }
+              : require('@/assets/images/final_quest_240x240.png')
+          }
+          style={styles.personImage}
+        />
+        <View
+          style={[
+            styles.interestBadge,
+            { backgroundColor: getInterestColor(item.interestLevel) },
+          ]}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          style={styles.personInfoGradient}
         >
-          <Image
-            source={
-              item.imageUrl
-                ? { uri: item.imageUrl }
-                : require('@/assets/images/final_quest_240x240.png')
-            }
-            style={styles.personImage}
-          />
-          <View
-            style={[
-              styles.interestBadge,
-              { backgroundColor: getInterestColor(item.interestLevel) },
-            ]}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.personInfoGradient}
-          >
-            <View style={styles.personInfo}>
-              <Text style={styles.personName}>{item.name}</Text>
-              <Text style={styles.personDetails}>
-                {item.age} • {item.location}
-              </Text>
-              <View style={styles.flagsContainer}>
-                {item.redFlags && item.redFlags.length > 0 && (
-                  <View style={styles.flagBadge}>
-                    <IconSymbol name="flag" size={12} color={colors.danger} />
-                    <Text style={styles.flagCount}>{item.redFlags.length}</Text>
-                  </View>
-                )}
-                {item.greenFlags && item.greenFlags.length > 0 && (
-                  <View style={styles.flagBadge}>
-                    <IconSymbol name="flag" size={12} color={colors.success} />
-                    <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
-                  </View>
-                )}
-              </View>
+          <View style={styles.personInfo}>
+            <Text style={styles.personName}>{item.name}</Text>
+            <Text style={styles.personDetails}>
+              {item.age} • {item.location}
+            </Text>
+            <View style={styles.flagsContainer}>
+              {item.redFlags && item.redFlags.length > 0 && (
+                <View style={styles.flagBadge}>
+                  <IconSymbol 
+                    ios_icon_name="flag.fill" 
+                    android_material_icon_name="flag" 
+                    size={12} 
+                    color={colors.danger} 
+                  />
+                  <Text style={styles.flagCount}>{item.redFlags.length}</Text>
+                </View>
+              )}
+              {item.greenFlags && item.greenFlags.length > 0 && (
+                <View style={styles.flagBadge}>
+                  <IconSymbol 
+                    ios_icon_name="flag.fill" 
+                    android_material_icon_name="flag" 
+                    size={12} 
+                    color={colors.success} 
+                  />
+                  <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
+                </View>
+              )}
             </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      </ScaleDecorator>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
     );
   };
 
@@ -125,7 +124,12 @@ export default function RosterScreen() {
       style={styles.emptyCard}
       onPress={() => router.push('/person/add')}
     >
-      <IconSymbol name="add.circle" size={64} color={colors.textSecondary} />
+      <IconSymbol 
+        ios_icon_name="plus.circle" 
+        android_material_icon_name="add-circle" 
+        size={64} 
+        color={colors.textSecondary} 
+      />
       <Text style={styles.emptyText}>Add your first person to the roster</Text>
     </TouchableOpacity>
   );
@@ -134,19 +138,29 @@ export default function RosterScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.header}>
         <Text style={styles.headerTitle}>THE ROSTER</Text>
-        <Text style={styles.headerSubtitle}>Where You're The Coach and MVP</Text>
+        <Text style={styles.headerSubtitle}>Where You&apos;re The Coach and MVP</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => setShowMyDates(true)}
           >
-            <IconSymbol name="calendar" size={24} color="#fff" />
+            <IconSymbol 
+              ios_icon_name="calendar" 
+              android_material_icon_name="calendar-today" 
+              size={24} 
+              color="#fff" 
+            />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => router.push('/(tabs)/analytics')}
           >
-            <IconSymbol name="chart.bar" size={24} color="#fff" />
+            <IconSymbol 
+              ios_icon_name="chart.bar.fill" 
+              android_material_icon_name="bar-chart" 
+              size={24} 
+              color="#fff" 
+            />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -155,11 +169,10 @@ export default function RosterScreen() {
         {roster.length === 0 ? (
           renderEmptyState()
         ) : (
-          <DraggableFlatList
+          <FlatList
             data={roster}
             renderItem={renderPersonCard}
             keyExtractor={(item) => item.id}
-            onDragEnd={handleDragEnd}
             contentContainerStyle={styles.listContent}
           />
         )}
@@ -178,7 +191,12 @@ export default function RosterScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>My Dates</Text>
                 <TouchableOpacity onPress={() => setShowMyDates(false)}>
-                  <IconSymbol name="close" size={24} color={colors.text} />
+                  <IconSymbol 
+                    ios_icon_name="xmark" 
+                    android_material_icon_name="close" 
+                    size={24} 
+                    color={colors.text} 
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -280,10 +298,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
     backgroundColor: colors.card,
-  },
-  personCardActive: {
-    opacity: 0.8,
-    transform: [{ scale: 1.05 }],
   },
   personImage: {
     width: '100%',
