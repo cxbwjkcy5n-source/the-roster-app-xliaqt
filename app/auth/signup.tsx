@@ -24,6 +24,7 @@ export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
@@ -32,12 +33,22 @@ export default function SignupScreen() {
       return;
     }
 
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
     try {
       console.log('[Signup] Attempting email signup...');
       await signUpWithEmail(email, password, name);
-      console.log('[Signup] Signup successful');
-      // AuthContext handles navigation
+      console.log('[Signup] Signup successful - AuthContext will handle navigation');
+      // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Signup] Signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Could not create account');
@@ -50,8 +61,8 @@ export default function SignupScreen() {
     try {
       console.log('[Signup] Attempting Google signup...');
       await signInWithGoogle();
-      console.log('[Signup] Google signup successful');
-      // AuthContext handles navigation
+      console.log('[Signup] Google signup successful - AuthContext will handle navigation');
+      // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Signup] Google signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Could not sign up with Google');
@@ -64,8 +75,8 @@ export default function SignupScreen() {
     try {
       console.log('[Signup] Attempting Apple signup...');
       await signInWithApple();
-      console.log('[Signup] Apple signup successful');
-      // AuthContext handles navigation
+      console.log('[Signup] Apple signup successful - AuthContext will handle navigation');
+      // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Signup] Apple signup error:', error);
       Alert.alert('Signup Failed', error.message || 'Could not sign up with Apple');
@@ -142,6 +153,24 @@ export default function SignupScreen() {
               placeholderTextColor={colors.textSecondary}
               value={password}
               onChangeText={setPassword}
+              secureTextEntry
+              editable={!loading}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <IconSymbol
+              ios_icon_name="lock.fill"
+              android_material_icon_name="lock"
+              size={20}
+              color={colors.textSecondary}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              placeholderTextColor={colors.textSecondary}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
               secureTextEntry
               editable={!loading}
             />

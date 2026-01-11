@@ -35,8 +35,8 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting email login...');
       await signInWithEmail(email, password);
-      console.log('[Login] Login successful');
-      // AuthContext handles navigation
+      console.log('[Login] Login successful - AuthContext will handle navigation');
+      // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Login] Login error:', error);
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
@@ -49,8 +49,8 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting Google login...');
       await signInWithGoogle();
-      console.log('[Login] Google login successful');
-      // AuthContext handles navigation
+      console.log('[Login] Google login successful - AuthContext will handle navigation');
+      // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Login] Google login error:', error);
       Alert.alert('Login Failed', error.message || 'Could not sign in with Google');
@@ -63,8 +63,8 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting Apple login...');
       await signInWithApple();
-      console.log('[Login] Apple login successful');
-      // AuthContext handles navigation
+      console.log('[Login] Apple login successful - AuthContext will handle navigation');
+      // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Login] Apple login error:', error);
       Alert.alert('Login Failed', error.message || 'Could not sign in with Apple');

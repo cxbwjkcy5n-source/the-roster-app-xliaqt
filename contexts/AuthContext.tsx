@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.replace('/auth/login');
     } else if (user && inAuthGroup) {
       // Redirect to home if authenticated and in auth screens
-      console.log('[AuthContext] Authenticated, redirecting to home');
+      console.log('[AuthContext] Authenticated in auth screen, redirecting to home');
       router.replace('/(tabs)/(home)/');
     }
   }, [user, loading, segments]);
@@ -143,6 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('[AuthContext] Sign in result:', result);
       
+      if (result.error) {
+        console.error('[AuthContext] Sign in error from API:', result.error);
+        throw new Error(result.error.message || 'Login failed');
+      }
+      
       // Store bearer token
       if (result.data?.session?.token) {
         console.log('[AuthContext] Storing bearer token from sign in');
@@ -153,9 +158,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      await fetchUser();
+      // Update user state immediately
+      if (result.data?.user) {
+        console.log('[AuthContext] Setting user state after login');
+        setUser({
+          id: result.data.user.id,
+          email: result.data.user.email,
+          name: result.data.user.name,
+          image: result.data.user.image,
+        });
+      }
+      
       console.log('[AuthContext] Sign in successful, navigating to home');
-      router.replace('/(tabs)/(home)/');
+      // Navigation will be handled by the useEffect hook
     } catch (error) {
       console.error('[AuthContext] Sign in error:', error);
       throw error;
@@ -173,6 +188,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('[AuthContext] Sign up result:', result);
       
+      if (result.error) {
+        console.error('[AuthContext] Sign up error from API:', result.error);
+        throw new Error(result.error.message || 'Sign up failed');
+      }
+      
       // Store bearer token
       if (result.data?.session?.token) {
         console.log('[AuthContext] Storing bearer token from sign up');
@@ -183,9 +203,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      await fetchUser();
+      // Update user state immediately
+      if (result.data?.user) {
+        console.log('[AuthContext] Setting user state after signup');
+        setUser({
+          id: result.data.user.id,
+          email: result.data.user.email,
+          name: result.data.user.name,
+          image: result.data.user.image,
+        });
+      }
+      
       console.log('[AuthContext] Sign up successful, navigating to home');
-      router.replace('/(tabs)/(home)/');
+      // Navigation will be handled by the useEffect hook
     } catch (error) {
       console.error('[AuthContext] Sign up error:', error);
       throw error;
@@ -198,13 +228,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('google');
         await fetchUser();
-        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'google',
         });
         await fetchUser();
-        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] Google sign in successful');
     } catch (error) {
@@ -219,13 +247,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('apple');
         await fetchUser();
-        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'apple',
         });
         await fetchUser();
-        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] Apple sign in successful');
     } catch (error) {
@@ -240,13 +266,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('github');
         await fetchUser();
-        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'github',
         });
         await fetchUser();
-        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] GitHub sign in successful');
     } catch (error) {
