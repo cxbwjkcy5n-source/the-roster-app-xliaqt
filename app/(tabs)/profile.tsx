@@ -478,6 +478,26 @@ export default function ProfileScreen() {
           />
         </View>
 
+        {/* Privacy Policy Button */}
+        <TouchableOpacity
+          style={styles.privacyButton}
+          onPress={() => router.push('/privacy-policy')}
+        >
+          <IconSymbol
+            ios_icon_name="lock.shield.fill"
+            android_material_icon_name="security"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.privacyButtonText}>Privacy Policy</Text>
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
         {!isFirstLogin && (
           <TouchableOpacity 
             style={styles.logoutButton}
@@ -715,6 +735,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  privacyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  privacyButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 12,
+  },
   logoutButton: {
     backgroundColor: '#dc3545',
     flexDirection: 'row',
@@ -723,7 +761,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     gap: 8,
-    marginTop: 24,
+    marginTop: 8,
   },
   logoutText: {
     color: '#fff',

@@ -38,8 +38,10 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const isFirstLogin = user?.firstLoginCompleted === false;
-  const [isEditing, setIsEditing] = useState(isFirstLogin); // Auto-edit mode on first login
+  const [isEditing, setIsEditing] = useState(isFirstLogin);
+  const [loading, setLoading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImageKey, setProfileImageKey] = useState<string | null>(null);
   const [name, setName] = useState(user?.name || '');
   const [age, setAge] = useState('');
   const [location, setLocation] = useState('');
@@ -53,12 +55,44 @@ export default function ProfileScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
 
+  // Load user profile data from backend
+  useEffect(() => {
+    loadProfileData();
+  }, [user]);
+
   // Auto-enable editing on first login
   useEffect(() => {
     if (isFirstLogin) {
       setIsEditing(true);
     }
   }, [isFirstLogin]);
+
+  const loadProfileData = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('[Profile] Loading profile data from backend...');
+      const { authenticatedGet } = await import('@/utils/api');
+      const profileData = await authenticatedGet('/api/user/profile');
+      
+      console.log('[Profile] Profile data loaded:', profileData);
+      
+      // Update state with backend data
+      if (profileData.name) setName(profileData.name);
+      if (profileData.image) setProfileImage(profileData.image);
+      if (profileData.age) setAge(profileData.age.toString());
+      if (profileData.location) setLocation(profileData.location);
+      if (profileData.phoneNumber) setPhoneNumber(profileData.phoneNumber);
+      if (profileData.favoriteColor) setFavoriteColor(profileData.favoriteColor);
+      if (profileData.favoriteFoodType) setFavoriteFoodType(profileData.favoriteFoodType);
+      if (profileData.instagram) setInstagram(profileData.instagram);
+      if (profileData.twitter) setTwitter(profileData.twitter);
+      if (profileData.notes) setNotes(profileData.notes);
+    } catch (error) {
+      console.error('[Profile] Error loading profile data:', error);
+      // Don't show error alert - user might not have profile data yet
+    }
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -75,7 +109,6 @@ export default function ProfileScreen() {
       try {
         console.log('[Profile] Uploading profile image...');
         
-        // Create form data for image upload
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'profile-image.jpg';
         const match = /\.(\w+)$/.exec(filename);
@@ -87,11 +120,10 @@ export default function ProfileScreen() {
           type,
         } as any);
 
-        // Upload to backend
         const { getBearerToken, BACKEND_URL } = await import('@/utils/api');
         const token = await getBearerToken();
         
-        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
+        const uploadResponse = await fetch(`${BACKEND_URL}/api/user/profile-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -105,6 +137,7 @@ export default function ProfileScreen() {
 
         const uploadData = await uploadResponse.json();
         console.log('[Profile] Image uploaded successfully:', uploadData.url);
+        setProfileImageKey(uploadData.key);
       } catch (error) {
         console.error('[Profile] Image upload failed:', error);
         Alert.alert('Error', 'Failed to upload image. Please try again.');
@@ -114,12 +147,36 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     try {
+      setLoading(true);
       console.log('[Profile] Saving profile data...');
       
-      // If this is first login, mark it as complete
+      const profileData: any = {
+        name: name.trim(),
+      };
+      
+      if (age) profileData.age = parseInt(age);
+      if (location) profileData.location = location.trim();
+      if (phoneNumber) profileData.phoneNumber = phoneNumber.trim();
+      if (favoriteColor) profileData.favoriteColor = favoriteColor;
+      if (favoriteFoodType) profileData.favoriteFoodType = favoriteFoodType;
+      if (instagram) profileData.instagram = instagram.trim();
+      if (twitter) profileData.twitter = twitter.trim();
+      if (notes) profileData.notes = notes.trim();
+      if (profileImage) profileData.image = profileImage;
+      if (profileImageKey) profileData.imageKey = profileImageKey;
+      
+      const { authenticatedPut } = await import('@/utils/api');
+      await authenticatedPut('/api/user/profile', profileData);
+      console.log('[Profile] Profile data saved successfully');
+      
       if (isFirstLogin) {
         console.log('[Profile] First login - marking as complete');
+        
+        const { authenticatedPost } = await import('@/utils/api');
+        await authenticatedPost('/api/user/complete-profile', {});
+        
         await markFirstLoginComplete();
+        
         Alert.alert(
           'Profile Complete!',
           'Welcome to THE ROSTER! Your profile has been set up.',
@@ -128,7 +185,6 @@ export default function ProfileScreen() {
               text: 'Get Started',
               onPress: () => {
                 setIsEditing(false);
-                // Navigation will be handled by AuthContext
               }
             }
           ]
@@ -140,6 +196,8 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('[Profile] Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -230,7 +288,6 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Profile Image */}
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={isEditing ? pickImage : undefined}
@@ -263,7 +320,6 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Profile Fields */}
         <View style={styles.section}>
           <Text style={[styles.label, { color: theme.colors.text }]}>Name</Text>
           <TextInput
@@ -406,6 +462,25 @@ export default function ProfileScreen() {
           />
         </View>
 
+        <TouchableOpacity
+          style={styles.privacyButton}
+          onPress={() => router.push('/privacy-policy')}
+        >
+          <IconSymbol
+            ios_icon_name="lock.shield.fill"
+            android_material_icon_name="security"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.privacyButtonText}>Privacy Policy</Text>
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
         {!isFirstLogin && (
           <TouchableOpacity 
             style={styles.logoutButton}
@@ -422,7 +497,6 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
 
-      {/* Color Picker Modal */}
       <Modal
         visible={showColorPicker}
         transparent
@@ -468,7 +542,6 @@ export default function ProfileScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Food Type Picker Modal */}
       <Modal
         visible={showFoodPicker}
         transparent
@@ -551,7 +624,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   welcomeCard: {
     backgroundColor: colors.card,
@@ -641,6 +714,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  privacyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  privacyButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 12,
+  },
   logoutButton: {
     backgroundColor: '#dc3545',
     flexDirection: 'row',
@@ -649,7 +740,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     gap: 8,
-    marginTop: 24,
+    marginTop: 8,
   },
   logoutText: {
     color: '#fff',

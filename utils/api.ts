@@ -23,6 +23,11 @@ async function getAuthToken(): Promise<string | null> {
   }
 }
 
+// Export getBearerToken as an alias for getAuthToken
+export async function getBearerToken(): Promise<string | null> {
+  return getAuthToken();
+}
+
 export async function authenticatedGet(endpoint: string) {
   const token = await getAuthToken();
   const url = `${BACKEND_URL}${endpoint}`;

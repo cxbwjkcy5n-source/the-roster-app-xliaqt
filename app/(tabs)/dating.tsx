@@ -11,13 +11,14 @@ import {
   Alert,
   TouchableWithoutFeedback,
   Keyboard,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
-import { DateEvent } from '@/types/roster';
+import { DateEvent, RosterPerson } from '@/types/roster';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const DATE_TYPES = ['casual', 'formal', 'activity', 'coffee', 'dinner', 'drinks', 'movie', 'outdoor', 'other'];
@@ -39,11 +40,13 @@ export default function DatingScreen() {
   // Date form state
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedPersonName, setSelectedPersonName] = useState('');
+  const [selectedPersonData, setSelectedPersonData] = useState<RosterPerson | null>(null);
   const [dateType, setDateType] = useState('casual');
   const [dateDate, setDateDate] = useState(new Date());
   const [dateTime, setDateTime] = useState(new Date());
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const [selectedReminders, setSelectedReminders] = useState<string[]>(['1d']);
   
   const [showPersonPicker, setShowPersonPicker] = useState(false);
@@ -137,11 +140,13 @@ export default function DatingScreen() {
       // Reset form
       setSelectedPerson('');
       setSelectedPersonName('');
+      setSelectedPersonData(null);
       setDateType('casual');
       setDateDate(new Date());
       setDateTime(new Date());
       setLocation('');
       setNotes('');
+      setNotesExpanded(false);
       setSelectedReminders(['1d']);
       setShowDateForm(false);
       
@@ -268,16 +273,24 @@ export default function DatingScreen() {
               </View>
               
               <ScrollView style={styles.formScroll}>
-                {/* Person Selection */}
+                {/* Person Selection with Profile Photo */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Person</Text>
                   <TouchableOpacity
                     style={styles.formInput}
                     onPress={() => setShowPersonPicker(true)}
                   >
-                    <Text style={[styles.formInputText, !selectedPersonName && styles.placeholder]}>
-                      {selectedPersonName || 'Select person'}
-                    </Text>
+                    <View style={styles.personDisplay}>
+                      {selectedPersonData?.imageUrl && (
+                        <Image
+                          source={{ uri: selectedPersonData.imageUrl }}
+                          style={styles.personPhoto}
+                        />
+                      )}
+                      <Text style={[styles.formInputText, !selectedPersonName && styles.placeholder]}>
+                        {selectedPersonName || 'Select person'}
+                      </Text>
+                    </View>
                     <IconSymbol
                       ios_icon_name="chevron.down"
                       android_material_icon_name="arrow-drop-down"
@@ -357,18 +370,32 @@ export default function DatingScreen() {
                   </Text>
                 </View>
 
-                {/* Notes */}
+                {/* Collapsible Notes Field */}
                 <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Notes (Optional)</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.textInput, styles.textArea]}
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Add any notes..."
-                    placeholderTextColor={colors.textSecondary}
-                    multiline
-                    numberOfLines={3}
-                  />
+                  <TouchableOpacity
+                    style={styles.notesToggle}
+                    onPress={() => setNotesExpanded(!notesExpanded)}
+                  >
+                    <Text style={styles.notesToggleText}>Add notes (optional)</Text>
+                    <IconSymbol
+                      ios_icon_name={notesExpanded ? "chevron.up" : "chevron.down"}
+                      android_material_icon_name={notesExpanded ? "expand-less" : "expand-more"}
+                      size={20}
+                      color={colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                  
+                  {notesExpanded && (
+                    <TextInput
+                      style={[styles.formInput, styles.textInput, styles.textArea, styles.notesInput]}
+                      value={notes}
+                      onChangeText={setNotes}
+                      placeholder="Add any contextual information..."
+                      placeholderTextColor={colors.textSecondary}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  )}
                 </View>
 
                 {/* Reminders */}
@@ -430,9 +457,16 @@ export default function DatingScreen() {
                   onPress={() => {
                     setSelectedPerson(person.id);
                     setSelectedPersonName(person.name);
+                    setSelectedPersonData(person);
                     setShowPersonPicker(false);
                   }}
                 >
+                  {person.imageUrl && (
+                    <Image
+                      source={{ uri: person.imageUrl }}
+                      style={styles.pickerPersonPhoto}
+                    />
+                  )}
                   <Text style={styles.pickerItemText}>{person.name}</Text>
                   {selectedPerson === person.id && (
                     <IconSymbol
@@ -560,6 +594,9 @@ export default function DatingScreen() {
                   <Text style={styles.dateDetails}>{date.date} at {date.time}</Text>
                   <Text style={styles.dateLocation}>{date.location}</Text>
                   <Text style={styles.dateType}>Type: {date.type}</Text>
+                  {date.notes && (
+                    <Text style={styles.dateNotes}>Notes: {date.notes}</Text>
+                  )}
                 </View>
               ))}
               {(datesTab === 'upcoming' ? upcomingDates : completedDates).length === 0 && (
@@ -741,6 +778,40 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  personDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  personPhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  pickerPersonPhoto: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  notesToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  notesToggleText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  notesInput: {
+    marginTop: 8,
+    opacity: 0.8,
+  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -798,6 +869,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   pickerItemText: {
+    flex: 1,
     fontSize: 16,
     color: colors.text,
   },
@@ -864,6 +936,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: 4,
     fontWeight: '600',
+  },
+  dateNotes: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    fontStyle: 'italic',
   },
   emptyDatesText: {
     fontSize: 14,

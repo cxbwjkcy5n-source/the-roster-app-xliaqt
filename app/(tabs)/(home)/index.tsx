@@ -78,8 +78,8 @@ export default function RosterScreen() {
         >
           <Image
             source={
-              item.image
-                ? { uri: item.image }
+              item.imageUrl
+                ? { uri: item.imageUrl }
                 : require('@/assets/images/final_quest_240x240.png')
             }
             style={styles.personImage}
