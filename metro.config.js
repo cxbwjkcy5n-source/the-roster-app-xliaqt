@@ -8,7 +8,8 @@ const config = getDefaultConfig(__dirname);
 config.resolver.unstable_enablePackageExports = true;
 
 // IMPORTANT: Platform-specific extensions order matters!
-// Native extensions should come BEFORE web extensions
+// For web builds, web extensions should be checked first
+// For native builds, native extensions should be checked first
 config.resolver.sourceExts = [
   'native.tsx',
   'native.ts',
@@ -22,6 +23,10 @@ config.resolver.sourceExts = [
   'android.ts',
   'android.jsx',
   'android.js',
+  'web.tsx',
+  'web.ts',
+  'web.jsx',
+  'web.js',
   'tsx',
   'ts',
   'jsx',
@@ -29,11 +34,6 @@ config.resolver.sourceExts = [
   'json',
   'cjs',
   'mjs',
-  // Web extensions come LAST to prevent them from being picked up on native
-  'web.tsx',
-  'web.ts',
-  'web.jsx',
-  'web.js',
 ];
 
 // Ensure proper asset handling for web
@@ -49,11 +49,21 @@ config.resolver.assetExts = [
 // Add platform-specific extensions
 config.resolver.platforms = ['ios', 'android', 'native', 'web'];
 
-// Fix for nanoid/non-secure module resolution issue
+// Fix for nanoid/non-secure module resolution issue and web-specific module handling
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Fix nanoid/non-secure module resolution
   if (moduleName === 'nanoid/non-secure') {
     return {
       filePath: path.resolve(__dirname, 'node_modules/nanoid/non-secure/index.js'),
+      type: 'sourceFile',
+    };
+  }
+  
+  // Prevent native-only expo-router modules from being loaded on web
+  if (platform === 'web' && moduleName === 'expo-router/unstable-native-tabs') {
+    // Return a dummy module that won't be used since we have _layout.web.tsx
+    return {
+      filePath: path.resolve(__dirname, 'node_modules/expo-router/build/index.js'),
       type: 'sourceFile',
     };
   }
