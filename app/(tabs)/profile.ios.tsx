@@ -481,6 +481,25 @@ export default function ProfileScreen() {
           />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.eulaButton}
+          onPress={() => router.push('/eula')}
+        >
+          <IconSymbol
+            ios_icon_name="doc.text.fill"
+            android_material_icon_name="description"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.eulaButtonText}>End User License Agreement</Text>
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
         {!isFirstLogin && (
           <TouchableOpacity 
             style={styles.logoutButton}
@@ -721,11 +740,28 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
   },
   privacyButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 12,
+  },
+  eulaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  eulaButtonText: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
