@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Image,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +20,12 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { DateEvent, RosterPerson } from '@/types/roster';
-import DateTimePicker from '@react-native-community/datetimepicker';
+
+// Conditionally import DateTimePicker only on native platforms
+let DateTimePicker: any = null;
+if (Platform.OS !== 'web') {
+  DateTimePicker = require('@react-native-community/datetimepicker').default;
+}
 
 const DATE_TYPES = ['casual', 'formal', 'activity', 'coffee', 'dinner', 'drinks', 'movie', 'outdoor', 'other'];
 
@@ -322,7 +328,13 @@ export default function DatingScreen() {
                   <Text style={styles.formLabel}>Date</Text>
                   <TouchableOpacity
                     style={styles.formInput}
-                    onPress={() => setShowDatePicker(true)}
+                    onPress={() => {
+                      if (Platform.OS === 'web') {
+                        Alert.alert('Web Support', 'Date picker is not available on web. Please use the text input format: YYYY-MM-DD');
+                      } else {
+                        setShowDatePicker(true);
+                      }
+                    }}
                   >
                     <Text style={styles.formInputText}>
                       {dateDate.toLocaleDateString()}
@@ -341,7 +353,13 @@ export default function DatingScreen() {
                   <Text style={styles.formLabel}>Time</Text>
                   <TouchableOpacity
                     style={styles.formInput}
-                    onPress={() => setShowTimePicker(true)}
+                    onPress={() => {
+                      if (Platform.OS === 'web') {
+                        Alert.alert('Web Support', 'Time picker is not available on web. Please use the text input format: HH:MM');
+                      } else {
+                        setShowTimePicker(true);
+                      }
+                    }}
                   >
                     <Text style={styles.formInputText}>
                       {dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -519,13 +537,13 @@ export default function DatingScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker */}
-      {showDatePicker && (
+      {/* Date Picker - Only render on native platforms */}
+      {Platform.OS !== 'web' && showDatePicker && DateTimePicker && (
         <DateTimePicker
           value={dateDate}
           mode="date"
           display="default"
-          onChange={(event, selectedDate) => {
+          onChange={(event: any, selectedDate?: Date) => {
             setShowDatePicker(false);
             if (selectedDate) {
               setDateDate(selectedDate);
@@ -534,13 +552,13 @@ export default function DatingScreen() {
         />
       )}
 
-      {/* Time Picker */}
-      {showTimePicker && (
+      {/* Time Picker - Only render on native platforms */}
+      {Platform.OS !== 'web' && showTimePicker && DateTimePicker && (
         <DateTimePicker
           value={dateTime}
           mode="time"
           display="default"
-          onChange={(event, selectedTime) => {
+          onChange={(event: any, selectedTime?: Date) => {
             setShowTimePicker(false);
             if (selectedTime) {
               setDateTime(selectedTime);
