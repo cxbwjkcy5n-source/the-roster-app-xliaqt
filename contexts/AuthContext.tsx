@@ -256,18 +256,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       console.log('[AuthContext] Sign in successful, fetching user data...');
+      
       // Fetch user data to get firstLoginCompleted flag
-      await fetchUser();
+      const session = await authClient.getSession();
       
-      console.log('[AuthContext] User data fetched, checking first login status...');
-      
-      // After fetching user, check if it's first login and navigate accordingly
-      if (user?.firstLoginCompleted === false) {
-        console.log('[AuthContext] First login detected, redirecting to profile');
-        router.replace('/(tabs)/profile');
-      } else {
-        console.log('[AuthContext] Regular login, redirecting to home');
-        router.replace('/(tabs)/(home)/');
+      if (session?.user) {
+        console.log('[AuthContext] User authenticated:', session.user.email);
+        
+        // Try to fetch additional user info including firstLoginCompleted flag
+        let firstLoginCompleted = true; // Default to true
+        let profileData: any = {};
+        
+        try {
+          const { BACKEND_URL } = await import('@/utils/api');
+          const token = session.session?.token;
+          
+          if (token) {
+            console.log('[AuthContext] Fetching profile status from backend...');
+            
+            // Try to fetch from /api/user/profile-status first (lightweight endpoint)
+            const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              console.log('[AuthContext] Profile status from backend:', statusData);
+              firstLoginCompleted = statusData.profileCompleted !== false;
+            } else {
+              console.log('[AuthContext] Profile status endpoint returned:', statusResponse.status);
+            }
+            
+            // Also try to fetch full profile data
+            console.log('[AuthContext] Fetching full profile data from backend...');
+            const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            
+            if (profileResponse.ok) {
+              profileData = await profileResponse.json();
+              console.log('[AuthContext] Profile data from backend:', profileData);
+            } else {
+              console.log('[AuthContext] Profile endpoint returned:', profileResponse.status);
+            }
+          }
+        } catch (error) {
+          console.error('[AuthContext] Error fetching user data from backend:', error);
+          // Continue with session data only
+        }
+        
+        // Set user with all available data
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email,
+          name: profileData.name || session.user.name,
+          image: profileData.image || session.user.image,
+          firstLoginCompleted,
+        };
+        
+        console.log('[AuthContext] Setting user data:', userData);
+        setUser(userData);
+        
+        // Navigate based on first login status
+        if (firstLoginCompleted === false) {
+          console.log('[AuthContext] First login detected, redirecting to profile');
+          router.replace('/(tabs)/profile');
+        } else {
+          console.log('[AuthContext] Regular login, redirecting to home');
+          router.replace('/(tabs)/(home)/');
+        }
       }
     } catch (error) {
       console.error('[AuthContext] Sign in error:', error);
