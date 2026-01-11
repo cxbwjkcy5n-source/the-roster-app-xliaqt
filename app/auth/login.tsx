@@ -37,9 +37,9 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting email login for:', email);
       await signInWithEmail(email, password);
-      console.log('[Login] Login successful - AuthContext will handle navigation');
-      // Don't set loading to false here - let the navigation happen
-      // The loading state will be reset when the component unmounts
+      console.log('[Login] Login successful - navigation handled by AuthContext');
+      // Navigation is handled in signInWithEmail, so we don't set loading to false
+      // The component will unmount when navigation happens
     } catch (error: any) {
       console.error('[Login] Login error:', error);
       setLoading(false); // Only set loading to false on error
@@ -54,8 +54,8 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting Google login...');
       await signInWithGoogle();
-      console.log('[Login] Google login successful - AuthContext will handle navigation');
-      // Don't set loading to false here - let the navigation happen
+      console.log('[Login] Google login successful - navigation handled by AuthContext');
+      // Navigation is handled in signInWithGoogle
     } catch (error: any) {
       console.error('[Login] Google login error:', error);
       setLoading(false); // Only set loading to false on error
@@ -70,8 +70,8 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting Apple login...');
       await signInWithApple();
-      console.log('[Login] Apple login successful - AuthContext will handle navigation');
-      // Don't set loading to false here - let the navigation happen
+      console.log('[Login] Apple login successful - navigation handled by AuthContext');
+      // Navigation is handled in signInWithApple
     } catch (error: any) {
       console.error('[Login] Apple login error:', error);
       setLoading(false); // Only set loading to false on error

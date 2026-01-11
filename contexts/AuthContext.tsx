@@ -82,12 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, []);
 
-  // Protected route navigation with first login check
+  // Protected route navigation - simplified
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'auth';
-    const inProfileScreen = segments[0] === '(tabs)' && segments[1] === 'profile';
 
     console.log('[AuthContext] Navigation check - user:', !!user, 'inAuthGroup:', inAuthGroup, 'segments:', segments);
 
@@ -95,20 +94,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to login if not authenticated and not in auth screens
       console.log('[AuthContext] Not authenticated, redirecting to login');
       router.replace('/auth/login');
-    } else if (user && inAuthGroup) {
-      // User just logged in - check if it's their first login
-      console.log('[AuthContext] User authenticated in auth screen');
-      console.log('[AuthContext] First login completed:', user.firstLoginCompleted);
-      
-      if (user.firstLoginCompleted === false) {
-        // First login - redirect to profile to complete it
-        console.log('[AuthContext] First login detected, redirecting to profile');
-        router.replace('/(tabs)/profile');
-      } else {
-        // Regular login - redirect to home
-        console.log('[AuthContext] Regular login, redirecting to home');
-        router.replace('/(tabs)/(home)/');
-      }
     }
   }, [user, loading, segments]);
 
@@ -274,8 +259,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch user data to get firstLoginCompleted flag
       await fetchUser();
       
-      console.log('[AuthContext] User data fetched, navigation will be handled by useEffect');
-      // Navigation will be handled by the useEffect hook
+      console.log('[AuthContext] User data fetched, checking first login status...');
+      
+      // After fetching user, check if it's first login and navigate accordingly
+      if (user?.firstLoginCompleted === false) {
+        console.log('[AuthContext] First login detected, redirecting to profile');
+        router.replace('/(tabs)/profile');
+      } else {
+        console.log('[AuthContext] Regular login, redirecting to home');
+        router.replace('/(tabs)/(home)/');
+      }
     } catch (error) {
       console.error('[AuthContext] Sign in error:', error);
       throw error;
@@ -309,11 +302,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       console.log('[AuthContext] Sign up successful, fetching user data...');
-      // Fetch user data to get firstLoginCompleted flag
+      // Fetch user data
       await fetchUser();
       
-      console.log('[AuthContext] User data fetched, navigation will be handled by useEffect');
-      // Navigation will be handled by the useEffect hook
+      console.log('[AuthContext] User data fetched, redirecting to profile for first login');
+      // New users should always go to profile first
+      router.replace('/(tabs)/profile');
     } catch (error) {
       console.error('[AuthContext] Sign up error:', error);
       throw error;
@@ -326,11 +320,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('google');
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'google',
         });
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] Google sign in successful');
     } catch (error) {
@@ -345,11 +341,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('apple');
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'apple',
         });
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] Apple sign in successful');
     } catch (error) {
@@ -364,11 +362,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         await openOAuthPopup('github');
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       } else {
         await authClient.signIn.social({
           provider: 'github',
         });
         await fetchUser();
+        router.replace('/(tabs)/(home)/');
       }
       console.log('[AuthContext] GitHub sign in successful');
     } catch (error) {
