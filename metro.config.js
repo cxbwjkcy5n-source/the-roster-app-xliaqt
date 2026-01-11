@@ -27,6 +27,8 @@ config.resolver.sourceExts = [
   'jsx',
   'js',
   'json',
+  'cjs',
+  'mjs',
   // Web extensions come LAST to prevent them from being picked up on native
   'web.tsx',
   'web.ts',
@@ -46,6 +48,19 @@ config.resolver.assetExts = [
 
 // Add platform-specific extensions
 config.resolver.platforms = ['ios', 'android', 'native', 'web'];
+
+// Fix for nanoid/non-secure module resolution issue
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'nanoid/non-secure') {
+    return {
+      filePath: path.resolve(__dirname, 'node_modules/nanoid/non-secure/index.js'),
+      type: 'sourceFile',
+    };
+  }
+  
+  // Default resolver
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 // Use turborepo to restore the cache when possible
 config.cacheStores = [
