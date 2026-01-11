@@ -92,6 +92,7 @@ export default function RootLayout() {
                 <Stack.Screen name="person/add" />
                 <Stack.Screen name="person/[id]" />
                 <Stack.Screen name="privacy-policy" />
+                <Stack.Screen name="eula" />
               </Stack>
               {Platform.OS !== 'web' && <SystemBars style="auto" />}
             </GestureHandlerRootView>

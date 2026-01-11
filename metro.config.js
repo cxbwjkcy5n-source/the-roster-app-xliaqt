@@ -7,13 +7,31 @@ const config = getDefaultConfig(__dirname);
 
 config.resolver.unstable_enablePackageExports = true;
 
-// Enable web support with proper source extensions
+// IMPORTANT: Platform-specific extensions order matters!
+// Native extensions should come BEFORE web extensions
 config.resolver.sourceExts = [
+  'native.tsx',
+  'native.ts',
+  'native.jsx',
+  'native.js',
+  'ios.tsx',
+  'ios.ts',
+  'ios.jsx',
+  'ios.js',
+  'android.tsx',
+  'android.ts',
+  'android.jsx',
+  'android.js',
+  'tsx',
+  'ts',
+  'jsx',
+  'js',
+  'json',
+  // Web extensions come LAST to prevent them from being picked up on native
   'web.tsx',
   'web.ts',
   'web.jsx',
   'web.js',
-  ...config.resolver.sourceExts,
 ];
 
 // Ensure proper asset handling for web
@@ -27,7 +45,7 @@ config.resolver.assetExts = [
 ];
 
 // Add platform-specific extensions
-config.resolver.platforms = ['ios', 'android', 'web', 'native'];
+config.resolver.platforms = ['ios', 'android', 'native', 'web'];
 
 // Use turborepo to restore the cache when possible
 config.cacheStores = [
