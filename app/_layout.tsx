@@ -1,12 +1,13 @@
 
 import "react-native-reanimated";
+import "react-native-url-polyfill/auto";
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert } from "react-native";
+import { useColorScheme, Alert, Platform } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -34,10 +35,8 @@ export default function RootLayout() {
   }, [loaded]);
 
   React.useEffect(() => {
-    if (
-      !networkState.isConnected &&
-      networkState.isInternetReachable === false
-    ) {
+    // Only show network alerts on native platforms
+    if (Platform.OS !== 'web' && !networkState.isConnected && networkState.isInternetReachable === false) {
       Alert.alert(
         "🔌 You are offline",
         "You can keep using the app! Your changes will be saved locally and synced when you are back online."
@@ -94,7 +93,7 @@ export default function RootLayout() {
                 <Stack.Screen name="person/add" />
                 <Stack.Screen name="person/[id]" />
               </Stack>
-              <SystemBars style="auto" />
+              {Platform.OS !== 'web' && <SystemBars style="auto" />}
             </GestureHandlerRootView>
           </RosterProvider>
         </AuthProvider>

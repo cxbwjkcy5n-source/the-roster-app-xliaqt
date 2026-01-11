@@ -135,8 +135,9 @@ export default function FloatingTabBar({
         web: {
           backgroundColor: theme.dark
             ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.6)',
+            : 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
         },
       }),
     },
@@ -151,6 +152,12 @@ export default function FloatingTabBar({
       width: `${tabWidthPercent}%` as `${number}%`,
     },
   };
+
+  // Use regular View for web instead of BlurView for better compatibility
+  const ContainerComponent = Platform.OS === 'web' ? View : BlurView;
+  const containerProps = Platform.OS === 'web' 
+    ? {} 
+    : { intensity: 80 };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -172,8 +179,8 @@ export default function FloatingTabBar({
           </View>
         </TouchableOpacity>
 
-        <BlurView
-          intensity={80}
+        <ContainerComponent
+          {...containerProps}
           style={[dynamicStyles.blurContainer, { borderRadius }]}
         >
           <View style={dynamicStyles.background} />
@@ -209,7 +216,7 @@ export default function FloatingTabBar({
               );
             })}
           </View>
-        </BlurView>
+        </ContainerComponent>
       </View>
     </SafeAreaView>
   );
@@ -276,6 +283,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
   tabContent: {
     alignItems: 'center',
