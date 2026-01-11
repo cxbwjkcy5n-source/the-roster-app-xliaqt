@@ -12,6 +12,7 @@ import { registerUploadRoutes } from './routes/upload.js';
 import { registerAnalyticsRoutes } from './routes/analytics.js';
 import { registerRemindersRoutes } from './routes/reminders.js';
 import { registerInteractionsRoutes } from './routes/interactions.js';
+import { registerSafetyDatesRoutes } from './routes/safety-dates.js';
 
 // Combine schemas for Better Auth
 const schema = { ...appSchema, ...authSchema };
@@ -41,6 +42,7 @@ registerUploadRoutes(app, app.fastify);
 registerAnalyticsRoutes(app, app.fastify);
 registerRemindersRoutes(app, app.fastify);
 registerInteractionsRoutes(app, app.fastify);
+registerSafetyDatesRoutes(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');

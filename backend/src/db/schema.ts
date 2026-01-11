@@ -85,6 +85,32 @@ export const interactions = pgTable('interactions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const safetyDates = pgTable('safety_dates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  profileName: text('profile_name').notNull(),
+  dateWithName: text('date_with_name').notNull(),
+  dateWithDescription: text('date_with_description'),
+  location: text('location').notNull(),
+  locationAddress: text('location_address'),
+  coordinates: jsonb('coordinates').$type<{ latitude: number; longitude: number }>(),
+  status: text('status', { enum: ['active', 'completed', 'emergency'] }).default('active').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
+});
+
+export const emergencyContacts = pgTable('emergency_contacts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  safetyDateId: uuid('safety_date_id').notNull().references(() => safetyDates.id, { onDelete: 'cascade' }),
+  contactName: text('contact_name').notNull(),
+  phoneNumber: text('phone_number').notNull(),
+  sharedAt: timestamp('shared_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Relations
 export const rosterProfilesRelations = relations(rosterProfiles, ({ one, many }) => ({
   user: one(user, {
@@ -142,5 +168,24 @@ export const interactionsRelations = relations(interactions, ({ one }) => ({
   profile: one(rosterProfiles, {
     fields: [interactions.profileId],
     references: [rosterProfiles.id],
+  }),
+}));
+
+export const safetyDatesRelations = relations(safetyDates, ({ one, many }) => ({
+  user: one(user, {
+    fields: [safetyDates.userId],
+    references: [user.id],
+  }),
+  emergencyContacts: many(emergencyContacts),
+}));
+
+export const emergencyContactsRelations = relations(emergencyContacts, ({ one }) => ({
+  user: one(user, {
+    fields: [emergencyContacts.userId],
+    references: [user.id],
+  }),
+  safetyDate: one(safetyDates, {
+    fields: [emergencyContacts.safetyDateId],
+    references: [safetyDates.id],
   }),
 }));
