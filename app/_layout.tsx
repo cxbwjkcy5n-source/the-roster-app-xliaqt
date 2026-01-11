@@ -5,8 +5,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert, Platform } from "react-native";
+import { useColorScheme, Alert, Platform, View } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -17,6 +16,12 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RosterProvider } from "@/contexts/RosterContext";
+
+// Conditionally import GestureHandlerRootView only on native platforms
+let GestureHandlerRootView: any = View;
+if (Platform.OS !== 'web') {
+  GestureHandlerRootView = require('react-native-gesture-handler').GestureHandlerRootView;
+}
 
 SplashScreen.preventAutoHideAsync();
 
