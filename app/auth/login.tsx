@@ -32,20 +32,25 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
+    console.log('[Login] Starting login process...');
+    
     try {
-      console.log('[Login] Attempting email login...');
+      console.log('[Login] Attempting email login for:', email);
       await signInWithEmail(email, password);
       console.log('[Login] Login successful - AuthContext will handle navigation');
       // Don't set loading to false here - let the navigation happen
+      // The loading state will be reset when the component unmounts
     } catch (error: any) {
       console.error('[Login] Login error:', error);
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
-      setLoading(false);
+      setLoading(false); // Only set loading to false on error
+      Alert.alert('Login Failed', error.message || 'Invalid credentials. Please try again.');
     }
   };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    console.log('[Login] Starting Google login...');
+    
     try {
       console.log('[Login] Attempting Google login...');
       await signInWithGoogle();
@@ -53,13 +58,15 @@ export default function LoginScreen() {
       // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Login] Google login error:', error);
-      Alert.alert('Login Failed', error.message || 'Could not sign in with Google');
-      setLoading(false);
+      setLoading(false); // Only set loading to false on error
+      Alert.alert('Login Failed', error.message || 'Could not sign in with Google. Please try again.');
     }
   };
 
   const handleAppleLogin = async () => {
     setLoading(true);
+    console.log('[Login] Starting Apple login...');
+    
     try {
       console.log('[Login] Attempting Apple login...');
       await signInWithApple();
@@ -67,8 +74,8 @@ export default function LoginScreen() {
       // Don't set loading to false here - let the navigation happen
     } catch (error: any) {
       console.error('[Login] Apple login error:', error);
-      Alert.alert('Login Failed', error.message || 'Could not sign in with Apple');
-      setLoading(false);
+      setLoading(false); // Only set loading to false on error
+      Alert.alert('Login Failed', error.message || 'Could not sign in with Apple. Please try again.');
     }
   };
 

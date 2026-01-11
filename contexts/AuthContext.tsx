@@ -89,6 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const inAuthGroup = segments[0] === 'auth';
     const inProfileScreen = segments[0] === '(tabs)' && segments[1] === 'profile';
 
+    console.log('[AuthContext] Navigation check - user:', !!user, 'inAuthGroup:', inAuthGroup, 'segments:', segments);
+
     if (!user && !inAuthGroup) {
       // Redirect to login if not authenticated and not in auth screens
       console.log('[AuthContext] Not authenticated, redirecting to login');
@@ -114,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Fetching user session...');
       const session = await authClient.getSession();
-      console.log('[AuthContext] Session:', session);
+      console.log('[AuthContext] Session:', JSON.stringify(session, null, 2));
       
       if (session?.user) {
         console.log('[AuthContext] User authenticated:', session.user.email);
@@ -129,64 +131,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Fetch additional user info including firstLoginCompleted flag
+        // Try to fetch additional user info including firstLoginCompleted flag
+        let firstLoginCompleted = true; // Default to true
+        let profileData: any = {};
+        
         try {
           const { BACKEND_URL } = await import('@/utils/api');
           const token = session.session?.token;
           
-          // Try to fetch from /api/user/profile-status first (lightweight endpoint)
-          const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            console.log('[AuthContext] Profile status from backend:', statusData);
+          if (token) {
+            console.log('[AuthContext] Fetching profile status from backend...');
             
-            // Also fetch full profile data
+            // Try to fetch from /api/user/profile-status first (lightweight endpoint)
+            const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              console.log('[AuthContext] Profile status from backend:', statusData);
+              firstLoginCompleted = statusData.profileCompleted !== false;
+            } else {
+              console.log('[AuthContext] Profile status endpoint returned:', statusResponse.status);
+            }
+            
+            // Also try to fetch full profile data
+            console.log('[AuthContext] Fetching full profile data from backend...');
             const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
             });
             
-            let profileData = {};
             if (profileResponse.ok) {
               profileData = await profileResponse.json();
               console.log('[AuthContext] Profile data from backend:', profileData);
+            } else {
+              console.log('[AuthContext] Profile endpoint returned:', profileResponse.status);
             }
-            
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              name: (profileData as any).name || session.user.name,
-              image: (profileData as any).image || session.user.image,
-              firstLoginCompleted: statusData.profileCompleted !== false, // Default to true if not explicitly false
-            });
-          } else {
-            // Fallback if endpoint not ready yet
-            console.log('[AuthContext] Could not fetch profile status, using session data');
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              name: session.user.name,
-              image: session.user.image,
-              firstLoginCompleted: true, // Default to true to avoid forcing profile completion
-            });
           }
         } catch (error) {
-          console.error('[AuthContext] Error fetching user data:', error);
-          // Fallback to session data
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name,
-            image: session.user.image,
-            firstLoginCompleted: true, // Default to true to avoid forcing profile completion
-          });
+          console.error('[AuthContext] Error fetching user data from backend:', error);
+          // Continue with session data only
         }
+        
+        // Set user with all available data
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email,
+          name: profileData.name || session.user.name,
+          image: profileData.image || session.user.image,
+          firstLoginCompleted,
+        };
+        
+        console.log('[AuthContext] Setting user data:', userData);
+        setUser(userData);
       } else {
         console.log('[AuthContext] No active session');
         setUser(null);
@@ -195,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AuthContext] Error fetching user:', error);
       setUser(null);
     } finally {
+      console.log('[AuthContext] Fetch user complete, setting loading to false');
       setLoading(false);
     }
   };
@@ -236,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Navigate to home
         router.replace('/(tabs)/(home)/');
       } else {
-        console.error('[AuthContext] Failed to mark first login complete');
+        console.error('[AuthContext] Failed to mark first login complete:', response.status);
       }
     } catch (error) {
       console.error('[AuthContext] Error marking first login complete:', error);
@@ -251,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
       
-      console.log('[AuthContext] Sign in result:', result);
+      console.log('[AuthContext] Sign in result:', JSON.stringify(result, null, 2));
       
       if (result.error) {
         console.error('[AuthContext] Sign in error from API:', result.error);
@@ -268,10 +270,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
+      console.log('[AuthContext] Sign in successful, fetching user data...');
       // Fetch user data to get firstLoginCompleted flag
       await fetchUser();
       
-      console.log('[AuthContext] Sign in successful');
+      console.log('[AuthContext] User data fetched, navigation will be handled by useEffect');
       // Navigation will be handled by the useEffect hook
     } catch (error) {
       console.error('[AuthContext] Sign in error:', error);
@@ -288,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: name || email.split('@')[0],
       });
       
-      console.log('[AuthContext] Sign up result:', result);
+      console.log('[AuthContext] Sign up result:', JSON.stringify(result, null, 2));
       
       if (result.error) {
         console.error('[AuthContext] Sign up error from API:', result.error);
@@ -305,10 +308,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
+      console.log('[AuthContext] Sign up successful, fetching user data...');
       // Fetch user data to get firstLoginCompleted flag
       await fetchUser();
       
-      console.log('[AuthContext] Sign up successful');
+      console.log('[AuthContext] User data fetched, navigation will be handled by useEffect');
       // Navigation will be handled by the useEffect hook
     } catch (error) {
       console.error('[AuthContext] Sign up error:', error);
