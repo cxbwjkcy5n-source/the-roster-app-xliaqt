@@ -32,12 +32,31 @@ export default function PersonDetailScreen() {
   const [benchReason, setBenchReason] = useState('');
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [showChemistryTimeline, setShowChemistryTimeline] = useState(false);
+  const [profileInteractions, setProfileInteractions] = useState<Interaction[]>([]);
 
   useEffect(() => {
     const allPeople = [...roster, ...bench];
     const foundPerson = allPeople.find(p => p.id === id);
     setPerson(foundPerson || null);
+    
+    // Load interactions for this profile
+    if (foundPerson) {
+      loadProfileInteractions(foundPerson.id);
+    }
   }, [id, roster, bench]);
+
+  const loadProfileInteractions = async (profileId: string) => {
+    try {
+      console.log('[PersonDetail] Loading interactions for profile:', profileId);
+      const { authenticatedGet } = await import('@/utils/api');
+      const response = await authenticatedGet(`/api/interactions/${profileId}`);
+      console.log('[PersonDetail] Interactions loaded:', response.length);
+      setProfileInteractions(response);
+    } catch (error) {
+      console.error('[PersonDetail] Error loading interactions:', error);
+      setProfileInteractions([]);
+    }
+  };
 
   if (!person) {
     return (
@@ -48,7 +67,7 @@ export default function PersonDetailScreen() {
   }
 
   const personDates = dates.filter(d => d.profileId === person.id);
-  const personInteractions = interactions.filter(i => i.profileId === person.id);
+  const personInteractions = profileInteractions; // Use profile-specific interactions
   const personReminders = reminders.filter(r => r.profileId === person.id && !r.completed);
 
   const getInterestColor = (level: string) => {
@@ -135,6 +154,10 @@ export default function PersonDetailScreen() {
         date: new Date().toISOString(),
       };
       await addInteraction(interaction);
+      
+      // Reload interactions after adding
+      await loadProfileInteractions(person.id);
+      
       Alert.alert('Success', `${type === 'morning_text' ? 'Morning text' : 'Check-in'} logged!`);
     } catch (error) {
       console.error('[PersonDetail] Error logging interaction:', error);

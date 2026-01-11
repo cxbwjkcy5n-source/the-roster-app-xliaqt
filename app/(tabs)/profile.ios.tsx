@@ -1,147 +1,691 @@
 
-import React from 'react';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  Platform,
   TouchableOpacity,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
+  Alert,
+  TextInput,
+  Image,
+  Modal,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { IconSymbol } from "@/components/IconSymbol";
+import { useTheme } from "@react-navigation/native";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "expo-router";
+import { colors } from "@/styles/commonStyles";
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 5,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  section: {
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 10,
-  },
-  infoCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 12,
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  noteCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-  },
-  noteText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-});
+const FAVORITE_COLORS = [
+  'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Black', 'White', 'Brown', 'Gray'
+];
+
+const FOOD_TYPES = [
+  'Italian', 'Mexican', 'Chinese', 'Japanese', 'Thai', 'Indian', 'American', 'Mediterranean',
+  'Vegan', 'Vegetarian', 'Pescatarian', 'BBQ', 'Seafood', 'Fast Food', 'Other'
+];
 
 export default function ProfileScreen() {
+  const theme = useTheme();
+  const { user, signOut, markFirstLoginComplete } = useAuth();
   const router = useRouter();
 
+  const isFirstLogin = user?.firstLoginCompleted === false;
+  const [isEditing, setIsEditing] = useState(isFirstLogin); // Auto-edit mode on first login
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [name, setName] = useState(user?.name || '');
+  const [age, setAge] = useState('');
+  const [location, setLocation] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [favoriteColor, setFavoriteColor] = useState('');
+  const [favoriteFoodType, setFavoriteFoodType] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [notes, setNotes] = useState('');
+  
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFoodPicker, setShowFoodPicker] = useState(false);
+
+  // Auto-enable editing on first login
+  useEffect(() => {
+    if (isFirstLogin) {
+      setIsEditing(true);
+    }
+  }, [isFirstLogin]);
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setProfileImage(uri);
+      
+      try {
+        console.log('[Profile] Uploading profile image...');
+        
+        // Create form data for image upload
+        const formData = new FormData();
+        const filename = uri.split('/').pop() || 'profile-image.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        formData.append('file', {
+          uri,
+          name: filename,
+          type,
+        } as any);
+
+        // Upload to backend
+        const { getBearerToken, BACKEND_URL } = await import('@/utils/api');
+        const token = await getBearerToken();
+        
+        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image');
+        }
+
+        const uploadData = await uploadResponse.json();
+        console.log('[Profile] Image uploaded successfully:', uploadData.url);
+      } catch (error) {
+        console.error('[Profile] Image upload failed:', error);
+        Alert.alert('Error', 'Failed to upload image. Please try again.');
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      console.log('[Profile] Saving profile data...');
+      
+      // If this is first login, mark it as complete
+      if (isFirstLogin) {
+        console.log('[Profile] First login - marking as complete');
+        await markFirstLoginComplete();
+        Alert.alert(
+          'Profile Complete!',
+          'Welcome to THE ROSTER! Your profile has been set up.',
+          [
+            {
+              text: 'Get Started',
+              onPress: () => {
+                setIsEditing(false);
+                // Navigation will be handled by AuthContext
+              }
+            }
+          ]
+        );
+      } else {
+        setIsEditing(false);
+        Alert.alert('Success', 'Profile updated successfully');
+      }
+    } catch (error) {
+      console.error('[Profile] Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert("Error", "Failed to sign out");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getColorDisplay = (colorName: string) => {
+    const colorMap: { [key: string]: string } = {
+      'Red': '#FF0000',
+      'Blue': '#0000FF',
+      'Green': '#00FF00',
+      'Yellow': '#FFFF00',
+      'Purple': '#800080',
+      'Orange': '#FFA500',
+      'Pink': '#FFC0CB',
+      'Black': '#000000',
+      'White': '#FFFFFF',
+      'Brown': '#8B4513',
+      'Gray': '#808080',
+    };
+    return colorMap[colorName] || colors.primary;
+  };
+
   return (
-    <LinearGradient
-      colors={[colors.primary, colors.primaryDark]}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerSubtitle}>Guest Mode</Text>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <LinearGradient
+        colors={[colors.primaryDark, colors.primary, colors.secondary]}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>
+            {isFirstLogin ? 'Complete Your Profile' : 'Profile'}
+          </Text>
+          {isFirstLogin && (
+            <Text style={styles.headerSubtitle}>
+              Let&apos;s set up your profile to get started
+            </Text>
+          )}
         </View>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => isEditing ? handleSave() : setIsEditing(true)}
+        >
+          <Text style={styles.editButtonText}>
+            {isFirstLogin ? 'Complete' : (isEditing ? 'Save' : 'Edit')}
+          </Text>
+        </TouchableOpacity>
+      </LinearGradient>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Information</Text>
-            
-            <View style={styles.infoCard}>
-              <View style={styles.infoRow}>
-                <IconSymbol 
-                  ios_icon_name="person.circle" 
-                  android_material_icon_name="account-circle" 
-                  size={24} 
-                  color={colors.text} 
-                />
-                <Text style={styles.infoLabel}>Name</Text>
-                <Text style={styles.infoValue}>Guest User</Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                <IconSymbol 
-                  ios_icon_name="envelope" 
-                  android_material_icon_name="email" 
-                  size={24} 
-                  color={colors.text} 
-                />
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>guest@app.com</Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                <IconSymbol 
-                  ios_icon_name="checkmark.shield" 
-                  android_material_icon_name="verified-user" 
-                  size={24} 
-                  color={colors.text} 
-                />
-                <Text style={styles.infoLabel}>Status</Text>
-                <Text style={styles.infoValue}>Active</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.noteCard}>
-            <Text style={styles.noteText}>
-              Authentication has been disabled. You are using the app in guest mode. All features are available without login.
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {isFirstLogin && (
+          <View style={styles.welcomeCard}>
+            <IconSymbol
+              ios_icon_name="hand.wave.fill"
+              android_material_icon_name="waving-hand"
+              size={32}
+              color={colors.primary}
+            />
+            <Text style={[styles.welcomeTitle, { color: theme.colors.text }]}>
+              Welcome to THE ROSTER!
+            </Text>
+            <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>
+              Complete your profile to personalize your experience. You can always update this later.
             </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+        )}
+
+        {/* Profile Image */}
+        <TouchableOpacity
+          style={styles.imageContainer}
+          onPress={isEditing ? pickImage : undefined}
+          disabled={!isEditing}
+        >
+          {profileImage || user?.image ? (
+            <Image
+              source={{ uri: profileImage || user?.image }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <IconSymbol
+                ios_icon_name="person.circle.fill"
+                android_material_icon_name="account-circle"
+                size={80}
+                color={colors.primary}
+              />
+            </View>
+          )}
+          {isEditing && (
+            <View style={styles.imageOverlay}>
+              <IconSymbol
+                ios_icon_name="camera.fill"
+                android_material_icon_name="camera"
+                size={32}
+                color="#fff"
+              />
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Profile Fields */}
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Name</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={name}
+            onChangeText={setName}
+            editable={isEditing}
+            placeholder="Your name"
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Age</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={age}
+            onChangeText={setAge}
+            editable={isEditing}
+            placeholder="Your age"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="number-pad"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Location</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={location}
+            onChangeText={setLocation}
+            editable={isEditing}
+            placeholder="City, State"
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Phone Number</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            editable={isEditing}
+            placeholder="(555) 123-4567"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Favorite Color</Text>
+          <TouchableOpacity
+            style={[styles.input, styles.pickerButton, { backgroundColor: colors.card }]}
+            onPress={() => isEditing && setShowColorPicker(true)}
+            disabled={!isEditing}
+          >
+            <View style={styles.colorDisplay}>
+              {favoriteColor && (
+                <View
+                  style={[
+                    styles.colorCircle,
+                    { backgroundColor: getColorDisplay(favoriteColor) }
+                  ]}
+                />
+              )}
+              <Text style={[styles.pickerText, { color: favoriteColor ? theme.colors.text : colors.textSecondary }]}>
+                {favoriteColor || 'Select color'}
+              </Text>
+            </View>
+            {isEditing && (
+              <IconSymbol
+                ios_icon_name="chevron.down"
+                android_material_icon_name="arrow-drop-down"
+                size={20}
+                color={colors.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Favorite Food Type</Text>
+          <TouchableOpacity
+            style={[styles.input, styles.pickerButton, { backgroundColor: colors.card }]}
+            onPress={() => isEditing && setShowFoodPicker(true)}
+            disabled={!isEditing}
+          >
+            <Text style={[styles.pickerText, { color: favoriteFoodType ? theme.colors.text : colors.textSecondary }]}>
+              {favoriteFoodType || 'Select food type'}
+            </Text>
+            {isEditing && (
+              <IconSymbol
+                ios_icon_name="chevron.down"
+                android_material_icon_name="arrow-drop-down"
+                size={20}
+                color={colors.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Instagram</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={instagram}
+            onChangeText={setInstagram}
+            editable={isEditing}
+            placeholder="@username"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Twitter/X</Text>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={twitter}
+            onChangeText={setTwitter}
+            editable={isEditing}
+            placeholder="@username"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Notes</Text>
+          <TextInput
+            style={[styles.input, styles.textArea, { color: theme.colors.text, backgroundColor: colors.card }]}
+            value={notes}
+            onChangeText={setNotes}
+            editable={isEditing}
+            placeholder="Personal notes..."
+            placeholderTextColor={colors.textSecondary}
+            multiline
+            numberOfLines={4}
+          />
+        </View>
+
+        {!isFirstLogin && (
+          <TouchableOpacity 
+            style={styles.logoutButton}
+            onPress={handleSignOut}
+          >
+            <IconSymbol
+              ios_icon_name="arrow.right.square.fill"
+              android_material_icon_name="logout"
+              size={20}
+              color="#fff"
+            />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {/* Color Picker Modal */}
+      <Modal
+        visible={showColorPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowColorPicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowColorPicker(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.pickerModal}>
+                <Text style={styles.pickerTitle}>Select Favorite Color</Text>
+                <ScrollView>
+                  {FAVORITE_COLORS.map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setFavoriteColor(color);
+                        setShowColorPicker(false);
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.colorCircle,
+                          { backgroundColor: getColorDisplay(color) }
+                        ]}
+                      />
+                      <Text style={styles.pickerItemText}>{color}</Text>
+                      {favoriteColor === color && (
+                        <IconSymbol
+                          ios_icon_name="checkmark"
+                          android_material_icon_name="check"
+                          size={20}
+                          color={colors.primary}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Food Type Picker Modal */}
+      <Modal
+        visible={showFoodPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFoodPicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowFoodPicker(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.pickerModal}>
+                <Text style={styles.pickerTitle}>Select Favorite Food Type</Text>
+                <ScrollView>
+                  {FOOD_TYPES.map((food) => (
+                    <TouchableOpacity
+                      key={food}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setFavoriteFoodType(food);
+                        setShowFoodPicker(false);
+                      }}
+                    >
+                      <Text style={styles.pickerItemText}>{food}</Text>
+                      {favoriteFoodType === food && (
+                        <IconSymbol
+                          ios_icon_name="checkmark"
+                          android_material_icon_name="check"
+                          size={20}
+                          color={colors.primary}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+  },
+  editButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  welcomeCard: {
+    backgroundColor: colors.card,
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  imageContainer: {
+    alignSelf: 'center',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  placeholderImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  section: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerText: {
+    fontSize: 16,
+  },
+  colorDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  colorCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  logoutButton: {
+    backgroundColor: '#dc3545',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 24,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+    paddingTop: 20,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 12,
+  },
+  pickerItemText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+});

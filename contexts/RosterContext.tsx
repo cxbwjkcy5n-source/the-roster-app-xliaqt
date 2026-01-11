@@ -236,9 +236,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const refreshInteractions = async () => {
     try {
       console.log('[RosterContext] Fetching interactions from backend...');
-      const response = await authenticatedGet('/api/interactions');
-      console.log('[RosterContext] Interactions fetched successfully:', response.length, 'interactions');
-      setInteractions(response);
+      // Note: The API doesn't have a global interactions endpoint
+      // Interactions are fetched per profile via /api/interactions/{profileId}
+      // For now, we'll keep interactions empty and fetch them when viewing a specific profile
+      setInteractions([]);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh interactions:', err);
     }

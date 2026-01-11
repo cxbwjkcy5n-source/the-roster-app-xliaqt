@@ -54,6 +54,13 @@ INTEGRATED ENDPOINTS
 
 ✅ UPLOAD
   - POST /api/upload/profile-image - Upload profile image (multipart/form-data)
+  - POST /api/user/profile-image - Upload user profile image (multipart/form-data)
+
+✅ USER PROFILE
+  - GET /api/user/profile - Get authenticated user profile
+  - PUT /api/user/profile - Update user profile
+  - GET /api/user/profile-status - Get profile completion status
+  - POST /api/user/complete-profile - Mark profile as completed
 
 ✅ PROFILE REORDERING
   - PUT /api/profiles/reorder - Bulk update profile display order
@@ -85,6 +92,8 @@ FILES MODIFIED
   - Added extensive console logging for debugging
   - Maps between frontend RosterPerson type and backend profile schema
   - Fixed date format mapping (dateTime field in ISO 8601 format)
+  - Note: Global interactions endpoint not available - interactions fetched per profile
+  - Only loads data when user is authenticated (checks user state)
 
 ✅ app/(tabs)/roster.tsx
   - Added analytics integration with /api/analytics endpoint
@@ -98,9 +107,13 @@ FILES MODIFIED
   - Added sign out functionality with confirmation
   - Shows actual user name and email
   - Updated UI to show authenticated user info
-  - Implemented profile image upload to /api/upload/profile-image
+  - Implemented profile image upload to /api/user/profile-image
+  - Implemented profile data loading from /api/user/profile
+  - Implemented profile data saving to /api/user/profile (PUT)
+  - Implemented first login completion via /api/user/complete-profile
   - Removed TODO comments - fully implemented
-  - Added proper error handling for image upload
+  - Added proper error handling for image upload and profile save
+  - Added loading states during save operations
 
 ✅ app/(tabs)/_layout.tsx
   - Wrapped with ProtectedRoute component
@@ -116,6 +129,8 @@ FILES MODIFIED
 ✅ app/person/[id].tsx
   - Removed all TODO comments
   - All functionality already implemented via RosterContext
+  - Added profile-specific interactions loading from /api/interactions/:profileId
+  - Interactions now reload after quick actions (morning text, check-in)
 
 ✅ app/index.tsx
   - Added authentication check
@@ -149,6 +164,10 @@ FILES CREATED BY setup_auth TOOL
   - Provides OAuth methods (signInWithGoogle, signInWithApple)
   - Handles session refresh on app start
   - Integrated with BetterAuth client
+  - Fetches profile completion status from /api/user/profile-status
+  - Fetches full profile data from /api/user/profile
+  - Implements markFirstLoginComplete() using /api/user/complete-profile
+  - Handles first login flow (redirects to profile completion)
 
 ✅ app/auth.tsx
   - Main authentication screen
@@ -247,6 +266,17 @@ Authentication:
 □ Apple OAuth (web popup)
 □ Logout
 
+User Profile:
+□ First login redirects to profile screen
+□ Profile screen shows "Complete Your Profile" header
+□ Upload profile image
+□ Fill in profile information (name, age, location, etc.)
+□ Click "Complete" button
+□ Profile data saved to backend
+□ Redirected to home screen
+□ Edit profile later (Edit button)
+□ Profile data persists across sessions
+
 Roster Management:
 □ Create new profile
 □ View profile list
@@ -274,6 +304,13 @@ Analytics:
 □ See date counts
 □ See interest level breakdown
 □ See status breakdown
+
+Interactions:
+□ Log morning text
+□ Log check-in
+□ View chemistry timeline
+□ Timeline shows all interactions
+□ Timeline sorted by date
 
 ================================================================================
 NOTES
@@ -321,7 +358,47 @@ NOTES
    - Unauthenticated users sent to /auth screen
 
 ================================================================================
-FINAL VERIFICATION - DECEMBER 2024
+ADDITIONAL INTEGRATIONS - USER PROFILE
+================================================================================
+
+✅ User Profile Management
+  - Profile data loaded from /api/user/profile on screen mount
+  - Profile data saved to /api/user/profile (PUT) when user clicks Save
+  - Profile image uploaded to /api/user/profile-image (returns url and key)
+  - First login detection via /api/user/profile-status
+  - First login completion via /api/user/complete-profile (POST)
+  - Auto-redirects to profile screen on first login
+  - Auto-redirects to home after profile completion
+  - All profile fields saved: name, age, location, phone, colors, food, socials, notes
+
+✅ Profile Completion Flow
+  1. User signs up or logs in for first time
+  2. AuthContext fetches profile status from /api/user/profile-status
+  3. If profileCompleted is false, redirects to profile screen
+  4. Profile screen shows "Complete Your Profile" header
+  5. User fills in profile information
+  6. User clicks "Complete" button
+  7. Profile data saved to /api/user/profile
+  8. Profile marked complete via /api/user/complete-profile
+  9. User redirected to home screen
+
+✅ Profile Image Upload
+  - User selects image from gallery
+  - Image uploaded to /api/user/profile-image as multipart/form-data
+  - Backend returns { url, key }
+  - URL displayed immediately in UI
+  - Key stored for saving with profile data
+  - On save, both url and key sent to /api/user/profile
+
+✅ Chemistry Timeline (Per Profile)
+  - Interactions loaded from /api/interactions/:profileId
+  - Displayed in person detail screen
+  - Shows date, morning_text, check_in, call, message interactions
+  - Sorted by date (most recent first)
+  - Reloads after quick actions (morning text, check-in)
+
+================================================================================
+FINAL VERIFICATION - JANUARY 2025
 ================================================================================
 
 ✅ Authentication System

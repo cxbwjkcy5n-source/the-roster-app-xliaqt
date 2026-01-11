@@ -34,11 +34,14 @@ const FOOD_TYPES = [
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, signOut, markFirstLoginComplete } = useAuth();
   const router = useRouter();
 
-  const [isEditing, setIsEditing] = useState(false);
+  const isFirstLogin = user?.firstLoginCompleted === false;
+  const [isEditing, setIsEditing] = useState(isFirstLogin); // Auto-edit mode on first login
+  const [loading, setLoading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImageKey, setProfileImageKey] = useState<string | null>(null);
   const [name, setName] = useState(user?.name || '');
   const [age, setAge] = useState('');
   const [location, setLocation] = useState('');
@@ -51,6 +54,45 @@ export default function ProfileScreen() {
   
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
+
+  // Load user profile data from backend
+  useEffect(() => {
+    loadProfileData();
+  }, [user]);
+
+  // Auto-enable editing on first login
+  useEffect(() => {
+    if (isFirstLogin) {
+      setIsEditing(true);
+    }
+  }, [isFirstLogin]);
+
+  const loadProfileData = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('[Profile] Loading profile data from backend...');
+      const { authenticatedGet } = await import('@/utils/api');
+      const profileData = await authenticatedGet('/api/user/profile');
+      
+      console.log('[Profile] Profile data loaded:', profileData);
+      
+      // Update state with backend data
+      if (profileData.name) setName(profileData.name);
+      if (profileData.image) setProfileImage(profileData.image);
+      if (profileData.age) setAge(profileData.age.toString());
+      if (profileData.location) setLocation(profileData.location);
+      if (profileData.phoneNumber) setPhoneNumber(profileData.phoneNumber);
+      if (profileData.favoriteColor) setFavoriteColor(profileData.favoriteColor);
+      if (profileData.favoriteFoodType) setFavoriteFoodType(profileData.favoriteFoodType);
+      if (profileData.instagram) setInstagram(profileData.instagram);
+      if (profileData.twitter) setTwitter(profileData.twitter);
+      if (profileData.notes) setNotes(profileData.notes);
+    } catch (error) {
+      console.error('[Profile] Error loading profile data:', error);
+      // Don't show error alert - user might not have profile data yet
+    }
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -83,7 +125,7 @@ export default function ProfileScreen() {
         const { getBearerToken, BACKEND_URL } = await import('@/utils/api');
         const token = await getBearerToken();
         
-        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
+        const uploadResponse = await fetch(`${BACKEND_URL}/api/user/profile-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -97,7 +139,9 @@ export default function ProfileScreen() {
 
         const uploadData = await uploadResponse.json();
         console.log('[Profile] Image uploaded successfully:', uploadData.url);
-        Alert.alert('Success', 'Profile image uploaded successfully');
+        
+        // Store the image key for saving later
+        setProfileImageKey(uploadData.key);
       } catch (error) {
         console.error('[Profile] Image upload failed:', error);
         Alert.alert('Error', 'Failed to upload image. Please try again.');
@@ -107,21 +151,64 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     try {
+      setLoading(true);
       console.log('[Profile] Saving profile data...');
       
-      // Note: The backend API doesn't have a /api/user/profile endpoint
-      // User profile data is managed through the authentication system
-      // This would typically update user metadata in the auth system
-      // For now, we'll just save locally and show success
+      // Prepare profile data
+      const profileData: any = {
+        name: name.trim(),
+      };
       
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
+      // Add optional fields if they have values
+      if (age) profileData.age = parseInt(age);
+      if (location) profileData.location = location.trim();
+      if (phoneNumber) profileData.phoneNumber = phoneNumber.trim();
+      if (favoriteColor) profileData.favoriteColor = favoriteColor;
+      if (favoriteFoodType) profileData.favoriteFoodType = favoriteFoodType;
+      if (instagram) profileData.instagram = instagram.trim();
+      if (twitter) profileData.twitter = twitter.trim();
+      if (notes) profileData.notes = notes.trim();
+      if (profileImage) profileData.image = profileImage;
+      if (profileImageKey) profileData.imageKey = profileImageKey;
       
-      // If you need to save additional user profile data beyond what's in the auth system,
-      // you would need to add a new endpoint to the backend API
+      // Save profile data to backend
+      const { authenticatedPut } = await import('@/utils/api');
+      await authenticatedPut('/api/user/profile', profileData);
+      console.log('[Profile] Profile data saved successfully');
+      
+      // If this is first login, mark it as complete
+      if (isFirstLogin) {
+        console.log('[Profile] First login - marking as complete');
+        
+        // Call the complete-profile endpoint
+        const { authenticatedPost } = await import('@/utils/api');
+        await authenticatedPost('/api/user/complete-profile', {});
+        
+        // Update auth context
+        await markFirstLoginComplete();
+        
+        Alert.alert(
+          'Profile Complete!',
+          'Welcome to THE ROSTER! Your profile has been set up.',
+          [
+            {
+              text: 'Get Started',
+              onPress: () => {
+                setIsEditing(false);
+                // Navigation will be handled by AuthContext
+              }
+            }
+          ]
+        );
+      } else {
+        setIsEditing(false);
+        Alert.alert('Success', 'Profile updated successfully');
+      }
     } catch (error) {
       console.error('[Profile] Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -137,7 +224,6 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await signOut();
-              router.replace("/(tabs)/(home)");
             } catch (error) {
               Alert.alert("Error", "Failed to sign out");
             }
@@ -172,12 +258,23 @@ export default function ProfileScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>
+            {isFirstLogin ? 'Complete Your Profile' : 'Profile'}
+          </Text>
+          {isFirstLogin && (
+            <Text style={styles.headerSubtitle}>
+              Let&apos;s set up your profile to get started
+            </Text>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => isEditing ? handleSave() : setIsEditing(true)}
         >
-          <Text style={styles.editButtonText}>{isEditing ? 'Save' : 'Edit'}</Text>
+          <Text style={styles.editButtonText}>
+            {isFirstLogin ? 'Complete' : (isEditing ? 'Save' : 'Edit')}
+          </Text>
         </TouchableOpacity>
       </LinearGradient>
 
@@ -188,6 +285,23 @@ export default function ProfileScreen() {
           Platform.OS !== 'ios' && styles.contentContainerWithTabBar
         ]}
       >
+        {isFirstLogin && (
+          <View style={styles.welcomeCard}>
+            <IconSymbol
+              ios_icon_name="hand.wave.fill"
+              android_material_icon_name="waving-hand"
+              size={32}
+              color={colors.primary}
+            />
+            <Text style={[styles.welcomeTitle, { color: theme.colors.text }]}>
+              Welcome to THE ROSTER!
+            </Text>
+            <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>
+              Complete your profile to personalize your experience. You can always update this later.
+            </Text>
+          </View>
+        )}
+
         {/* Profile Image */}
         <TouchableOpacity
           style={styles.imageContainer}
@@ -364,18 +478,20 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          onPress={handleSignOut}
-        >
-          <IconSymbol
-            ios_icon_name="arrow.right.square.fill"
-            android_material_icon_name="logout"
-            size={20}
-            color="#fff"
-          />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        {!isFirstLogin && (
+          <TouchableOpacity 
+            style={styles.logoutButton}
+            onPress={handleSignOut}
+          >
+            <IconSymbol
+              ios_icon_name="arrow.right.square.fill"
+              android_material_icon_name="logout"
+              size={20}
+              color="#fff"
+            />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Color Picker Modal */}
@@ -478,10 +594,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  headerContent: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
   },
   editButton: {
     paddingHorizontal: 16,
@@ -502,6 +626,26 @@ const styles = StyleSheet.create({
   },
   contentContainerWithTabBar: {
     paddingBottom: 100,
+  },
+  welcomeCard: {
+    backgroundColor: colors.card,
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   imageContainer: {
     alignSelf: 'center',
