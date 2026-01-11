@@ -3,6 +3,7 @@ import * as appSchema from './db/schema.js';
 import * as authSchema from './db/auth-schema.js';
 
 // Import route registration functions
+import { registerHealthRoutes } from './routes/health.js';
 import { registerProfileRoutes } from './routes/profiles.js';
 import { registerFlagsRoutes } from './routes/flags.js';
 import { registerDatesRoutes } from './routes/dates.js';
@@ -20,11 +21,17 @@ export const app = await createApplication(schema);
 // Export App type for use in route files
 export type App = typeof app;
 
-// Enable authentication and storage
-app.withAuth();
+// Enable authentication with Better Auth configuration
+// Support email/password, Google OAuth, and Apple OAuth through proxy
+app.withAuth({
+  // The proxy handles OAuth credentials automatically via Better Auth's managed OAuth
+  // No need to provide credentials - they're handled by the framework
+});
+
 app.withStorage();
 
 // Register routes
+registerHealthRoutes(app, app.fastify);
 registerProfileRoutes(app, app.fastify);
 registerFlagsRoutes(app, app.fastify);
 registerDatesRoutes(app, app.fastify);

@@ -53,6 +53,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
           userId: session.user.id,
           age: body.age,
           birthdayMonth: body.birthdayMonth,
+          birthdayDay: body.birthdayDay,
           birthdayYear: body.birthdayYear,
           zodiacSign: body.zodiacSign,
           favoriteColor: body.favoriteColor,
@@ -69,6 +70,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
           profileImageUrl: body.profileImageUrl,
           profileImageKey: body.profileImageKey,
           status: body.status,
+          benchReason: body.benchReason,
+          displayOrder: body.displayOrder,
         })
         .returning();
 

@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, or, lt, isNull } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
 
@@ -147,7 +147,10 @@ export function registerInteractionsRoutes(app: App, fastify: FastifyInstance) {
           and(
             eq(schema.rosterProfiles.userId, session.user.id),
             eq(schema.rosterProfiles.status, 'roster'),
-            sql`${schema.rosterProfiles.lastContactDate} < ${tenDaysAgo} OR ${schema.rosterProfiles.lastContactDate} IS NULL`
+            or(
+              lt(schema.rosterProfiles.lastContactDate, tenDaysAgo),
+              isNull(schema.rosterProfiles.lastContactDate)
+            )
           )
         );
 
