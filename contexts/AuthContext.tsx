@@ -83,13 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = await authClient.getSession();
       console.log('[AuthContext] Session:', JSON.stringify(session, null, 2));
       
-      if (session?.user) {
-        console.log('[AuthContext] User authenticated:', session.user.email);
+      // FIX: Check session.data.user instead of session.user
+      if (session?.data?.user) {
+        console.log('[AuthContext] User authenticated:', session.data.user.email);
         
         // Store bearer token for API calls (native only, web uses cookies)
-        if (Platform.OS !== 'web' && session.session?.token) {
+        if (Platform.OS !== 'web' && session.data.session?.token) {
           console.log('[AuthContext] Storing bearer token for native API calls');
-          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, session.session.token);
+          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, session.data.session.token);
         }
 
         // Try to fetch additional user info including firstLoginCompleted flag
@@ -104,8 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // On web, cookies are automatically sent with credentials: 'include'
           // On native, we need to use the bearer token
           const headers: HeadersInit = {};
-          if (Platform.OS !== 'web' && session.session?.token) {
-            headers['Authorization'] = `Bearer ${session.session.token}`;
+          if (Platform.OS !== 'web' && session.data.session?.token) {
+            headers['Authorization'] = `Bearer ${session.data.session.token}`;
           }
           
           // Try to fetch from /api/user/profile-status first (lightweight endpoint)
@@ -142,10 +143,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Set user with all available data
         const userData: User = {
-          id: session.user.id,
-          email: session.user.email,
-          name: profileData.name || session.user.name,
-          image: profileData.image || session.user.image,
+          id: session.data.user.id,
+          email: session.data.user.email,
+          name: profileData.name || session.data.user.name,
+          image: profileData.image || session.data.user.image,
           firstLoginCompleted,
         };
         
@@ -241,8 +242,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch user data to get firstLoginCompleted flag
       const session = await authClient.getSession();
       
-      if (session?.user) {
-        console.log('[AuthContext] User authenticated:', session.user.email);
+      // FIX: Check session.data.user instead of session.user
+      if (session?.data?.user) {
+        console.log('[AuthContext] User authenticated:', session.data.user.email);
         
         // Try to fetch additional user info including firstLoginCompleted flag
         let firstLoginCompleted = true; // Default to true
@@ -256,8 +258,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // On web, cookies are automatically sent with credentials: 'include'
           // On native, we need to use the bearer token
           const headers: HeadersInit = {};
-          if (Platform.OS !== 'web' && session.session?.token) {
-            headers['Authorization'] = `Bearer ${session.session.token}`;
+          if (Platform.OS !== 'web' && session.data.session?.token) {
+            headers['Authorization'] = `Bearer ${session.data.session.token}`;
           }
           
           // Try to fetch from /api/user/profile-status first (lightweight endpoint)
@@ -294,10 +296,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Set user with all available data
         const userData: User = {
-          id: session.user.id,
-          email: session.user.email,
-          name: profileData.name || session.user.name,
-          image: profileData.image || session.user.image,
+          id: session.data.user.id,
+          email: session.data.user.email,
+          name: profileData.name || session.data.user.name,
+          image: profileData.image || session.data.user.image,
           firstLoginCompleted,
         };
         
