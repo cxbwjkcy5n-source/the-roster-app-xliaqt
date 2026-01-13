@@ -48,6 +48,7 @@ const storage = Platform.OS === "web"
     }
   : SecureStore;
 
+// Create auth client with platform-specific configuration
 export const authClient = createAuthClient({
   baseURL: API_URL,
   plugins: [
@@ -57,25 +58,10 @@ export const authClient = createAuthClient({
       storage,
     }),
   ],
-  // On web, use bearer token for authenticated requests
-  ...(Platform.OS === "web" && {
-    fetchOptions: {
-      auth: {
-        type: "Bearer" as const,
-        token: () => {
-          try {
-            if (typeof window !== 'undefined' && window.localStorage) {
-              return localStorage.getItem(BEARER_TOKEN_KEY) || "";
-            }
-            return "";
-          } catch (error) {
-            console.error('[Auth] Error getting bearer token:', error);
-            return "";
-          }
-        },
-      },
-    },
-  }),
+  // On web, better-auth uses cookies by default, so we need to ensure credentials are included
+  fetchOptions: Platform.OS === "web" ? {
+    credentials: "include" as RequestCredentials,
+  } : undefined,
 });
 
 export function storeWebBearerToken(token: string) {

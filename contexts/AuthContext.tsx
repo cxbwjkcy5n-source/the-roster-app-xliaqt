@@ -72,16 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         console.log('[AuthContext] User authenticated:', session.user.email);
         
-        // Store bearer token for API calls
-        if (session.session?.token) {
-          console.log('[AuthContext] Storing bearer token for API calls');
-          if (Platform.OS === 'web') {
-            if (typeof window !== 'undefined' && window.localStorage) {
-              localStorage.setItem(BEARER_TOKEN_KEY, session.session.token);
-            }
-          } else {
-            await SecureStore.setItemAsync(BEARER_TOKEN_KEY, session.session.token);
-          }
+        // Store bearer token for API calls (native only, web uses cookies)
+        if (Platform.OS !== 'web' && session.session?.token) {
+          console.log('[AuthContext] Storing bearer token for native API calls');
+          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, session.session.token);
         }
 
         // Try to fetch additional user info including firstLoginCompleted flag
@@ -90,40 +84,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         try {
           const { BACKEND_URL } = await import('@/utils/api');
-          const token = session.session?.token;
           
-          if (token) {
-            console.log('[AuthContext] Fetching profile status from backend...');
-            
-            // Try to fetch from /api/user/profile-status first (lightweight endpoint)
-            const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            });
+          console.log('[AuthContext] Fetching profile status from backend...');
+          
+          // On web, cookies are automatically sent with credentials: 'include'
+          // On native, we need to use the bearer token
+          const headers: HeadersInit = {};
+          if (Platform.OS !== 'web' && session.session?.token) {
+            headers['Authorization'] = `Bearer ${session.session.token}`;
+          }
+          
+          // Try to fetch from /api/user/profile-status first (lightweight endpoint)
+          const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
+            credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+            headers,
+          });
 
-            if (statusResponse.ok) {
-              const statusData = await statusResponse.json();
-              console.log('[AuthContext] Profile status from backend:', statusData);
-              firstLoginCompleted = statusData.profileCompleted !== false;
-            } else {
-              console.log('[AuthContext] Profile status endpoint returned:', statusResponse.status);
-            }
-            
-            // Also try to fetch full profile data
-            console.log('[AuthContext] Fetching full profile data from backend...');
-            const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            });
-            
-            if (profileResponse.ok) {
-              profileData = await profileResponse.json();
-              console.log('[AuthContext] Profile data from backend:', profileData);
-            } else {
-              console.log('[AuthContext] Profile endpoint returned:', profileResponse.status);
-            }
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log('[AuthContext] Profile status from backend:', statusData);
+            firstLoginCompleted = statusData.profileCompleted !== false;
+          } else {
+            console.log('[AuthContext] Profile status endpoint returned:', statusResponse.status);
+          }
+          
+          // Also try to fetch full profile data
+          console.log('[AuthContext] Fetching full profile data from backend...');
+          const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
+            credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+            headers,
+          });
+          
+          if (profileResponse.ok) {
+            profileData = await profileResponse.json();
+            console.log('[AuthContext] Profile data from backend:', profileData);
+          } else {
+            console.log('[AuthContext] Profile endpoint returned:', profileResponse.status);
           }
         } catch (error) {
           console.error('[AuthContext] Error fetching user data from backend:', error);
@@ -159,28 +155,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Marking first login as complete...');
       const { BACKEND_URL } = await import('@/utils/api');
       
-      // Get bearer token
-      let token: string | null = null;
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          token = localStorage.getItem(BEARER_TOKEN_KEY);
+      // Get bearer token for native, web uses cookies
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (Platform.OS !== 'web') {
+        const token = await SecureStore.getItemAsync(BEARER_TOKEN_KEY);
+        if (!token) {
+          console.error('[AuthContext] No bearer token found');
+          return;
         }
-      } else {
-        token = await SecureStore.getItemAsync(BEARER_TOKEN_KEY);
-      }
-
-      if (!token) {
-        console.error('[AuthContext] No bearer token found');
-        return;
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       // Call the complete-profile endpoint
       const response = await fetch(`${BACKEND_URL}/api/user/complete-profile`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+        headers,
+        body: JSON.stringify({}),
       });
 
       if (response.ok) {
@@ -202,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
-      console.log('[AuthContext] Signing in with email:', email);
+      console.log('[AuthContext] Signing in with email:', email, 'Platform:', Platform.OS);
       const result = await authClient.signIn.email({
         email,
         password,
@@ -215,16 +209,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(result.error.message || 'Login failed');
       }
       
-      // Store bearer token
-      if (result.data?.session?.token) {
-        console.log('[AuthContext] Storing bearer token from sign in');
-        if (Platform.OS === 'web') {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
-          }
-        } else {
-          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
-        }
+      // Store bearer token for native only (web uses cookies)
+      if (Platform.OS !== 'web' && result.data?.session?.token) {
+        console.log('[AuthContext] Storing bearer token from sign in (native)');
+        await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
       }
       
       console.log('[AuthContext] Sign in successful, fetching user data...');
@@ -241,40 +229,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         try {
           const { BACKEND_URL } = await import('@/utils/api');
-          const token = session.session?.token;
           
-          if (token) {
-            console.log('[AuthContext] Fetching profile status from backend...');
-            
-            // Try to fetch from /api/user/profile-status first (lightweight endpoint)
-            const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            });
+          console.log('[AuthContext] Fetching profile status from backend...');
+          
+          // On web, cookies are automatically sent with credentials: 'include'
+          // On native, we need to use the bearer token
+          const headers: HeadersInit = {};
+          if (Platform.OS !== 'web' && session.session?.token) {
+            headers['Authorization'] = `Bearer ${session.session.token}`;
+          }
+          
+          // Try to fetch from /api/user/profile-status first (lightweight endpoint)
+          const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
+            credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+            headers,
+          });
 
-            if (statusResponse.ok) {
-              const statusData = await statusResponse.json();
-              console.log('[AuthContext] Profile status from backend:', statusData);
-              firstLoginCompleted = statusData.profileCompleted !== false;
-            } else {
-              console.log('[AuthContext] Profile status endpoint returned:', statusResponse.status);
-            }
-            
-            // Also try to fetch full profile data
-            console.log('[AuthContext] Fetching full profile data from backend...');
-            const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            });
-            
-            if (profileResponse.ok) {
-              profileData = await profileResponse.json();
-              console.log('[AuthContext] Profile data from backend:', profileData);
-            } else {
-              console.log('[AuthContext] Profile endpoint returned:', profileResponse.status);
-            }
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log('[AuthContext] Profile status from backend:', statusData);
+            firstLoginCompleted = statusData.profileCompleted !== false;
+          } else {
+            console.log('[AuthContext] Profile status endpoint returned:', statusResponse.status);
+          }
+          
+          // Also try to fetch full profile data
+          console.log('[AuthContext] Fetching full profile data from backend...');
+          const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
+            credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+            headers,
+          });
+          
+          if (profileResponse.ok) {
+            profileData = await profileResponse.json();
+            console.log('[AuthContext] Profile data from backend:', profileData);
+          } else {
+            console.log('[AuthContext] Profile endpoint returned:', profileResponse.status);
           }
         } catch (error) {
           console.error('[AuthContext] Error fetching user data from backend:', error);
@@ -324,16 +314,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(result.error.message || 'Sign up failed');
       }
       
-      // Store bearer token
-      if (result.data?.session?.token) {
-        console.log('[AuthContext] Storing bearer token from sign up');
-        if (Platform.OS === 'web') {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(BEARER_TOKEN_KEY, result.data.session.token);
-          }
-        } else {
-          await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
-        }
+      // Store bearer token for native only (web uses cookies)
+      if (Platform.OS !== 'web' && result.data?.session?.token) {
+        console.log('[AuthContext] Storing bearer token from sign up (native)');
+        await SecureStore.setItemAsync(BEARER_TOKEN_KEY, result.data.session.token);
       }
       
       console.log('[AuthContext] Sign up successful, fetching user data...');
@@ -534,12 +518,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Signing out...');
       await authClient.signOut();
       
-      // Clear bearer token
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.removeItem(BEARER_TOKEN_KEY);
-        }
-      } else {
+      // Clear bearer token for native
+      if (Platform.OS !== 'web') {
         await SecureStore.deleteItemAsync(BEARER_TOKEN_KEY);
       }
       
