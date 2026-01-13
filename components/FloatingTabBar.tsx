@@ -86,11 +86,10 @@ export default function FloatingTabBar({
   };
 
   const handleAddPress = () => {
-    console.log('[FloatingTabBar] Add button pressed');
+    console.log('[FloatingTabBar] Add button pressed - navigating to add person');
     if (onAddPress) {
       onAddPress();
     } else {
-      // Default behavior - navigate to add screen
       console.log('[FloatingTabBar] Navigating to /person/add');
       router.push('/person/add' as Href);
     }
@@ -141,7 +140,6 @@ export default function FloatingTabBar({
     },
   };
 
-  // Use regular View for web instead of BlurView for better compatibility
   const ContainerComponent = Platform.OS === 'web' ? View : BlurView;
   const containerProps = Platform.OS === 'web' 
     ? {} 
@@ -156,14 +154,14 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 20
         }
       ]}>
-        {/* Center Add Button */}
+        {/* Center Add Button - Bigger and Solid Color */}
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleAddPress}
           activeOpacity={0.8}
         >
-          <View style={[styles.addButtonInner, { backgroundColor: '#2E7D32' }]}>
-            <MaterialIcons name="add" size={32} color="#FFFFFF" />
+          <View style={styles.addButtonInner}>
+            <MaterialIcons name="add" size={36} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
 
@@ -232,9 +230,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    top: -25,
+    top: -30,
     left: '50%',
-    marginLeft: -30,
+    marginLeft: -35,
     zIndex: 1001,
     ...Platform.select({
       web: {
@@ -243,16 +241,17 @@ const styles = StyleSheet.create({
     }),
   },
   addButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#2E7D32',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 12,
   },
   blurContainer: {
     overflow: 'hidden',
