@@ -7,7 +7,7 @@ export const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || 'https://e
 
 const BEARER_TOKEN_KEY = 'roster-app_bearer_token';
 
-async function getBearerToken(): Promise<string | null> {
+export async function getBearerToken(): Promise<string | null> {
   try {
     if (Platform.OS === 'web') {
       // On web, better-auth uses cookies, so we don't need a bearer token
