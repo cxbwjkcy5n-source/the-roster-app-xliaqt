@@ -143,6 +143,8 @@ export default function AddPersonScreen() {
   };
 
   const handleSave = async () => {
+    console.log('[AddPerson] User tapped Save button');
+    
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a name');
       return;
@@ -235,7 +237,7 @@ export default function AddPersonScreen() {
 
       console.log('[AddPerson] Saving person:', person.name);
       await addPerson(person);
-      console.log('[AddPerson] Person saved successfully');
+      console.log('[AddPerson] Person saved successfully, navigating to home screen');
       
       // Navigate to home screen after saving
       router.replace('/(tabs)/(home)');
@@ -257,9 +259,12 @@ export default function AddPersonScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} disabled={saving}>
+          <TouchableOpacity onPress={() => {
+            console.log('[AddPerson] User tapped Cancel button');
+            router.back();
+          }} disabled={saving}>
             <Text style={[styles.cancelButton, saving && { opacity: 0.5 }]}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add to Roster</Text>
