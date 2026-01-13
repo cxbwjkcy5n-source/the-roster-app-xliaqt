@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { Platform } from "react-native";
 import { authClient, storeWebBearerToken } from "@/lib/auth";
 import { useRouter, useSegments } from "expo-router";
@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const segments = useSegments();
+  const isNavigatingRef = useRef(false);
 
   useEffect(() => {
     fetchUser();
@@ -50,7 +51,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Protected route navigation - simplified
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      console.log('[AuthContext] Still loading, skipping navigation check');
+      return;
+    }
+
+    // Don't redirect if we're in the middle of a navigation
+    if (isNavigatingRef.current) {
+      console.log('[AuthContext] Navigation in progress, skipping redirect');
+      return;
+    }
 
     const inAuthGroup = segments[0] === 'auth';
 
@@ -60,6 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to login if not authenticated and not in auth screens
       console.log('[AuthContext] Not authenticated, redirecting to login');
       router.replace('/auth/login');
+    } else if (user && inAuthGroup) {
+      // If user is authenticated but still on auth screens, redirect to home
+      console.log('[AuthContext] User authenticated but on auth screen, redirecting to home');
+      router.replace('/(tabs)/(home)/');
     }
   }, [user, loading, segments]);
 
@@ -185,7 +199,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(prev => prev ? { ...prev, firstLoginCompleted: true } : null);
         
         // Navigate to home
+        isNavigatingRef.current = true;
         router.replace('/(tabs)/(home)/');
+        setTimeout(() => { isNavigatingRef.current = false; }, 1000);
       } else {
         console.error('[AuthContext] Failed to mark first login complete:', response.status);
       }
@@ -197,6 +213,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithEmail = async (email: string, password: string) => {
     try {
       console.log('[AuthContext] Signing in with email:', email, 'Platform:', Platform.OS);
+      
+      // Set navigating flag to prevent redirect loop
+      isNavigatingRef.current = true;
+      
       const result = await authClient.signIn.email({
         email,
         password,
@@ -206,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (result.error) {
         console.error('[AuthContext] Sign in error from API:', result.error);
+        isNavigatingRef.current = false;
         throw new Error(result.error.message || 'Login failed');
       }
       
@@ -291,9 +312,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('[AuthContext] Regular login, redirecting to home');
           router.replace('/(tabs)/(home)/');
         }
+        
+        // Clear navigating flag after a delay to allow navigation to complete
+        setTimeout(() => { isNavigatingRef.current = false; }, 1000);
       }
     } catch (error) {
       console.error('[AuthContext] Sign in error:', error);
+      isNavigatingRef.current = false;
       throw error;
     }
   };
@@ -301,6 +326,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
     try {
       console.log('[AuthContext] Signing up with email:', email);
+      
+      // Set navigating flag to prevent redirect loop
+      isNavigatingRef.current = true;
+      
       const result = await authClient.signUp.email({
         email,
         password,
@@ -311,6 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (result.error) {
         console.error('[AuthContext] Sign up error from API:', result.error);
+        isNavigatingRef.current = false;
         throw new Error(result.error.message || 'Sign up failed');
       }
       
@@ -327,8 +357,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] User data fetched, redirecting to profile for first login');
       // New users should always go to profile first
       router.replace('/(tabs)/profile');
+      
+      // Clear navigating flag after a delay to allow navigation to complete
+      setTimeout(() => { isNavigatingRef.current = false; }, 1000);
     } catch (error) {
       console.error('[AuthContext] Sign up error:', error);
+      isNavigatingRef.current = false;
       throw error;
     }
   };
@@ -336,6 +370,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       console.log('[AuthContext] Signing in with Google...');
+      isNavigatingRef.current = true;
+      
       if (Platform.OS === 'web') {
         // Web OAuth flow using popup - only execute on web
         if (typeof window !== 'undefined' && window.open && window.addEventListener) {
@@ -377,6 +413,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           await fetchUser();
           router.replace('/(tabs)/(home)/');
+          setTimeout(() => { isNavigatingRef.current = false; }, 1000);
         }
       } else {
         // Native OAuth flow
@@ -385,10 +422,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         await fetchUser();
         router.replace('/(tabs)/(home)/');
+        setTimeout(() => { isNavigatingRef.current = false; }, 1000);
       }
       console.log('[AuthContext] Google sign in successful');
     } catch (error) {
       console.error('[AuthContext] Google sign in error:', error);
+      isNavigatingRef.current = false;
       throw error;
     }
   };
@@ -396,6 +435,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithApple = async () => {
     try {
       console.log('[AuthContext] Signing in with Apple...');
+      isNavigatingRef.current = true;
+      
       if (Platform.OS === 'web') {
         // Web OAuth flow using popup - only execute on web
         if (typeof window !== 'undefined' && window.open && window.addEventListener) {
@@ -437,6 +478,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           await fetchUser();
           router.replace('/(tabs)/(home)/');
+          setTimeout(() => { isNavigatingRef.current = false; }, 1000);
         }
       } else {
         // Native OAuth flow
@@ -445,10 +487,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         await fetchUser();
         router.replace('/(tabs)/(home)/');
+        setTimeout(() => { isNavigatingRef.current = false; }, 1000);
       }
       console.log('[AuthContext] Apple sign in successful');
     } catch (error) {
       console.error('[AuthContext] Apple sign in error:', error);
+      isNavigatingRef.current = false;
       throw error;
     }
   };
@@ -456,6 +500,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGitHub = async () => {
     try {
       console.log('[AuthContext] Signing in with GitHub...');
+      isNavigatingRef.current = true;
+      
       if (Platform.OS === 'web') {
         // Web OAuth flow using popup - only execute on web
         if (typeof window !== 'undefined' && window.open && window.addEventListener) {
@@ -497,6 +543,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           await fetchUser();
           router.replace('/(tabs)/(home)/');
+          setTimeout(() => { isNavigatingRef.current = false; }, 1000);
         }
       } else {
         // Native OAuth flow
@@ -505,10 +552,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         await fetchUser();
         router.replace('/(tabs)/(home)/');
+        setTimeout(() => { isNavigatingRef.current = false; }, 1000);
       }
       console.log('[AuthContext] GitHub sign in successful');
     } catch (error) {
       console.error('[AuthContext] GitHub sign in error:', error);
+      isNavigatingRef.current = false;
       throw error;
     }
   };
