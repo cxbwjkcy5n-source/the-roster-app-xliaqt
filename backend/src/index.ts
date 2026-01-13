@@ -3,6 +3,7 @@ import * as appSchema from './db/schema.js';
 import * as authSchema from './db/auth-schema.js';
 
 // Import route registration functions
+import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerUserProfileRoutes } from './routes/user-profile.js';
 import { registerProfileRoutes } from './routes/profiles.js';
@@ -34,6 +35,7 @@ app.withAuth({
 app.withStorage();
 
 // Register routes
+registerAuthRoutes(app, app.fastify);
 registerHealthRoutes(app, app.fastify);
 registerUserProfileRoutes(app, app.fastify);
 registerProfileRoutes(app, app.fastify);
