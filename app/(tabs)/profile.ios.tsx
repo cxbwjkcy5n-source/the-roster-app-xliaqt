@@ -25,6 +25,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// FIX: Reduce profile image size - was SCREEN_WIDTH, now 0.6
+const PROFILE_IMAGE_SIZE = SCREEN_WIDTH * 0.6;
 
 const FAVORITE_COLORS = [
   'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Black', 'White', 'Brown', 'Gray'
@@ -68,7 +70,6 @@ export default function ProfileScreen() {
       
       console.log('[Profile] Profile data loaded:', profileData);
       
-      // Update state with backend data
       if (profileData.name) setName(profileData.name);
       if (profileData.image) setProfileImage(profileData.image);
       if (profileData.age) setAge(profileData.age.toString());
@@ -81,16 +82,13 @@ export default function ProfileScreen() {
       if (profileData.notes) setNotes(profileData.notes);
     } catch (error) {
       console.error('[Profile] Error loading profile data:', error);
-      // Don't show error alert - user might not have profile data yet
     }
   }, [user]);
 
-  // Load user profile data from backend
   useEffect(() => {
     loadProfileData();
   }, [loadProfileData]);
 
-  // Auto-enable editing on first login
   useEffect(() => {
     if (isFirstLogin) {
       setIsEditing(true);
@@ -140,6 +138,7 @@ export default function ProfileScreen() {
 
         const uploadData = await uploadResponse.json();
         console.log('[Profile] Image uploaded successfully:', uploadData.url);
+        
         setProfileImageKey(uploadData.key);
       } catch (error) {
         console.error('[Profile] Image upload failed:', error);
@@ -272,7 +271,10 @@ export default function ProfileScreen() {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          Platform.OS !== 'ios' && styles.contentContainerWithTabBar
+        ]}
       >
         {isFirstLogin && (
           <View style={styles.welcomeCard}>
@@ -291,39 +293,41 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Profile Image - FULL WIDTH like crop view */}
-        <TouchableOpacity
-          style={styles.imageContainer}
-          onPress={isEditing ? pickImage : undefined}
-          disabled={!isEditing}
-        >
-          {profileImage || user?.image ? (
-            <Image
-              source={{ uri: profileImage || user?.image }}
-              style={styles.profileImage}
-            />
-          ) : (
-            <View style={[styles.profileImage, styles.placeholderImage]}>
-              <IconSymbol
-                ios_icon_name="person.circle.fill"
-                android_material_icon_name="account-circle"
-                size={120}
-                color={colors.primary}
+        {/* FIX: Profile Image - Smaller size */}
+        <View style={styles.imageContainerWrapper}>
+          <TouchableOpacity
+            style={styles.imageContainer}
+            onPress={isEditing ? pickImage : undefined}
+            disabled={!isEditing}
+          >
+            {profileImage || user?.image ? (
+              <Image
+                source={{ uri: profileImage || user?.image }}
+                style={styles.profileImage}
               />
-            </View>
-          )}
-          {isEditing && (
-            <View style={styles.imageOverlay}>
-              <IconSymbol
-                ios_icon_name="camera.fill"
-                android_material_icon_name="camera"
-                size={40}
-                color="#fff"
-              />
-              <Text style={styles.imageOverlayText}>Tap to change photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            ) : (
+              <View style={[styles.profileImage, styles.placeholderImage]}>
+                <IconSymbol
+                  ios_icon_name="person.circle.fill"
+                  android_material_icon_name="account-circle"
+                  size={100}
+                  color={colors.primary}
+                />
+              </View>
+            )}
+            {isEditing && (
+              <View style={styles.imageOverlay}>
+                <IconSymbol
+                  ios_icon_name="camera.fill"
+                  android_material_icon_name="camera"
+                  size={32}
+                  color="#fff"
+                />
+                <Text style={styles.imageOverlayText}>Tap to change</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.fieldsContainer}>
           <View style={styles.section}>
@@ -653,6 +657,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
+    paddingBottom: 20,
+  },
+  contentContainerWithTabBar: {
     paddingBottom: 100,
   },
   welcomeCard: {
@@ -679,11 +686,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textSecondary,
   },
+  imageContainerWrapper: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
   imageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
+    width: PROFILE_IMAGE_SIZE,
+    height: PROFILE_IMAGE_SIZE,
     position: 'relative',
-    marginBottom: 24,
+    borderRadius: PROFILE_IMAGE_SIZE / 2,
+    overflow: 'hidden',
   },
   profileImage: {
     width: '100%',
@@ -706,7 +718,7 @@ const styles = StyleSheet.create({
   },
   imageOverlayText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
   },

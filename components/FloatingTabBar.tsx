@@ -36,7 +36,7 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = screenWidth - 40, // FIX: Full width with margins
+  containerWidth = screenWidth - 40,
   borderRadius = 30,
   bottomMargin,
   onAddPress
@@ -128,7 +128,7 @@ export default function FloatingTabBar({
     },
     indicator: {
       ...styles.indicator,
-      backgroundColor: 'rgba(17, 163, 106, 0.1)', // Roster green tint
+      backgroundColor: 'rgba(17, 163, 106, 0.1)',
       width: `${tabWidthPercent}%` as `${number}%`,
     },
   };
@@ -147,7 +147,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Center Add Button - Retro Red with White Phone Icon */}
+        {/* FIX: Center Add Button - Nestled inside navigation bar */}
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleAddPress}
@@ -174,7 +174,6 @@ export default function FloatingTabBar({
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
-              // FIX: High contrast icon colors - Active: Roster Green, Inactive: Grey
               const iconColor = isActive ? colors.navActive : colors.navInactive;
 
               return (
@@ -187,7 +186,7 @@ export default function FloatingTabBar({
                   <View style={styles.tabContent}>
                     <MaterialIcons
                       name={tab.icon}
-                      size={24}
+                      size={26}
                       color={iconColor}
                       style={styles.iconStyle}
                     />
@@ -226,9 +225,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    top: -32,
+    top: -28,
     left: '50%',
-    marginLeft: -36,
+    marginLeft: -32,
     zIndex: 1001,
     ...Platform.select({
       web: {
@@ -237,10 +236,10 @@ const styles = StyleSheet.create({
     }),
   },
   addButtonInner: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.navFAB, // Retro Red
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.navFAB,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

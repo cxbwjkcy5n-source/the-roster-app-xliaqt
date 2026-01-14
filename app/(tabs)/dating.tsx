@@ -86,7 +86,7 @@ export default function DatingScreen() {
       action: () => {
         console.log('[Dating] User tapped "Dating Coach"');
         setShowMenu(false);
-        Alert.alert('Coming Soon', 'Dating coach features will be available soon!');
+        router.push('/dating/coach' as any);
       },
     },
     {
@@ -106,13 +106,17 @@ export default function DatingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Dating Header - Action Red Gradient */}
+      {/* FIX: Dating Header - Same size and rounded as other pages */}
       <LinearGradient 
         colors={gradients.actionRed} 
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>DATING</Text>
-        <Text style={styles.headerSubtitle}>Manage your dating life</Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>DATING</Text>
+            <Text style={styles.headerSubtitle}>Manage your dating life</Text>
+          </View>
+        </View>
       </LinearGradient>
 
       <View style={styles.content}>
@@ -221,18 +225,22 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: colors.white,
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.white,
-    opacity: 0.95,
-    marginTop: 6,
-    fontWeight: '500',
+    opacity: 0.9,
+    marginTop: 4,
   },
   content: {
     flex: 1,
