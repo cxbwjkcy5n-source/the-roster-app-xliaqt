@@ -142,7 +142,7 @@ export default function DatingScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScroll}>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
               {menuItems.map((item) => (
                 <TouchableOpacity
                   key={item.id}
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+    flex: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -261,8 +261,11 @@ const styles = StyleSheet.create({
   },
   modalScroll: {
     flex: 1,
+  },
+  modalScrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 40,
   },
   menuItem: {
     flexDirection: 'row',

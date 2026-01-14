@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,9 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, Interaction, Reminder } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
+import { getZodiacEmoji } from '@/utils/zodiac';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Check-in messages that rotate
 const CHECK_IN_MESSAGES = [
@@ -320,13 +324,13 @@ export default function PersonDetailScreen() {
       />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Profile Header */}
+          {/* Profile Header - Full Width Image */}
           <View style={styles.profileHeader}>
             {person.imageUrl ? (
               <Image source={{ uri: person.imageUrl }} style={styles.profileImage} />
             ) : (
               <View style={[styles.profileImage, styles.placeholderImage]}>
-                <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={60} color={colors.grey} />
+                <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={80} color={colors.grey} />
               </View>
             )}
             <View style={[styles.interestBadge, { backgroundColor: getInterestColor(person.interestLevel) }]}>
@@ -358,7 +362,7 @@ export default function PersonDetailScreen() {
               <Text style={styles.infoText}>{person.age} years old</Text>
             </View>
             <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="star.fill" android_material_icon_name="star" size={22} color={colors.textSecondary} />
+              <Text style={styles.zodiacEmoji}>{getZodiacEmoji(person.zodiacSign)}</Text>
               <Text style={styles.infoText}>{person.zodiacSign}</Text>
             </View>
             <View style={styles.infoRow}>
@@ -683,13 +687,12 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: 24,
     position: 'relative',
+    marginBottom: 24,
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 1.2,
   },
   placeholderImage: {
     backgroundColor: colors.backgroundAlt,
@@ -698,14 +701,14 @@ const styles = StyleSheet.create({
   },
   interestBadge: {
     position: 'absolute',
-    bottom: 24,
-    right: '35%',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    bottom: 16,
+    right: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
   interestText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     color: '#fff',
   },
@@ -748,6 +751,9 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 16,
     color: colors.text,
+  },
+  zodiacEmoji: {
+    fontSize: 22,
   },
   contactRow: {
     flexDirection: 'row',

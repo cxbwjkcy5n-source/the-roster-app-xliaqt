@@ -21,7 +21,7 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, InterestLevel, RelationshipType } from '@/types/roster';
-import { getZodiacFromBirthday } from '@/utils/zodiac';
+import { getZodiacFromBirthday, getZodiacEmoji } from '@/utils/zodiac';
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -147,12 +147,14 @@ export default function AddPersonScreen() {
     });
 
     if (!result.canceled) {
+      console.log('[AddPerson] Image selected:', result.assets[0].uri);
       setPhotoUri(result.assets[0].uri);
     }
   };
 
   const addRedFlag = () => {
     if (redFlagInput.trim()) {
+      console.log('[AddPerson] Adding red flag:', redFlagInput.trim());
       setRedFlags([...redFlags, redFlagInput.trim()]);
       setRedFlagInput('');
     }
@@ -160,6 +162,7 @@ export default function AddPersonScreen() {
 
   const addGreenFlag = () => {
     if (greenFlagInput.trim()) {
+      console.log('[AddPerson] Adding green flag:', greenFlagInput.trim());
       setGreenFlags([...greenFlags, greenFlagInput.trim()]);
       setGreenFlagInput('');
     }
@@ -275,19 +278,95 @@ export default function AddPersonScreen() {
         interestLevel,
         imageUrl: uploadedImageUrl,
         status: 'roster',
-        createdAt: isEditing ? undefined : new Date().toISOString(), // Set createdAt only for new persons
+        createdAt: isEditing ? undefined : new Date().toISOString(),
       };
 
       if (isEditing) {
         console.log('[AddPerson] Updating person:', person.name);
         await updatePerson(person);
-        console.log('[AddPerson] Person updated successfully, navigating to person detail');
-        // Navigate back to the person's detail page
+        
+        // Save flags separately using the backend API directly
+        console.log('[AddPerson] Saving flags for person:', person.id);
+        const { authenticatedPost, BACKEND_URL } = await import('@/utils/api');
+        
+        // Save red flags
+        for (const flagText of redFlags) {
+          try {
+            await authenticatedPost(`/api/profiles/${person.id}/flags`, {
+              flagText,
+              flagType: 'red',
+            });
+            console.log('[AddPerson] Red flag saved:', flagText);
+          } catch (error) {
+            console.error('[AddPerson] Error adding red flag:', error);
+          }
+        }
+        
+        // Save green flags
+        for (const flagText of greenFlags) {
+          try {
+            await authenticatedPost(`/api/profiles/${person.id}/flags`, {
+              flagText,
+              flagType: 'green',
+            });
+            console.log('[AddPerson] Green flag saved:', flagText);
+          } catch (error) {
+            console.error('[AddPerson] Error adding green flag:', error);
+          }
+        }
+        
+        console.log('[AddPerson] Person updated successfully, navigating back');
         router.back();
       } else {
         console.log('[AddPerson] Saving new person:', person.name);
         await addPerson(person);
-        console.log('[AddPerson] Person saved successfully, navigating to home screen');
+        
+        // Wait for the person to be created and get the backend ID
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Refresh profiles to get the new person with backend ID
+        const { refreshProfiles } = useRoster();
+        await refreshProfiles();
+        
+        // Find the newly created person
+        const allPeople = [...roster, ...bench];
+        const newPerson = allPeople.find(p => p.name === person.name);
+        
+        if (newPerson) {
+          console.log('[AddPerson] Found newly created person with ID:', newPerson.id);
+          
+          // Save flags separately using the backend API directly
+          console.log('[AddPerson] Saving flags for new person:', newPerson.id);
+          const { authenticatedPost } = await import('@/utils/api');
+          
+          // Save red flags
+          for (const flagText of redFlags) {
+            try {
+              await authenticatedPost(`/api/profiles/${newPerson.id}/flags`, {
+                flagText,
+                flagType: 'red',
+              });
+              console.log('[AddPerson] Red flag saved:', flagText);
+            } catch (error) {
+              console.error('[AddPerson] Error adding red flag:', error);
+            }
+          }
+          
+          // Save green flags
+          for (const flagText of greenFlags) {
+            try {
+              await authenticatedPost(`/api/profiles/${newPerson.id}/flags`, {
+                flagText,
+                flagType: 'green',
+              });
+              console.log('[AddPerson] Green flag saved:', flagText);
+            } catch (error) {
+              console.error('[AddPerson] Error adding green flag:', error);
+            }
+          }
+        }
+        
+        console.log('[AddPerson] Navigating to home screen');
         // Navigate to home screen after saving (not open another add person)
         router.replace('/(tabs)/(home)');
       }
@@ -306,6 +385,9 @@ export default function AddPersonScreen() {
       case 'low': return colors.lowInterest;
     }
   };
+
+  const zodiacSign = getZodiacFromBirthday(birthMonth, birthDay);
+  const zodiacEmoji = getZodiacEmoji(zodiacSign);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -418,7 +500,8 @@ export default function AddPersonScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Zodiac Sign</Text>
             <View style={styles.zodiacContainer}>
-              <Text style={styles.zodiacText}>{getZodiacFromBirthday(birthMonth, birthDay)}</Text>
+              <Text style={styles.zodiacEmoji}>{zodiacEmoji}</Text>
+              <Text style={styles.zodiacText}>{zodiacSign}</Text>
             </View>
           </View>
 
@@ -916,12 +999,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   zodiacContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
     borderColor: colors.grey + '30',
+    gap: 12,
+  },
+  zodiacEmoji: {
+    fontSize: 24,
   },
   zodiacText: {
     fontSize: 16,

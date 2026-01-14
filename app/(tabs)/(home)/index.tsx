@@ -8,12 +8,10 @@ import {
   TouchableOpacity,
   Image,
   Modal,
-  Pressable,
   Dimensions,
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
-  Alert,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
@@ -33,12 +31,13 @@ export default function RosterScreen() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
 
-  // Redirect to auth if not logged in
+  // Redirect to auth if not logged in - REMOVED AUTO-NAVIGATION TO ADD PERSON
   useEffect(() => {
     if (!authLoading && !user) {
+      console.log('[Home] User not logged in, redirecting to auth');
       router.replace('/auth');
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   if (authLoading || rosterLoading) {
     return (
@@ -64,7 +63,10 @@ export default function RosterScreen() {
   const renderPersonCard = ({ item }: { item: RosterPerson }) => {
     return (
       <TouchableOpacity
-        onPress={() => router.push(`/person/${item.id}`)}
+        onPress={() => {
+          console.log('[Home] User tapped person card:', item.name);
+          router.push(`/person/${item.id}`);
+        }}
         style={styles.personCard}
       >
         <Image
@@ -123,7 +125,10 @@ export default function RosterScreen() {
   const renderEmptyState = () => (
     <TouchableOpacity
       style={styles.emptyCard}
-      onPress={() => router.push('/person/add')}
+      onPress={() => {
+        console.log('[Home] User tapped empty state - navigating to add person');
+        router.push('/person/add');
+      }}
     >
       <IconSymbol 
         ios_icon_name="plus.circle" 
@@ -185,16 +190,17 @@ export default function RosterScreen() {
         )}
       </View>
 
-      {/* My Dates Modal - Opens from top */}
+      {/* My Dates Modal - Opens from TOP */}
       <Modal
         visible={showMyDates}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowMyDates(false)}
+        presentationStyle="pageSheet"
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+          <View style={styles.modalOverlayTop}>
+            <View style={styles.modalContentTop}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>My Dates</Text>
                 <TouchableOpacity onPress={() => setShowMyDates(false)}>
@@ -244,16 +250,17 @@ export default function RosterScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal - Opens from top */}
+      {/* Analytics Modal - Opens from TOP */}
       <Modal
         visible={showAnalytics}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowAnalytics(false)}
+        presentationStyle="pageSheet"
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+          <View style={styles.modalOverlayTop}>
+            <View style={styles.modalContentTop}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Dating Analytics</Text>
                 <TouchableOpacity onPress={() => setShowAnalytics(false)}>
@@ -406,24 +413,26 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 12,
   },
-  modalOverlay: {
+  // Modal opens from TOP
+  modalOverlayTop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-start',
-    paddingTop: 60,
   },
-  modalContent: {
+  modalContentTop: {
     backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     maxHeight: '80%',
     paddingBottom: 40,
+    marginTop: 0,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 60,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
