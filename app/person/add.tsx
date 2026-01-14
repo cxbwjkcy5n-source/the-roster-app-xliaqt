@@ -145,8 +145,14 @@ export default function AddPersonScreen() {
   const handleSave = async () => {
     console.log('[AddPerson] User tapped Save button');
     
+    // VALIDATION: Require picture and name
+    if (!photoUri) {
+      Alert.alert('Picture Required', 'Please add a picture before saving');
+      return;
+    }
+
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a name');
+      Alert.alert('Name Required', 'Please enter a name before saving');
       return;
     }
 
@@ -239,7 +245,7 @@ export default function AddPersonScreen() {
       await addPerson(person);
       console.log('[AddPerson] Person saved successfully, navigating to home screen');
       
-      // Navigate to home screen after saving
+      // Navigate to home screen after saving (not open another add person)
       router.replace('/(tabs)/(home)');
     } catch (error: any) {
       console.error('[AddPerson] Error saving person:', error);
@@ -291,7 +297,8 @@ export default function AddPersonScreen() {
                   size={48}
                   color={colors.grey}
                 />
-                <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+                <Text style={styles.photoPlaceholderText}>Add Photo *</Text>
+                <Text style={styles.requiredText}>Required</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -327,7 +334,7 @@ export default function AddPersonScreen() {
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter name"
+              placeholder="Enter name (required)"
               placeholderTextColor={colors.grey}
             />
           </View>
@@ -793,13 +800,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.grey + '50',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
   },
   photoPlaceholderText: {
     marginTop: 8,
     fontSize: 14,
     color: colors.grey,
+  },
+  requiredText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 20,

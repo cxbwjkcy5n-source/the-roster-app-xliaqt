@@ -22,6 +22,15 @@ import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, Interaction, Reminder } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
 
+// Check-in messages that rotate
+const CHECK_IN_MESSAGES = [
+  "How's your day?",
+  "Tell me something exciting about your day",
+  "What's the best part of your day so far?",
+  "How are you feeling today?",
+  "What's on your mind?",
+];
+
 export default function PersonDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -33,6 +42,7 @@ export default function PersonDetailScreen() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [showChemistryTimeline, setShowChemistryTimeline] = useState(false);
   const [profileInteractions, setProfileInteractions] = useState<Interaction[]>([]);
+  const [checkInMessageIndex, setCheckInMessageIndex] = useState(0);
 
   useEffect(() => {
     const allPeople = [...roster, ...bench];
@@ -146,7 +156,25 @@ export default function PersonDetailScreen() {
   };
 
   const handleQuickAction = async (type: 'morning_text' | 'check_in') => {
+    console.log('[PersonDetail] Quick action:', type);
+    
+    if (!person.phoneNumber) {
+      Alert.alert('No Phone Number', 'This person doesn&apos;t have a phone number saved');
+      return;
+    }
+
     try {
+      // Prepare the message
+      let message = '';
+      if (type === 'morning_text') {
+        message = 'Good Morning';
+      } else {
+        // Rotate through check-in messages
+        message = CHECK_IN_MESSAGES[checkInMessageIndex];
+        setCheckInMessageIndex((checkInMessageIndex + 1) % CHECK_IN_MESSAGES.length);
+      }
+
+      // Log the interaction
       const interaction: Interaction = {
         id: Date.now().toString(),
         profileId: person.id,
@@ -158,9 +186,19 @@ export default function PersonDetailScreen() {
       // Reload interactions after adding
       await loadProfileInteractions(person.id);
       
-      Alert.alert('Success', `${type === 'morning_text' ? 'Morning text' : 'Check-in'} logged!`);
+      // Open messages app with pre-filled text
+      const smsUrl = `sms:${person.phoneNumber}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
+      console.log('[PersonDetail] Opening messages with URL:', smsUrl);
+      
+      const canOpen = await Linking.canOpenURL(smsUrl);
+      if (canOpen) {
+        await Linking.openURL(smsUrl);
+      } else {
+        Alert.alert('Error', 'Unable to open messages app');
+      }
     } catch (error) {
-      console.error('[PersonDetail] Error logging interaction:', error);
+      console.error('[PersonDetail] Error with quick action:', error);
+      Alert.alert('Error', 'Failed to open messages app');
     }
   };
 

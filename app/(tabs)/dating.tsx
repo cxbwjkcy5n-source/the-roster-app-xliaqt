@@ -19,6 +19,12 @@ export default function DatingScreen() {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
 
+  // Automatically show menu when this screen is focused
+  React.useEffect(() => {
+    console.log('[Dating] Screen focused - opening submenu');
+    setShowMenu(true);
+  }, []);
+
   const menuItems = [
     {
       title: 'I have a date',
@@ -79,7 +85,7 @@ export default function DatingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.header}>
+      <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.header}>
         <Text style={styles.headerTitle}>Dating</Text>
         <Text style={styles.headerSubtitle}>Manage your dating life</Text>
       </LinearGradient>
@@ -111,7 +117,7 @@ export default function DatingScreen() {
         </Text>
       </View>
 
-      {/* Menu Modal */}
+      {/* Menu Modal - Opens from top */}
       <Modal
         visible={showMenu}
         animationType="slide"
@@ -225,13 +231,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
   },
   modalContent: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 20,
     maxHeight: '80%',
   },
   modalHeader: {
@@ -239,7 +245,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },

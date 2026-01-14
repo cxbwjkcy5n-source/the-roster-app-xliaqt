@@ -30,6 +30,7 @@ export default function RosterScreen() {
   const { roster, loading: rosterLoading } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showMyDates, setShowMyDates] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
 
   // Redirect to auth if not logged in
@@ -142,7 +143,10 @@ export default function RosterScreen() {
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => setShowMyDates(true)}
+            onPress={() => {
+              console.log('[Home] User tapped calendar button');
+              setShowMyDates(true);
+            }}
           >
             <IconSymbol 
               ios_icon_name="calendar" 
@@ -153,7 +157,10 @@ export default function RosterScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => router.push('/(tabs)/analytics')}
+            onPress={() => {
+              console.log('[Home] User tapped analytics button');
+              setShowAnalytics(true);
+            }}
           >
             <IconSymbol 
               ios_icon_name="chart.bar.fill" 
@@ -178,7 +185,7 @@ export default function RosterScreen() {
         )}
       </View>
 
-      {/* My Dates Modal */}
+      {/* My Dates Modal - Opens from top */}
       <Modal
         visible={showMyDates}
         animationType="slide"
@@ -231,6 +238,36 @@ export default function RosterScreen() {
 
               <ScrollView style={styles.datesScroll}>
                 <Text style={styles.emptyDatesText}>No dates yet</Text>
+              </ScrollView>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Analytics Modal - Opens from top */}
+      <Modal
+        visible={showAnalytics}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAnalytics(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Dating Analytics</Text>
+                <TouchableOpacity onPress={() => setShowAnalytics(false)}>
+                  <IconSymbol 
+                    ios_icon_name="xmark" 
+                    android_material_icon_name="close" 
+                    size={24} 
+                    color={colors.text} 
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.datesScroll}>
+                <Text style={styles.emptyDatesText}>Analytics coming soon</Text>
               </ScrollView>
             </View>
           </View>
@@ -372,7 +409,8 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
   },
   modalContent: {
     backgroundColor: colors.background,
