@@ -1,373 +1,112 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
 
-interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  emailVerified: boolean;
-  image?: string;
-  profileCompleted?: boolean;
-}
-
-interface AuthSession {
-  token: string;
-  expiresAt: string;
-}
-
-interface AuthResponse {
-  user?: AuthUser;
-  session?: AuthSession;
-  message?: string;
-}
-
-interface ErrorResponse {
-  message?: string;
-  error?: string;
-}
+/**
+ * Better Auth provides all authentication endpoints automatically at /api/auth/*
+ *
+ * This file documents the available endpoints for reference.
+ * No custom routes need to be created here.
+ *
+ * Available Better Auth Endpoints:
+ *
+ * Email/Password Authentication:
+ * - POST /api/auth/sign-in/email - Sign in with email and password
+ * - POST /api/auth/sign-up/email - Sign up with email and password
+ * - POST /api/auth/reset-password - Request password reset
+ * - POST /api/auth/reset-password/{token} - Reset password with token
+ * - POST /api/auth/change-password - Change password
+ * - POST /api/auth/change-email - Change email address
+ *
+ * Session Management:
+ * - GET /api/auth/get-session - Get current user session (requires Bearer token)
+ * - GET /api/auth/list-sessions - List all user sessions
+ * - POST /api/auth/revoke-session - Revoke a specific session
+ * - POST /api/auth/revoke-sessions - Revoke all sessions
+ * - POST /api/auth/revoke-other-sessions - Revoke all except current
+ * - POST /api/auth/sign-out - Sign out current session
+ *
+ * Social OAuth:
+ * - POST /api/auth/sign-in/social - Sign in with OAuth provider (google, apple, github, etc.)
+ * - POST /api/auth/link-social - Link social account to email account
+ * - POST /api/auth/unlink-account - Unlink social account
+ *
+ * Email Verification:
+ * - POST /api/auth/send-verification-email - Send verification email
+ * - GET /api/auth/verify-email - Verify email address
+ *
+ * User Management:
+ * - POST /api/auth/update-user - Update user profile
+ * - POST /api/auth/delete-user - Delete user account
+ * - GET /api/auth/account-info - Get linked accounts info
+ * - GET /api/auth/list-accounts - List all linked accounts
+ *
+ * Utility:
+ * - GET /api/auth/ok - Health check
+ * - GET /api/auth/open-api/generate-schema - OpenAPI spec
+ * - GET /api/auth/reference - Interactive API reference
+ *
+ * Request Format Examples:
+ *
+ * Sign In:
+ * POST /api/auth/sign-in/email
+ * Content-Type: application/json
+ * Body: { "email": "user@example.com", "password": "password123" }
+ *
+ * Sign Up:
+ * POST /api/auth/sign-up/email
+ * Content-Type: application/json
+ * Body: { "email": "user@example.com", "password": "password123", "name": "John Doe" }
+ *
+ * Get Session:
+ * GET /api/auth/get-session
+ * Authorization: Bearer {session_token}
+ *
+ * Sign Out:
+ * POST /api/auth/sign-out
+ * Authorization: Bearer {session_token}
+ *
+ * Response Format:
+ * Success (200):
+ * {
+ *   "user": {
+ *     "id": "user_id",
+ *     "email": "user@example.com",
+ *     "name": "John Doe",
+ *     "emailVerified": true,
+ *     "image": "https://...",
+ *     "createdAt": "2024-01-01T00:00:00Z"
+ *   },
+ *   "session": {
+ *     "token": "session_token",
+ *     "expiresAt": "2024-01-02T00:00:00Z",
+ *     "ipAddress": "192.168.1.1",
+ *     "userAgent": "..."
+ *   }
+ * }
+ *
+ * Error (400/401/500):
+ * {
+ *   "error": {
+ *     "message": "Invalid credentials",
+ *     "code": "INVALID_CREDENTIALS"
+ *   }
+ * }
+ */
 
 export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
-  // Sign in endpoint - delegates to Better Auth
-  fastify.post<{
-    Body: {
-      email: string;
-      password: string;
-    };
-  }>(
-    '/api/sign-in',
-    {
-      schema: {
-        description: 'Sign in with email and password',
-        tags: ['auth'],
-        body: {
-          type: 'object',
-          properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string' },
-          },
-          required: ['email', 'password'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              user: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  email: { type: 'string' },
-                  name: { type: 'string' },
-                  emailVerified: { type: 'boolean' },
-                  image: { type: 'string' },
-                  profileCompleted: { type: 'boolean' },
-                },
-              },
-              session: {
-                type: 'object',
-                properties: {
-                  token: { type: 'string' },
-                  expiresAt: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const { email, password } = request.body as {
-          email: string;
-          password: string;
-        };
-
-        // Validate input
-        if (!email || !password) {
-          return reply.status(400).send({
-            error: { message: 'Email and password are required' },
-          });
-        }
-
-        // Call Better Auth's sign-in endpoint via the internal auth client
-        const signInResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/auth/sign-in/email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (!signInResponse.ok) {
-          const error = (await signInResponse.json()) as ErrorResponse;
-          app.logger.warn({ email, status: signInResponse.status }, 'Sign-in failed');
-          return reply.status(signInResponse.status).send({
-            error: { message: error.message || 'Invalid email or password' },
-          });
-        }
-
-        const data = (await signInResponse.json()) as AuthResponse;
-
-        return reply.send({
-          user: {
-            id: data.user?.id,
-            email: data.user?.email,
-            name: data.user?.name,
-            emailVerified: data.user?.emailVerified,
-            image: data.user?.image,
-            profileCompleted: data.user?.profileCompleted,
-          },
-          session: {
-            token: data.session?.token,
-            expiresAt: data.session?.expiresAt,
-          },
-        });
-      } catch (error) {
-        app.logger.error({ err: error }, 'Sign-in error');
-        return reply.status(500).send({
-          error: { message: 'Sign-in failed. Please try again.' },
-        });
-      }
-    }
-  );
-
-  // Sign up endpoint
-  fastify.post<{
-    Body: {
-      email: string;
-      password: string;
-      name: string;
-    };
-  }>(
-    '/api/sign-up',
-    {
-      schema: {
-        description: 'Sign up with email and password',
-        tags: ['auth'],
-        body: {
-          type: 'object',
-          properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string', minLength: 8 },
-            name: { type: 'string', minLength: 1 },
-          },
-          required: ['email', 'password', 'name'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              user: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  email: { type: 'string' },
-                  name: { type: 'string' },
-                  emailVerified: { type: 'boolean' },
-                  image: { type: 'string' },
-                  profileCompleted: { type: 'boolean' },
-                },
-              },
-              session: {
-                type: 'object',
-                properties: {
-                  token: { type: 'string' },
-                  expiresAt: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const { email, password, name } = request.body as {
-          email: string;
-          password: string;
-          name: string;
-        };
-
-        // Validate input
-        if (!email || !password || !name) {
-          return reply.status(400).send({
-            error: { message: 'Email, password, and name are required' },
-          });
-        }
-
-        if (password.length < 8) {
-          return reply.status(400).send({
-            error: { message: 'Password must be at least 8 characters' },
-          });
-        }
-
-        // Call Better Auth's sign-up endpoint
-        const signUpResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/auth/sign-up/email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password, name }),
-        });
-
-        if (!signUpResponse.ok) {
-          const error = (await signUpResponse.json()) as ErrorResponse;
-          app.logger.warn({ email, status: signUpResponse.status }, 'Sign-up failed');
-          return reply.status(signUpResponse.status).send({
-            error: { message: error.message || 'Sign-up failed' },
-          });
-        }
-
-        const data = (await signUpResponse.json()) as AuthResponse;
-
-        return reply.status(201).send({
-          user: {
-            id: data.user?.id,
-            email: data.user?.email,
-            name: data.user?.name,
-            emailVerified: data.user?.emailVerified,
-            image: data.user?.image,
-            profileCompleted: data.user?.profileCompleted,
-          },
-          session: {
-            token: data.session?.token,
-            expiresAt: data.session?.expiresAt,
-          },
-        });
-      } catch (error) {
-        app.logger.error({ err: error }, 'Sign-up error');
-        return reply.status(500).send({
-          error: { message: 'Sign-up failed. Please try again.' },
-        });
-      }
-    }
-  );
-
-  // Get current session
+  // Health check endpoint for auth
   fastify.get(
-    '/api/session',
+    '/api/auth-health',
     {
       schema: {
-        description: 'Get current user session',
+        description: 'Health check for authentication system',
         tags: ['auth'],
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              user: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  email: { type: 'string' },
-                  name: { type: 'string' },
-                  emailVerified: { type: 'boolean' },
-                  image: { type: 'string' },
-                  profileCompleted: { type: 'boolean' },
-                },
-              },
-              session: {
-                type: 'object',
-                properties: {
-                  token: { type: 'string' },
-                  expiresAt: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
+        response: { 200: { type: 'object' } },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        // Get token from headers
-        const authHeader = request.headers.authorization;
-        if (!authHeader?.startsWith('Bearer ')) {
-          return reply.status(401).send({
-            error: { message: 'No session token provided' },
-          });
-        }
-
-        const token = authHeader.substring(7);
-
-        // Call Better Auth's get-session endpoint with token
-        const sessionResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/auth/get-session`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!sessionResponse.ok) {
-          return reply.status(401).send({
-            error: { message: 'Invalid or expired session' },
-          });
-        }
-
-        const data = (await sessionResponse.json()) as AuthResponse;
-
-        return reply.send({
-          user: {
-            id: data.user?.id,
-            email: data.user?.email,
-            name: data.user?.name,
-            emailVerified: data.user?.emailVerified,
-            image: data.user?.image,
-            profileCompleted: data.user?.profileCompleted,
-          },
-          session: {
-            token: data.session?.token || token,
-            expiresAt: data.session?.expiresAt,
-          },
-        });
-      } catch (error) {
-        app.logger.error({ err: error }, 'Session check error');
-        return reply.status(500).send({
-          error: { message: 'Session check failed' },
-        });
-      }
-    }
-  );
-
-  // Sign out endpoint
-  fastify.post(
-    '/api/sign-out',
-    {
-      schema: {
-        description: 'Sign out the current user',
-        tags: ['auth'],
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              message: { type: 'string' },
-            },
-          },
-        },
-      },
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const authHeader = request.headers.authorization;
-        const token = authHeader?.substring(7);
-
-        if (token) {
-          // Call Better Auth's sign-out endpoint
-          await fetch(`http://localhost:${process.env.PORT || 3000}/api/auth/sign-out`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-        }
-
-        return reply.send({
-          message: 'Signed out successfully',
-        });
-      } catch (error) {
-        app.logger.error({ err: error }, 'Sign-out error');
-        return reply.status(500).send({
-          error: { message: 'Sign-out failed' },
-        });
-      }
+      app.logger.info('Auth health check');
+      return { status: 'ok', message: 'Authentication service is running' };
     }
   );
 }

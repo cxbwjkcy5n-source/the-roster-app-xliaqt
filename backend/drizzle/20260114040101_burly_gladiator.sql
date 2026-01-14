@@ -1,0 +1,1 @@
+ALTER TABLE "safety_dates" ADD COLUMN "license_plate" text;

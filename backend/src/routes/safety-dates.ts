@@ -17,6 +17,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       coordinates?: { latitude: number; longitude: number };
       notes?: string;
       profilePhotoUrl?: string;
+      licensePlate?: string;
       rosterProfileId?: string;
       emergencyContacts?: Array<{ contactName: string; phoneNumber: string }>;
     };
@@ -43,6 +44,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
             },
             notes: { type: 'string' },
             profilePhotoUrl: { type: 'string' },
+            licensePlate: { type: 'string' },
             rosterProfileId: { type: 'string' },
             emergencyContacts: {
               type: 'array',
@@ -75,6 +77,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
         coordinates?: { latitude: number; longitude: number };
         notes?: string;
         profilePhotoUrl?: string;
+        licensePlate?: string;
         rosterProfileId?: string;
         emergencyContacts?: Array<{ contactName: string; phoneNumber: string }>;
       };
@@ -116,6 +119,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
           coordinates: body.coordinates,
           notes: body.notes,
           profilePhotoUrl: profilePhotoUrl,
+          licensePlate: body.licensePlate,
           startTime: new Date(),
         })
         .returning();
@@ -465,7 +469,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       }
 
       // Prevent updating status through this endpoint
-      const allowedFields = ['profileName', 'dateWithName', 'dateWithDescription', 'location', 'locationAddress', 'coordinates', 'notes', 'profilePhotoUrl'];
+      const allowedFields = ['profileName', 'dateWithName', 'dateWithDescription', 'location', 'locationAddress', 'coordinates', 'notes', 'profilePhotoUrl', 'licensePlate'];
       const updateData: Record<string, any> = { updatedAt: new Date() };
 
       for (const field of allowedFields) {
