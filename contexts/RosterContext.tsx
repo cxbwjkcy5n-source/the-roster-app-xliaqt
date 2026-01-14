@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { RosterPerson, DateEvent, Reminder, Interaction, Analytics, Nudge } from '@/types/roster';
 import { authenticatedGet, authenticatedPost, authenticatedPut, authenticatedDelete, BACKEND_URL } from '@/utils/api';
@@ -127,50 +127,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Only load data when user is authenticated
-  useEffect(() => {
-    if (user) {
-      console.log('[RosterContext] User authenticated, loading data...');
-      loadData();
-    } else {
-      console.log('[RosterContext] No user authenticated, clearing data...');
-      // Clear data when user logs out
-      setRoster([]);
-      setBench([]);
-      setDates([]);
-      setReminders([]);
-      setInteractions([]);
-      setAnalytics(null);
-      setNudges([]);
-    }
-  }, [user]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      await Promise.all([
-        refreshProfiles(),
-        refreshDates(),
-        refreshReminders(),
-        refreshInteractions(),
-        refreshAnalytics(),
-        refreshNudges(),
-      ]);
-    } catch (err) {
-      console.error('[RosterContext] Error loading data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
-      setError(errorMessage);
-      // Don't show alert for authentication errors - user will be redirected to login
-      if (!errorMessage.includes('Authentication')) {
-        Alert.alert('Error', errorMessage);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshProfiles = async () => {
+  const refreshProfiles = useCallback(async () => {
     try {
       console.log('[RosterContext] Fetching profiles from backend...');
       const response = await authenticatedGet('/api/profiles');
@@ -184,9 +141,9 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       console.error('[RosterContext] Failed to refresh profiles:', err);
       throw err;
     }
-  };
+  }, []);
 
-  const refreshDates = async () => {
+  const refreshDates = useCallback(async () => {
     try {
       console.log('[RosterContext] Fetching dates from backend...');
       const response = await authenticatedGet('/api/dates');
@@ -220,9 +177,9 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[RosterContext] Failed to refresh dates:', err);
     }
-  };
+  }, []);
 
-  const refreshReminders = async () => {
+  const refreshReminders = useCallback(async () => {
     try {
       console.log('[RosterContext] Fetching reminders from backend...');
       const response = await authenticatedGet('/api/reminders');
@@ -231,9 +188,9 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[RosterContext] Failed to refresh reminders:', err);
     }
-  };
+  }, []);
 
-  const refreshInteractions = async () => {
+  const refreshInteractions = useCallback(async () => {
     try {
       console.log('[RosterContext] Fetching interactions from backend...');
       // Note: The API doesn't have a global interactions endpoint
@@ -243,9 +200,9 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[RosterContext] Failed to refresh interactions:', err);
     }
-  };
+  }, []);
 
-  const refreshAnalytics = async () => {
+  const refreshAnalytics = useCallback(async () => {
     try {
       console.log('[RosterContext] Fetching analytics from backend...');
       const response = await authenticatedGet('/api/analytics');
@@ -254,9 +211,9 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[RosterContext] Failed to refresh analytics:', err);
     }
-  };
+  }, []);
 
-  const refreshNudges = async () => {
+  const refreshNudges = useCallback(async () => {
     try {
       console.log('[RosterContext] Fetching nudges from backend...');
       const response = await authenticatedGet('/api/nudges');
@@ -265,7 +222,50 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[RosterContext] Failed to refresh nudges:', err);
     }
-  };
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await Promise.all([
+        refreshProfiles(),
+        refreshDates(),
+        refreshReminders(),
+        refreshInteractions(),
+        refreshAnalytics(),
+        refreshNudges(),
+      ]);
+    } catch (err) {
+      console.error('[RosterContext] Error loading data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+      setError(errorMessage);
+      // Don't show alert for authentication errors - user will be redirected to login
+      if (!errorMessage.includes('Authentication')) {
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshProfiles, refreshDates, refreshReminders, refreshInteractions, refreshAnalytics, refreshNudges]);
+
+  // Only load data when user is authenticated
+  useEffect(() => {
+    if (user) {
+      console.log('[RosterContext] User authenticated, loading data...');
+      loadData();
+    } else {
+      console.log('[RosterContext] No user authenticated, clearing data...');
+      // Clear data when user logs out
+      setRoster([]);
+      setBench([]);
+      setDates([]);
+      setReminders([]);
+      setInteractions([]);
+      setAnalytics(null);
+      setNudges([]);
+    }
+  }, [user, loadData]);
 
   const addPerson = async (person: RosterPerson) => {
     try {

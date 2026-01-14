@@ -64,7 +64,8 @@ const favoriteFoodTypes = [
 export default function AddPersonScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { addPerson, updatePerson, roster, bench } = useRoster();
+  // FIX: Move useRoster call to component level (not inside handleSave)
+  const { addPerson, updatePerson, roster, bench, refreshProfiles } = useRoster();
 
   const isEditing = !!id;
   const [saving, setSaving] = useState(false);
@@ -287,7 +288,7 @@ export default function AddPersonScreen() {
         
         // Save flags separately using the backend API directly
         console.log('[AddPerson] Saving flags for person:', person.id);
-        const { authenticatedPost, BACKEND_URL } = await import('@/utils/api');
+        const { authenticatedPost } = await import('@/utils/api');
         
         // Save red flags
         for (const flagText of redFlags) {
@@ -325,7 +326,6 @@ export default function AddPersonScreen() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Refresh profiles to get the new person with backend ID
-        const { refreshProfiles } = useRoster();
         await refreshProfiles();
         
         // Find the newly created person

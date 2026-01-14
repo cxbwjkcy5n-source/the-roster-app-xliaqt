@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { Platform } from "react-native";
 import { authClient, storeWebBearerToken } from "@/lib/auth";
 import { useRouter, useSegments } from "expo-router";
@@ -45,39 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const segments = useSegments();
   const isNavigatingRef = useRef(false);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  // Protected route navigation - simplified
-  useEffect(() => {
-    if (loading) {
-      console.log('[AuthContext] Still loading, skipping navigation check');
-      return;
-    }
-
-    // Don't redirect if we're in the middle of a navigation
-    if (isNavigatingRef.current) {
-      console.log('[AuthContext] Navigation in progress, skipping redirect');
-      return;
-    }
-
-    const inAuthGroup = segments[0] === 'auth';
-
-    console.log('[AuthContext] Navigation check - user:', !!user, 'inAuthGroup:', inAuthGroup, 'segments:', segments);
-
-    if (!user && !inAuthGroup) {
-      // Redirect to login if not authenticated and not in auth screens
-      console.log('[AuthContext] Not authenticated, redirecting to login');
-      router.replace('/auth/login');
-    } else if (user && inAuthGroup) {
-      // If user is authenticated but still on auth screens, redirect to home
-      console.log('[AuthContext] User authenticated but on auth screen, redirecting to home');
-      router.replace('/(tabs)/(home)/');
-    }
-  }, [user, loading, segments]);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       console.log('[AuthContext] Fetching user session...');
       const session = await authClient.getSession();
@@ -163,7 +131,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Fetch user complete, setting loading to false');
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
+  // Protected route navigation - simplified
+  useEffect(() => {
+    if (loading) {
+      console.log('[AuthContext] Still loading, skipping navigation check');
+      return;
+    }
+
+    // Don't redirect if we're in the middle of a navigation
+    if (isNavigatingRef.current) {
+      console.log('[AuthContext] Navigation in progress, skipping redirect');
+      return;
+    }
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    console.log('[AuthContext] Navigation check - user:', !!user, 'inAuthGroup:', inAuthGroup, 'segments:', segments);
+
+    if (!user && !inAuthGroup) {
+      // Redirect to login if not authenticated and not in auth screens
+      console.log('[AuthContext] Not authenticated, redirecting to login');
+      router.replace('/auth/login');
+    } else if (user && inAuthGroup) {
+      // If user is authenticated but still on auth screens, redirect to home
+      console.log('[AuthContext] User authenticated but on auth screen, redirecting to home');
+      router.replace('/(tabs)/(home)/');
+    }
+  }, [user, loading, segments, router]);
 
   const markFirstLoginComplete = async () => {
     try {

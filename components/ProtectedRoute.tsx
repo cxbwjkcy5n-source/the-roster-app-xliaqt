@@ -21,7 +21,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       // Redirect to home if authenticated and on auth screen
       router.replace('/(tabs)/(home)/');
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
 
   if (loading) {
     return (
