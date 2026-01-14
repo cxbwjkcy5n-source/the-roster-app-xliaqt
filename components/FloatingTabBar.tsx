@@ -193,12 +193,12 @@ export default function FloatingTabBar({
                     <MaterialIcons
                       name={tab.icon}
                       size={24}
-                      color={isActive ? '#2E7D32' : (theme.dark ? '#98989D' : '#000000')}
+                      color={isActive ? '#2E7D32' : (theme.dark ? '#FFFFFF' : '#000000')}
                     />
                     <Text
                       style={[
                         styles.tabLabel,
-                        { color: theme.dark ? '#98989D' : '#8E8E93' },
+                        { color: theme.dark ? '#FFFFFF' : '#000000' },
                         isActive && { color: '#2E7D32', fontWeight: '600' },
                       ]}
                     >

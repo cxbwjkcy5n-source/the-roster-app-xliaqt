@@ -13,6 +13,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -22,6 +23,8 @@ import { useRouter } from "expo-router";
 import { colors } from "@/styles/commonStyles";
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const FAVORITE_COLORS = [
   'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Black', 'White', 'Brown', 'Gray'
@@ -302,7 +305,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Profile Image - LARGER (180x180) */}
+        {/* Profile Image - FULL WIDTH like crop view */}
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={isEditing ? pickImage : undefined}
@@ -314,7 +317,7 @@ export default function ProfileScreen() {
               style={styles.profileImage}
             />
           ) : (
-            <View style={styles.placeholderImage}>
+            <View style={[styles.profileImage, styles.placeholderImage]}>
               <IconSymbol
                 ios_icon_name="person.circle.fill"
                 android_material_icon_name="account-circle"
@@ -331,207 +334,210 @@ export default function ProfileScreen() {
                 size={40}
                 color="#fff"
               />
+              <Text style={styles.imageOverlayText}>Tap to change photo</Text>
             </View>
           )}
         </TouchableOpacity>
 
         {/* Profile Fields */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            editable={isEditing}
-            placeholder="Your name"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
+        <View style={styles.fieldsContainer}>
+          <View style={styles.section}>
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              editable={isEditing}
+              placeholder="Your name"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Age</Text>
-          <TextInput
-            style={styles.input}
-            value={age}
-            onChangeText={setAge}
-            editable={isEditing}
-            placeholder="Your age"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="number-pad"
-          />
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Age</Text>
+            <TextInput
+              style={styles.input}
+              value={age}
+              onChangeText={setAge}
+              editable={isEditing}
+              placeholder="Your age"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+            />
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Location</Text>
-          <TextInput
-            style={styles.input}
-            value={location}
-            onChangeText={setLocation}
-            editable={isEditing}
-            placeholder="City, State"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              editable={isEditing}
+              placeholder="City, State"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            editable={isEditing}
-            placeholder="(555) 123-4567"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="phone-pad"
-          />
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              editable={isEditing}
+              placeholder="(555) 123-4567"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="phone-pad"
+            />
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Favorite Color</Text>
-          <TouchableOpacity
-            style={[styles.input, styles.pickerButton]}
-            onPress={() => isEditing && setShowColorPicker(true)}
-            disabled={!isEditing}
-          >
-            <View style={styles.colorDisplay}>
-              {favoriteColor && (
-                <View
-                  style={[
-                    styles.colorCircle,
-                    { backgroundColor: getColorDisplay(favoriteColor) }
-                  ]}
+          <View style={styles.section}>
+            <Text style={styles.label}>Favorite Color</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.pickerButton]}
+              onPress={() => isEditing && setShowColorPicker(true)}
+              disabled={!isEditing}
+            >
+              <View style={styles.colorDisplay}>
+                {favoriteColor && (
+                  <View
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: getColorDisplay(favoriteColor) }
+                    ]}
+                  />
+                )}
+                <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]}>
+                  {favoriteColor || 'Select color'}
+                </Text>
+              </View>
+              {isEditing && (
+                <IconSymbol
+                  ios_icon_name="chevron.down"
+                  android_material_icon_name="arrow-drop-down"
+                  size={20}
+                  color={colors.textSecondary}
                 />
               )}
-              <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]}>
-                {favoriteColor || 'Select color'}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Favorite Food Type</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.pickerButton]}
+              onPress={() => isEditing && setShowFoodPicker(true)}
+              disabled={!isEditing}
+            >
+              <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]}>
+                {favoriteFoodType || 'Select food type'}
               </Text>
-            </View>
-            {isEditing && (
-              <IconSymbol
-                ios_icon_name="chevron.down"
-                android_material_icon_name="arrow-drop-down"
-                size={20}
-                color={colors.textSecondary}
-              />
-            )}
-          </TouchableOpacity>
-        </View>
+              {isEditing && (
+                <IconSymbol
+                  ios_icon_name="chevron.down"
+                  android_material_icon_name="arrow-drop-down"
+                  size={20}
+                  color={colors.textSecondary}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Favorite Food Type</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Instagram</Text>
+            <TextInput
+              style={styles.input}
+              value={instagram}
+              onChangeText={setInstagram}
+              editable={isEditing}
+              placeholder="@username"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Twitter/X</Text>
+            <TextInput
+              style={styles.input}
+              value={twitter}
+              onChangeText={setTwitter}
+              editable={isEditing}
+              placeholder="@username"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Notes</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={notes}
+              onChangeText={setNotes}
+              editable={isEditing}
+              placeholder="Personal notes..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          {/* Privacy Policy Button */}
           <TouchableOpacity
-            style={[styles.input, styles.pickerButton]}
-            onPress={() => isEditing && setShowFoodPicker(true)}
-            disabled={!isEditing}
-          >
-            <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]}>
-              {favoriteFoodType || 'Select food type'}
-            </Text>
-            {isEditing && (
-              <IconSymbol
-                ios_icon_name="chevron.down"
-                android_material_icon_name="arrow-drop-down"
-                size={20}
-                color={colors.textSecondary}
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Instagram</Text>
-          <TextInput
-            style={styles.input}
-            value={instagram}
-            onChangeText={setInstagram}
-            editable={isEditing}
-            placeholder="@username"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Twitter/X</Text>
-          <TextInput
-            style={styles.input}
-            value={twitter}
-            onChangeText={setTwitter}
-            editable={isEditing}
-            placeholder="@username"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Notes</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={notes}
-            onChangeText={setNotes}
-            editable={isEditing}
-            placeholder="Personal notes..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        {/* Privacy Policy Button */}
-        <TouchableOpacity
-          style={styles.privacyButton}
-          onPress={() => router.push('/privacy-policy')}
-        >
-          <IconSymbol
-            ios_icon_name="lock.shield.fill"
-            android_material_icon_name="security"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={styles.privacyButtonText}>Privacy Policy</Text>
-          <IconSymbol
-            ios_icon_name="chevron.right"
-            android_material_icon_name="chevron-right"
-            size={20}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-
-        {/* EULA Button */}
-        <TouchableOpacity
-          style={styles.eulaButton}
-          onPress={() => router.push('/eula')}
-        >
-          <IconSymbol
-            ios_icon_name="doc.text.fill"
-            android_material_icon_name="description"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={styles.eulaButtonText}>End User License Agreement</Text>
-          <IconSymbol
-            ios_icon_name="chevron.right"
-            android_material_icon_name="chevron-right"
-            size={20}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-
-        {!isFirstLogin && (
-          <TouchableOpacity 
-            style={styles.logoutButton}
-            onPress={handleSignOut}
+            style={styles.privacyButton}
+            onPress={() => router.push('/privacy-policy')}
           >
             <IconSymbol
-              ios_icon_name="arrow.right.square.fill"
-              android_material_icon_name="logout"
+              ios_icon_name="lock.shield.fill"
+              android_material_icon_name="security"
               size={20}
-              color="#fff"
+              color={colors.primary}
             />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.privacyButtonText}>Privacy Policy</Text>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={20}
+              color={colors.textSecondary}
+            />
           </TouchableOpacity>
-        )}
+
+          {/* EULA Button */}
+          <TouchableOpacity
+            style={styles.eulaButton}
+            onPress={() => router.push('/eula')}
+          >
+            <IconSymbol
+              ios_icon_name="doc.text.fill"
+              android_material_icon_name="description"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.eulaButtonText}>End User License Agreement</Text>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={20}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+
+          {!isFirstLogin && (
+            <TouchableOpacity 
+              style={styles.logoutButton}
+              onPress={handleSignOut}
+            >
+              <IconSymbol
+                ios_icon_name="arrow.right.square.fill"
+                android_material_icon_name="logout"
+                size={20}
+                color="#fff"
+              />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
       {/* Color Picker Modal */}
@@ -666,7 +672,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    padding: 20,
+    paddingBottom: 20,
   },
   contentContainerWithTabBar: {
     paddingBottom: 100,
@@ -674,6 +680,8 @@ const styles = StyleSheet.create({
   welcomeCard: {
     backgroundColor: colors.card,
     padding: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
     borderRadius: 12,
     marginBottom: 24,
     alignItems: 'center',
@@ -694,19 +702,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   imageContainer: {
-    alignSelf: 'center',
-    marginBottom: 24,
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
     position: 'relative',
+    marginBottom: 24,
   },
   profileImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: '100%',
+    height: '100%',
   },
   placeholderImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
     backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
@@ -718,9 +723,17 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 90,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  imageOverlayText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  fieldsContainer: {
+    paddingHorizontal: 20,
   },
   section: {
     marginBottom: 16,
