@@ -13,6 +13,7 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,7 +35,7 @@ const CHECK_IN_MESSAGES = [
 export default function PersonDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { roster, bench, dates, interactions, reminders, addInteraction, addReminder, moveToBench, moveToRoster, deletePerson } = useRoster();
+  const { roster, bench, dates, interactions, reminders, addInteraction, addReminder, moveToBench, moveToRoster, deletePerson, updatePerson } = useRoster();
   
   const [person, setPerson] = useState<RosterPerson | null>(null);
   const [showBenchModal, setShowBenchModal] = useState(false);
@@ -77,7 +78,7 @@ export default function PersonDetailScreen() {
   }
 
   const personDates = dates.filter(d => d.profileId === person.id);
-  const personInteractions = profileInteractions; // Use profile-specific interactions
+  const personInteractions = profileInteractions;
   const personReminders = reminders.filter(r => r.profileId === person.id && !r.completed);
 
   const getInterestColor = (level: string) => {
@@ -102,6 +103,62 @@ export default function PersonDetailScreen() {
       Linking.openURL(`sms:${person.phoneNumber}`);
     } else {
       Alert.alert('No Phone Number', 'This person doesn&apos;t have a phone number saved');
+    }
+  };
+
+  const handleSocialMedia = (platform: 'instagram' | 'twitter' | 'facebook' | 'snapchat') => {
+    const username = person[platform];
+    if (!username) {
+      Alert.alert('Not Available', `No ${platform} username saved`);
+      return;
+    }
+
+    let url = '';
+    switch (platform) {
+      case 'instagram':
+        url = `instagram://user?username=${username.replace('@', '')}`;
+        const fallbackInstagram = `https://instagram.com/${username.replace('@', '')}`;
+        Linking.canOpenURL(url).then(supported => {
+          if (supported) {
+            Linking.openURL(url);
+          } else {
+            Linking.openURL(fallbackInstagram);
+          }
+        });
+        break;
+      case 'twitter':
+        url = `twitter://user?screen_name=${username.replace('@', '')}`;
+        const fallbackTwitter = `https://twitter.com/${username.replace('@', '')}`;
+        Linking.canOpenURL(url).then(supported => {
+          if (supported) {
+            Linking.openURL(url);
+          } else {
+            Linking.openURL(fallbackTwitter);
+          }
+        });
+        break;
+      case 'facebook':
+        url = `fb://profile/${username}`;
+        const fallbackFacebook = `https://facebook.com/${username}`;
+        Linking.canOpenURL(url).then(supported => {
+          if (supported) {
+            Linking.openURL(url);
+          } else {
+            Linking.openURL(fallbackFacebook);
+          }
+        });
+        break;
+      case 'snapchat':
+        url = `snapchat://add/${username.replace('@', '')}`;
+        const fallbackSnapchat = `https://snapchat.com/add/${username.replace('@', '')}`;
+        Linking.canOpenURL(url).then(supported => {
+          if (supported) {
+            Linking.openURL(url);
+          } else {
+            Linking.openURL(fallbackSnapchat);
+          }
+        });
+        break;
     }
   };
 
@@ -236,6 +293,9 @@ export default function PersonDetailScreen() {
     }
   };
 
+  // Get the created date from the person object or use a default
+  const personCreatedDate = person.createdAt || new Date().toISOString();
+
   return (
     <>
       <Stack.Screen
@@ -244,8 +304,15 @@ export default function PersonDetailScreen() {
           title: person.name,
           headerStyle: { backgroundColor: colors.primary },
           headerTintColor: '#fff',
+          headerBackTitle: 'Back',
           headerRight: () => (
-            <TouchableOpacity onPress={() => router.push(`/person/add?id=${person.id}`)}>
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('[PersonDetail] User tapped Edit button - navigating to edit with id:', person.id);
+                router.push(`/person/add?id=${person.id}` as any);
+              }}
+              style={styles.editButtonContainer}
+            >
               <Text style={styles.editButton}>Edit</Text>
             </TouchableOpacity>
           ),
@@ -270,15 +337,15 @@ export default function PersonDetailScreen() {
           {/* Quick Actions */}
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('morning_text')}>
-              <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={24} color={colors.primary} />
+              <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={28} color={colors.primary} />
               <Text style={styles.quickActionText}>Morning Text</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('check_in')}>
-              <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color={colors.primary} />
+              <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={28} color={colors.primary} />
               <Text style={styles.quickActionText}>Check In</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowReminderModal(true)}>
-              <IconSymbol ios_icon_name="bell.fill" android_material_icon_name="notifications" size={24} color={colors.primary} />
+              <IconSymbol ios_icon_name="bell.fill" android_material_icon_name="notifications" size={28} color={colors.primary} />
               <Text style={styles.quickActionText}>Set Reminder</Text>
             </TouchableOpacity>
           </View>
@@ -287,22 +354,69 @@ export default function PersonDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Information</Text>
             <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={20} color={colors.textSecondary} />
+              <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={22} color={colors.textSecondary} />
               <Text style={styles.infoText}>{person.age} years old</Text>
             </View>
             <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="star.fill" android_material_icon_name="star" size={20} color={colors.textSecondary} />
+              <IconSymbol ios_icon_name="star.fill" android_material_icon_name="star" size={22} color={colors.textSecondary} />
               <Text style={styles.infoText}>{person.zodiacSign}</Text>
             </View>
             <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={20} color={colors.textSecondary} />
+              <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={22} color={colors.textSecondary} />
               <Text style={styles.infoText}>{person.location}</Text>
             </View>
             <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={20} color={colors.textSecondary} />
+              <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={22} color={colors.textSecondary} />
               <Text style={styles.infoText}>{person.relationshipType}</Text>
             </View>
           </View>
+
+          {/* Contact Information */}
+          {(person.phoneNumber || person.instagram || person.twitter || person.facebook || person.snapchat) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Contact</Text>
+              
+              {person.phoneNumber && (
+                <TouchableOpacity style={styles.contactRow} onPress={handleCall}>
+                  <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={22} color={colors.primary} />
+                  <Text style={styles.contactText}>{person.phoneNumber}</Text>
+                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              {person.instagram && (
+                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('instagram')}>
+                  <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#E4405F" />
+                  <Text style={styles.contactText}>Instagram: {person.instagram}</Text>
+                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              {person.twitter && (
+                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('twitter')}>
+                  <IconSymbol ios_icon_name="at" android_material_icon_name="alternate-email" size={22} color="#1DA1F2" />
+                  <Text style={styles.contactText}>X/Twitter: {person.twitter}</Text>
+                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              {person.facebook && (
+                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('facebook')}>
+                  <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="group" size={22} color="#4267B2" />
+                  <Text style={styles.contactText}>Facebook: {person.facebook}</Text>
+                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              {person.snapchat && (
+                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('snapchat')}>
+                  <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#FFFC00" />
+                  <Text style={styles.contactText}>Snapchat: {person.snapchat}</Text>
+                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Chemistry Timeline */}
           <View style={styles.section}>
@@ -314,23 +428,39 @@ export default function PersonDetailScreen() {
               <IconSymbol
                 ios_icon_name={showChemistryTimeline ? 'chevron.up' : 'chevron.down'}
                 android_material_icon_name={showChemistryTimeline ? 'expand-less' : 'expand-more'}
-                size={20}
+                size={24}
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
             {showChemistryTimeline && (
               <View style={styles.timeline}>
                 {personInteractions.length === 0 && personDates.length === 0 ? (
-                  <Text style={styles.emptyText}>No interactions yet</Text>
+                  <>
+                    <View style={styles.timelineItem}>
+                      <Text style={styles.timelineIcon}>✨</Text>
+                      <View style={styles.timelineContent}>
+                        <Text style={styles.timelineName}>Added to Roster</Text>
+                        <Text style={styles.timelineDate}>
+                          {new Date(personCreatedDate).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.emptyText}>No interactions yet</Text>
+                  </>
                 ) : (
                   <>
-                    {[...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
-                      ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type }))]
+                    {[
+                      { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
+                      ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
+                      ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type }))
+                    ]
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .slice(0, 10)
                       .map((item, index) => (
-                        <View key={index} style={styles.timelineItem}>
-                          <Text style={styles.timelineIcon}>{getInteractionIcon(item.type)}</Text>
+                        <View key={`timeline-${index}`} style={styles.timelineItem}>
+                          <Text style={styles.timelineIcon}>
+                            {item.type === 'added' ? '✨' : getInteractionIcon(item.type)}
+                          </Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineName}>{item.name.replace('_', ' ')}</Text>
                             <Text style={styles.timelineDate}>
@@ -373,7 +503,7 @@ export default function PersonDetailScreen() {
                   <IconSymbol
                     ios_icon_name="bell.fill"
                     android_material_icon_name="notifications"
-                    size={20}
+                    size={22}
                     color={colors.primary}
                   />
                   <View style={styles.reminderContent}>
@@ -542,11 +672,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
   },
+  editButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   editButton: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    marginRight: 16,
   },
   profileHeader: {
     alignItems: 'center',
@@ -589,6 +722,7 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 12,
     color: colors.text,
+    fontWeight: '500',
   },
   section: {
     paddingHorizontal: 16,
@@ -613,6 +747,21 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
+    color: colors.text,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  contactText: {
+    flex: 1,
+    fontSize: 15,
     color: colors.text,
   },
   timeline: {

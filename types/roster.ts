@@ -37,6 +37,7 @@ export interface RosterPerson {
   status: ProfileStatus;
   benchReason?: string;
   sortOrder?: number;
+  createdAt?: string; // ISO date string when person was added
 }
 
 export interface DateEvent {

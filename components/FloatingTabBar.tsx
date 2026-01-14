@@ -161,7 +161,7 @@ export default function FloatingTabBar({
           activeOpacity={0.8}
         >
           <View style={styles.addButtonInner}>
-            <MaterialIcons name="add" size={36} color="#FFFFFF" />
+            <MaterialIcons name="add" size={40} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
 
@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    top: -30,
+    top: -35,
     left: '50%',
-    marginLeft: -35,
+    marginLeft: -40,
     zIndex: 1001,
     ...Platform.select({
       web: {
@@ -241,17 +241,19 @@ const styles = StyleSheet.create({
     }),
   },
   addButtonInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#2E7D32',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 16,
+    borderWidth: 4,
+    borderColor: '#fff',
   },
   blurContainer: {
     overflow: 'hidden',

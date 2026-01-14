@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/styles/commonStyles';
@@ -63,8 +63,10 @@ const favoriteFoodTypes = [
 
 export default function AddPersonScreen() {
   const router = useRouter();
-  const { addPerson } = useRoster();
+  const { id } = useLocalSearchParams();
+  const { addPerson, updatePerson, roster, bench } = useRoster();
 
+  const isEditing = !!id;
   const [saving, setSaving] = useState(false);
   const [photoUri, setPhotoUri] = useState<string>();
   const [name, setName] = useState('');
@@ -94,6 +96,40 @@ export default function AddPersonScreen() {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
+
+  // Load existing person data if editing
+  useEffect(() => {
+    if (isEditing && id) {
+      console.log('[AddPerson] Editing mode - loading person with id:', id);
+      const allPeople = [...roster, ...bench];
+      const existingPerson = allPeople.find(p => p.id === id);
+      
+      if (existingPerson) {
+        console.log('[AddPerson] Found person to edit:', existingPerson.name);
+        setPhotoUri(existingPerson.imageUrl);
+        setName(existingPerson.name);
+        setAge(existingPerson.age.toString());
+        setBirthMonth(existingPerson.birthdayMonth);
+        setBirthDay(existingPerson.birthdayDay);
+        setInterestLevel(existingPerson.interestLevel);
+        setFavoriteColor(existingPerson.favoriteColor);
+        const colorObj = favoriteColors.find(c => c.name === existingPerson.favoriteColor);
+        if (colorObj) setFavoriteColorHex(colorObj.hex);
+        setFavoriteFoodType(existingPerson.favoriteFoodType);
+        setRelationshipType(existingPerson.relationshipType);
+        setCustomRelationshipType(existingPerson.customRelationshipType || '');
+        setLocation(existingPerson.location);
+        setPhoneNumber(existingPerson.phoneNumber);
+        setInstagram(existingPerson.instagram || '');
+        setTwitter(existingPerson.twitter || '');
+        setFacebook(existingPerson.facebook || '');
+        setSnapchat(existingPerson.snapchat || '');
+        setNotes(existingPerson.notes || '');
+        setRedFlags(existingPerson.redFlags.map(f => f.text));
+        setGreenFlags(existingPerson.greenFlags.map(f => f.text));
+      }
+    }
+  }, [isEditing, id, roster, bench]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -169,11 +205,11 @@ export default function AddPersonScreen() {
     try {
       setSaving(true);
       
-      // Upload image to backend if selected
-      let uploadedImageUrl: string | undefined;
+      // Upload image to backend if selected and changed
+      let uploadedImageUrl: string | undefined = photoUri;
       let uploadedImageKey: string | undefined;
       
-      if (photoUri) {
+      if (photoUri && (!isEditing || photoUri.startsWith('file://'))) {
         try {
           console.log('[AddPerson] Uploading image to backend...');
           
@@ -217,7 +253,7 @@ export default function AddPersonScreen() {
       }
 
       const person: RosterPerson = {
-        id: Date.now().toString(),
+        id: isEditing ? (id as string) : Date.now().toString(),
         name: name.trim(),
         age: Number(age),
         birthdayMonth: birthMonth,
@@ -239,14 +275,22 @@ export default function AddPersonScreen() {
         interestLevel,
         imageUrl: uploadedImageUrl,
         status: 'roster',
+        createdAt: isEditing ? undefined : new Date().toISOString(), // Set createdAt only for new persons
       };
 
-      console.log('[AddPerson] Saving person:', person.name);
-      await addPerson(person);
-      console.log('[AddPerson] Person saved successfully, navigating to home screen');
-      
-      // Navigate to home screen after saving (not open another add person)
-      router.replace('/(tabs)/(home)');
+      if (isEditing) {
+        console.log('[AddPerson] Updating person:', person.name);
+        await updatePerson(person);
+        console.log('[AddPerson] Person updated successfully, navigating to person detail');
+        // Navigate back to the person's detail page
+        router.back();
+      } else {
+        console.log('[AddPerson] Saving new person:', person.name);
+        await addPerson(person);
+        console.log('[AddPerson] Person saved successfully, navigating to home screen');
+        // Navigate to home screen after saving (not open another add person)
+        router.replace('/(tabs)/(home)');
+      }
     } catch (error: any) {
       console.error('[AddPerson] Error saving person:', error);
       Alert.alert('Error', error.message || 'Failed to save person');
@@ -273,7 +317,7 @@ export default function AddPersonScreen() {
           }} disabled={saving}>
             <Text style={[styles.cancelButton, saving && { opacity: 0.5 }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add to Roster</Text>
+          <Text style={styles.headerTitle}>{isEditing ? 'Edit Person' : 'Add to Roster'}</Text>
           <TouchableOpacity onPress={handleSave} disabled={saving}>
             <Text style={[styles.saveButton, saving && { opacity: 0.5 }]}>
               {saving ? 'Saving...' : 'Save'}
@@ -531,7 +575,7 @@ export default function AddPersonScreen() {
             </View>
             <View style={styles.flagsContainer}>
               {redFlags.map((flag, index) => (
-                <View key={index} style={[styles.flagChip, { backgroundColor: colors.lowInterest }]}>
+                <View key={`red-flag-${index}`} style={[styles.flagChip, { backgroundColor: colors.lowInterest }]}>
                   <Text style={styles.flagChipText}>{flag}</Text>
                   <TouchableOpacity onPress={() => removeRedFlag(index)}>
                     <IconSymbol
@@ -568,7 +612,7 @@ export default function AddPersonScreen() {
             </View>
             <View style={styles.flagsContainer}>
               {greenFlags.map((flag, index) => (
-                <View key={index} style={[styles.flagChip, { backgroundColor: colors.green }]}>
+                <View key={`green-flag-${index}`} style={[styles.flagChip, { backgroundColor: colors.green }]}>
                   <Text style={styles.flagChipText}>{flag}</Text>
                   <TouchableOpacity onPress={() => removeGreenFlag(index)}>
                     <IconSymbol
