@@ -20,7 +20,10 @@ import { RosterProvider } from "@/contexts/RosterContext";
 // Conditionally import GestureHandlerRootView only on native platforms
 let GestureHandlerRootView: any = View;
 if (Platform.OS !== 'web') {
-  GestureHandlerRootView = require('react-native-gesture-handler').GestureHandlerRootView;
+  // Use dynamic import instead of require
+  import('react-native-gesture-handler').then((module) => {
+    GestureHandlerRootView = module.GestureHandlerRootView;
+  });
 }
 
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +32,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
   const [loaded] = useFonts({
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -45,13 +45,7 @@ export default function RosterScreen() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
-  useEffect(() => {
-    if (showAnalyticsModal && !analytics) {
-      loadAnalytics();
-    }
-  }, [showAnalyticsModal]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoadingAnalytics(true);
       console.log('[RosterScreen] Loading analytics...');
@@ -63,7 +57,13 @@ export default function RosterScreen() {
     } finally {
       setLoadingAnalytics(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (showAnalyticsModal && !analytics) {
+      loadAnalytics();
+    }
+  }, [showAnalyticsModal, analytics, loadAnalytics]);
 
   const getInterestColor = (level: string) => {
     switch (level) {

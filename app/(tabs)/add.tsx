@@ -7,7 +7,7 @@ export default function AddScreen() {
 
   useEffect(() => {
     router.push('/person/add');
-  }, []);
+  }, [router]);
 
   return null;
 }

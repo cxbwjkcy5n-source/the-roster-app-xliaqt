@@ -24,6 +24,7 @@ import { DateEvent, RosterPerson } from '@/types/roster';
 
 let DateTimePicker: any = null;
 if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   DateTimePicker = require('@react-native-community/datetimepicker').default;
 }
 

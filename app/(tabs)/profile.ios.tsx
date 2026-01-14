@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -55,19 +55,7 @@ export default function ProfileScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
 
-  // Load user profile data from backend
-  useEffect(() => {
-    loadProfileData();
-  }, [user]);
-
-  // Auto-enable editing on first login
-  useEffect(() => {
-    if (isFirstLogin) {
-      setIsEditing(true);
-    }
-  }, [isFirstLogin]);
-
-  const loadProfileData = async () => {
+  const loadProfileData = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -92,7 +80,19 @@ export default function ProfileScreen() {
       console.error('[Profile] Error loading profile data:', error);
       // Don't show error alert - user might not have profile data yet
     }
-  };
+  }, [user]);
+
+  // Load user profile data from backend
+  useEffect(() => {
+    loadProfileData();
+  }, [loadProfileData]);
+
+  // Auto-enable editing on first login
+  useEffect(() => {
+    if (isFirstLogin) {
+      setIsEditing(true);
+    }
+  }, [isFirstLogin]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

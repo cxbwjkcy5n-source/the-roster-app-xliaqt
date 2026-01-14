@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -38,10 +38,14 @@ export default function RosterScreen() {
     setLocalRoster(roster);
   }, [roster]);
 
-  useEffect(() => {
+  const refreshData = useCallback(() => {
     refreshAnalytics();
     refreshNudges();
-  }, []);
+  }, [refreshAnalytics, refreshNudges]);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const upcomingDates = dates.filter(d => d.status === 'upcoming');
   const completedDates = dates.filter(d => d.status === 'completed');
@@ -724,11 +728,6 @@ const styles = StyleSheet.create({
   flagEmoji: {
     fontSize: 20,
     marginRight: 12,
-  },
-  flagText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
   },
   flagCount: {
     fontSize: 14,

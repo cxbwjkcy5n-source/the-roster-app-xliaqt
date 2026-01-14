@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ interface SafetyDate {
   dateWithName: string;
   location: string;
   licensePlate?: string;
-  emergencyContacts: Array<{ contactName: string; phoneNumber: string }>;
+  emergencyContacts: { contactName: string; phoneNumber: string }[];
   status: 'active' | 'completed' | 'emergency';
   createdAt: string;
 }
@@ -59,13 +59,7 @@ export default function SafetyScreen() {
   const [activeSafetyDate, setActiveSafetyDate] = useState<SafetyDate | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Load active safety date on mount
-  useEffect(() => {
-    loadActiveSafetyDate();
-    requestLocationPermission();
-  }, []);
-
-  const loadActiveSafetyDate = async () => {
+  const loadActiveSafetyDate = useCallback(async () => {
     try {
       console.log('[Safety] Loading active safety date...');
       const response = await authenticatedGet('/api/safety-dates/active');
@@ -81,9 +75,9 @@ export default function SafetyScreen() {
       // No active safety date is not an error
       setActiveSafetyDate(null);
     }
-  };
+  }, []);
 
-  const requestLocationPermission = async () => {
+  const requestLocationPermission = useCallback(async () => {
     try {
       console.log('[Safety] Requesting location permission...');
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -101,7 +95,13 @@ export default function SafetyScreen() {
     } catch (error) {
       console.error('[Safety] Error requesting location permission:', error);
     }
-  };
+  }, []);
+
+  // Load active safety date on mount
+  useEffect(() => {
+    loadActiveSafetyDate();
+    requestLocationPermission();
+  }, [loadActiveSafetyDate, requestLocationPermission]);
 
   const getCurrentLocation = async () => {
     try {
@@ -153,7 +153,7 @@ export default function SafetyScreen() {
   };
 
   const handleSendSafetyInfo = async () => {
-    // Validate inputs
+    // Validation
     if (!selectedPerson) {
       Alert.alert('Missing Information', 'Please select the person you\'re meeting.');
       return;
