@@ -251,7 +251,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <LinearGradient
         colors={[colors.primaryDark, colors.primary, colors.secondary]}
         style={styles.header}
@@ -293,10 +293,10 @@ export default function ProfileScreen() {
               size={32}
               color={colors.primary}
             />
-            <Text style={[styles.welcomeTitle, { color: theme.colors.text }]}>
+            <Text style={styles.welcomeTitle}>
               Welcome to THE ROSTER!
             </Text>
-            <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>
+            <Text style={styles.welcomeText}>
               Complete your profile to personalize your experience. You can always update this later.
             </Text>
           </View>
@@ -337,9 +337,9 @@ export default function ProfileScreen() {
 
         {/* Profile Fields */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Name</Text>
+          <Text style={styles.label}>Name</Text>
           <TextInput
-            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={styles.input}
             value={name}
             onChangeText={setName}
             editable={isEditing}
@@ -349,9 +349,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Age</Text>
+          <Text style={styles.label}>Age</Text>
           <TextInput
-            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={styles.input}
             value={age}
             onChangeText={setAge}
             editable={isEditing}
@@ -362,9 +362,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Location</Text>
+          <Text style={styles.label}>Location</Text>
           <TextInput
-            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={styles.input}
             value={location}
             onChangeText={setLocation}
             editable={isEditing}
@@ -374,9 +374,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Phone Number</Text>
+          <Text style={styles.label}>Phone Number</Text>
           <TextInput
-            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={styles.input}
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             editable={isEditing}
@@ -387,9 +387,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Favorite Color</Text>
+          <Text style={styles.label}>Favorite Color</Text>
           <TouchableOpacity
-            style={[styles.input, styles.pickerButton, { backgroundColor: colors.card }]}
+            style={[styles.input, styles.pickerButton]}
             onPress={() => isEditing && setShowColorPicker(true)}
             disabled={!isEditing}
           >
@@ -402,7 +402,7 @@ export default function ProfileScreen() {
                   ]}
                 />
               )}
-              <Text style={[styles.pickerText, { color: favoriteColor ? theme.colors.text : colors.textSecondary }]}>
+              <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]}>
                 {favoriteColor || 'Select color'}
               </Text>
             </View>
@@ -418,13 +418,13 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Favorite Food Type</Text>
+          <Text style={styles.label}>Favorite Food Type</Text>
           <TouchableOpacity
-            style={[styles.input, styles.pickerButton, { backgroundColor: colors.card }]}
+            style={[styles.input, styles.pickerButton]}
             onPress={() => isEditing && setShowFoodPicker(true)}
             disabled={!isEditing}
           >
-            <Text style={[styles.pickerText, { color: favoriteFoodType ? theme.colors.text : colors.textSecondary }]}>
+            <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]}>
               {favoriteFoodType || 'Select food type'}
             </Text>
             {isEditing && (
@@ -439,9 +439,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Instagram</Text>
+          <Text style={styles.label}>Instagram</Text>
           <TextInput
-            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={styles.input}
             value={instagram}
             onChangeText={setInstagram}
             editable={isEditing}
@@ -452,9 +452,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Twitter/X</Text>
+          <Text style={styles.label}>Twitter/X</Text>
           <TextInput
-            style={[styles.input, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={styles.input}
             value={twitter}
             onChangeText={setTwitter}
             editable={isEditing}
@@ -465,9 +465,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Notes</Text>
+          <Text style={styles.label}>Notes</Text>
           <TextInput
-            style={[styles.input, styles.textArea, { color: theme.colors.text, backgroundColor: colors.card }]}
+            style={[styles.input, styles.textArea]}
             value={notes}
             onChangeText={setNotes}
             editable={isEditing}
@@ -626,6 +626,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -660,6 +661,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   contentContainer: {
     padding: 20,
@@ -681,11 +683,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 12,
     marginBottom: 8,
+    color: colors.text,
   },
   welcomeText: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+    color: colors.textSecondary,
   },
   imageContainer: {
     alignSelf: 'center',
@@ -723,6 +727,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+    color: colors.text,
   },
   input: {
     borderRadius: 8,
@@ -730,6 +735,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    color: colors.text,
+    backgroundColor: colors.card,
   },
   textArea: {
     minHeight: 100,

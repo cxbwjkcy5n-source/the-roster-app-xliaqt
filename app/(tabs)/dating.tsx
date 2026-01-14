@@ -27,6 +27,7 @@ export default function DatingScreen() {
 
   const menuItems = [
     {
+      id: 'have-date',
       title: 'I have a date',
       icon: 'calendar-today',
       iosIcon: 'calendar',
@@ -38,6 +39,7 @@ export default function DatingScreen() {
       },
     },
     {
+      id: 'plan-date',
       title: 'Plan a date',
       icon: 'edit',
       iosIcon: 'pencil',
@@ -49,6 +51,7 @@ export default function DatingScreen() {
       },
     },
     {
+      id: 'on-date',
       title: "I'm on a date",
       icon: 'security',
       iosIcon: 'shield.fill',
@@ -60,6 +63,7 @@ export default function DatingScreen() {
       },
     },
     {
+      id: 'dating-coach',
       title: 'Dating Coach',
       icon: 'person',
       iosIcon: 'person.fill',
@@ -71,6 +75,7 @@ export default function DatingScreen() {
       },
     },
     {
+      id: 'my-dates',
       title: 'My dates',
       icon: 'favorite',
       iosIcon: 'heart.fill',
@@ -138,9 +143,9 @@ export default function DatingScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
-              {menuItems.map((item, index) => (
+              {menuItems.map((item) => (
                 <TouchableOpacity
-                  key={index}
+                  key={item.id}
                   style={styles.menuItem}
                   onPress={item.action}
                 >
