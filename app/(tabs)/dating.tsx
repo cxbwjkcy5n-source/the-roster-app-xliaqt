@@ -33,7 +33,7 @@ export default function DatingScreen() {
     // Small delay to ensure smooth animation
     const timer = setTimeout(() => {
       setShowMenu(true);
-    }, 100);
+    }, 300);
     
     return () => clearTimeout(timer);
   }, []);
@@ -277,6 +277,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
+    minHeight: '60%',
   },
   modalHeader: {
     flexDirection: 'row',

@@ -64,7 +64,6 @@ const favoriteFoodTypes = [
 export default function AddPersonScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  // FIX: Move useRoster call to component level (not inside handleSave)
   const { addPerson, updatePerson, roster, bench, refreshProfiles } = useRoster();
 
   const isEditing = !!id;
@@ -432,9 +431,10 @@ export default function AddPersonScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Interest Level</Text>
             <View style={styles.interestContainer}>
+              {/* FIX: Add keys to mapped items */}
               {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => (
                 <TouchableOpacity
-                  key={level}
+                  key={`interest-${level}`}
                   style={[
                     styles.interestButton,
                     interestLevel === level && { backgroundColor: getInterestColor(level) },
@@ -539,7 +539,7 @@ export default function AddPersonScreen() {
             <View style={styles.relationshipGrid}>
               {relationshipTypes.map((type) => (
                 <TouchableOpacity
-                  key={type.value}
+                  key={`relationship-${type.value}`}
                   style={[
                     styles.relationshipButton,
                     relationshipType === type.value && styles.relationshipButtonActive,
@@ -731,7 +731,7 @@ export default function AddPersonScreen() {
                   <ScrollView style={styles.pickerScroll}>
                     {months.map((month, index) => (
                       <TouchableOpacity
-                        key={month}
+                        key={`month-${month}`}
                         style={[styles.pickerItem, birthMonth === index + 1 && styles.pickerItemActive]}
                         onPress={() => {
                           setBirthMonth(index + 1);
@@ -770,7 +770,7 @@ export default function AddPersonScreen() {
                   <ScrollView style={styles.pickerScroll}>
                     {Array.from({ length: getDaysInMonth(birthMonth) }, (_, i) => i + 1).map((day) => (
                       <TouchableOpacity
-                        key={day}
+                        key={`day-${day}`}
                         style={[styles.pickerItem, birthDay === day && styles.pickerItemActive]}
                         onPress={() => {
                           setBirthDay(day);
@@ -809,7 +809,7 @@ export default function AddPersonScreen() {
                   <ScrollView style={styles.pickerScroll}>
                     {favoriteColors.map((color) => (
                       <TouchableOpacity
-                        key={color.name}
+                        key={`color-${color.name}`}
                         style={[styles.pickerItem, favoriteColor === color.name && styles.pickerItemActive]}
                         onPress={() => {
                           setFavoriteColor(color.name);
@@ -852,7 +852,7 @@ export default function AddPersonScreen() {
                   <ScrollView style={styles.pickerScroll}>
                     {favoriteFoodTypes.map((food) => (
                       <TouchableOpacity
-                        key={food}
+                        key={`food-${food}`}
                         style={[styles.pickerItem, favoriteFoodType === food && styles.pickerItemActive]}
                         onPress={() => {
                           setFavoriteFoodType(food);

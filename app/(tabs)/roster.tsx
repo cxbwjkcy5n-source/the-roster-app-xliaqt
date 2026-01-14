@@ -174,7 +174,12 @@ export default function RosterScreen() {
   };
 
   const renderAnalyticsInfographic = () => {
-    if (!analytics) return null;
+    if (!analytics) {
+      console.log('[RosterScreen] Analytics is null, cannot render infographic');
+      return null;
+    }
+    
+    console.log('[RosterScreen] Rendering analytics infographic with data:', analytics);
     
     const interestPercentages = getInterestPercentages();
     const totalProfiles = analytics.totalProfiles;
@@ -484,46 +489,40 @@ export default function RosterScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal - INFOGRAPHIC DESIGN */}
+      {/* Analytics Modal - INFOGRAPHIC DESIGN - FIX: Ensure content is visible */}
       <Modal
         visible={showAnalyticsModal}
         animationType="slide"
         transparent
         onRequestClose={() => setShowAnalyticsModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => {
-          console.log('[RosterScreen] User tapped outside analytics modal to dismiss');
-          Keyboard.dismiss();
-          setShowAnalyticsModal(false);
-        }}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>📊 Dating Analytics</Text>
-                  <TouchableOpacity onPress={() => setShowAnalyticsModal(false)}>
-                    <IconSymbol
-                      ios_icon_name="xmark"
-                      android_material_icon_name="close"
-                      size={24}
-                      color={colors.text}
-                    />
-                  </TouchableOpacity>
-                </View>
-                {loadingAnalytics ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading analytics...</Text>
-                  </View>
-                ) : analytics ? (
-                  renderAnalyticsInfographic()
-                ) : (
-                  <Text style={styles.emptyText}>Failed to load analytics</Text>
-                )}
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📊 Dating Analytics</Text>
+              <TouchableOpacity onPress={() => setShowAnalyticsModal(false)}>
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+            {loadingAnalytics ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading analytics...</Text>
               </View>
-            </TouchableWithoutFeedback>
+            ) : analytics ? (
+              renderAnalyticsInfographic()
+            ) : (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.emptyText}>Failed to load analytics</Text>
+              </View>
+            )}
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -679,11 +678,11 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   modalContent: {
+    flex: 1,
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 20,
-    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -757,6 +756,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   loadingContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,

@@ -1,30 +1,61 @@
 
 import React from 'react';
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { View, StyleSheet } from 'react-native';
+import { Slot } from 'expo-router';
+import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import { Href } from 'expo-router';
+import { colors } from '@/styles/commonStyles';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
+  const router = useRouter();
+
+  const tabs: TabBarItem[] = [
+    {
+      name: 'roster',
+      route: '/(tabs)/roster' as Href,
+      icon: 'home',
+      label: 'Roster',
+    },
+    {
+      name: 'bench',
+      route: '/(tabs)/bench' as Href,
+      icon: 'pause',
+      label: 'Bench',
+    },
+    {
+      name: 'dating',
+      route: '/(tabs)/dating' as Href,
+      icon: 'favorite',
+      label: 'Dating',
+    },
+    {
+      name: 'profile',
+      route: '/(tabs)/profile' as Href,
+      icon: 'person',
+      label: 'Profile',
+    },
+  ];
+
+  const handleAddPress = () => {
+    console.log('[TabLayout] Add button pressed - navigating to /person/add');
+    router.push('/person/add' as Href);
+  };
+
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger key="roster" name="roster">
-        <Icon sf="house.fill" />
-        <Label>Roster</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="bench" name="bench">
-        <Icon sf="pause.fill" />
-        <Label>Bench</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="add" name="add">
-        <Icon sf="plus" />
-        <Label>Add</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="dating" name="dating">
-        <Icon sf="heart.fill" />
-        <Label>Dating</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="profile" name="profile">
-        <Icon sf="person.fill" />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <ProtectedRoute>
+      <View style={styles.container}>
+        <Slot />
+        <FloatingTabBar tabs={tabs} onAddPress={handleAddPress} />
+      </View>
+    </ProtectedRoute>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+});
