@@ -253,7 +253,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <LinearGradient
-        colors={[colors.primaryDark, colors.primary, colors.secondary]}
+        colors={['#667eea', '#764ba2']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -302,7 +302,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Profile Image */}
+        {/* Profile Image - LARGER (180x180) */}
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={isEditing ? pickImage : undefined}
@@ -318,7 +318,7 @@ export default function ProfileScreen() {
               <IconSymbol
                 ios_icon_name="person.circle.fill"
                 android_material_icon_name="account-circle"
-                size={80}
+                size={120}
                 color={colors.primary}
               />
             </View>
@@ -328,7 +328,7 @@ export default function ProfileScreen() {
               <IconSymbol
                 ios_icon_name="camera.fill"
                 android_material_icon_name="camera"
-                size={32}
+                size={40}
                 color="#fff"
               />
             </View>
@@ -634,6 +634,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerContent: {
     flex: 1,
@@ -697,14 +699,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
   },
   placeholderImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
@@ -716,7 +718,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 60,
+    borderRadius: 90,
     justifyContent: 'center',
     alignItems: 'center',
   },

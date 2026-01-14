@@ -1,4 +1,6 @@
 
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
   View,
@@ -12,28 +14,12 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import { useRoster } from '@/contexts/RosterContext';
-import { RosterPerson } from '@/types/roster';
 import { authenticatedPost, BACKEND_URL } from '@/utils/api';
-
-const BUDGET_OPTIONS = [
-  { label: '$', value: 'low', description: 'Under $50' },
-  { label: '$$', value: 'medium', description: '$50-$150' },
-  { label: '$$$', value: 'high', description: '$150-$300' },
-  { label: '$$$$', value: 'luxury', description: '$300+' },
-];
-
-const DURATION_OPTIONS = [
-  { label: '1-2 hours', value: 'short' },
-  { label: '3-4 hours', value: 'medium' },
-  { label: '5+ hours', value: 'long' },
-  { label: 'Full day', value: 'fullday' },
-];
+import { useRoster } from '@/contexts/RosterContext';
+import { colors } from '@/styles/commonStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconSymbol } from '@/components/IconSymbol';
+import { RosterPerson } from '@/types/roster';
 
 interface DateSuggestion {
   id: string;
@@ -45,69 +31,72 @@ interface DateSuggestion {
   whyPerfect: string;
 }
 
+const BUDGET_OPTIONS = ['$', '$$', '$$$', '$$$$'];
+const DURATION_OPTIONS = ['1-2 hours', '2-4 hours', '4+ hours', 'Full day'];
+
 export default function PlanDateScreen() {
-  const router = useRouter();
   const { roster } = useRoster();
-  
-  const [selectedPerson, setSelectedPerson] = useState('');
-  const [selectedPersonName, setSelectedPersonName] = useState('');
-  const [selectedPersonData, setSelectedPersonData] = useState<RosterPerson | null>(null);
-  const [city, setCity] = useState('');
-  const [budget, setBudget] = useState('medium');
-  const [duration, setDuration] = useState('medium');
-  const [suggestions, setSuggestions] = useState<DateSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
-  
+  const router = useRouter();
+  const [selectedPerson, setSelectedPerson] = useState<RosterPerson | null>(null);
   const [showPersonPicker, setShowPersonPicker] = useState(false);
+  const [budget, setBudget] = useState('$$');
+  const [duration, setDuration] = useState('2-4 hours');
+  const [preferences, setPreferences] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<DateSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const handleGenerateSuggestions = async () => {
-    console.log('[PlanDate] User tapped Generate Suggestions');
-    
     if (!selectedPerson) {
-      Alert.alert('Error', 'Please select a person');
-      return;
-    }
-    if (!city.trim()) {
-      Alert.alert('Error', 'Please enter a city');
+      Alert.alert('Select Person', 'Please select someone from your roster');
       return;
     }
 
-    // Note: AI date planning feature is not yet available in the backend
-    // This is a placeholder for future implementation
-    Alert.alert(
-      'Coming Soon',
-      'AI-powered date suggestions will be available in a future update. For now, you can schedule dates manually from the Dating menu.',
-      [{ text: 'OK' }]
-    );
-    
-    // Mock suggestions for demonstration (remove when backend is ready)
-    // setLoading(true);
-    // setTimeout(() => {
-    //   setSuggestions([
-    //     {
-    //       id: '1',
-    //       name: 'Romantic Dinner',
-    //       type: 'dinner',
-    //       description: 'A cozy Italian restaurant with candlelight ambiance',
-    //       estimatedCost: '$80-120',
-    //       duration: '2-3 hours',
-    //       whyPerfect: `Based on ${selectedPersonName}'s love for Italian food and romantic settings`,
-    //     },
-    //   ]);
-    //   setLoading(false);
-    // }, 1000);
+    setLoading(true);
+    try {
+      console.log('[PlanDate] Generating date suggestions...');
+      // TODO: Backend Integration - POST /api/dates/suggestions with { profileId, budget, duration, preferences }
+      // For now, show mock data
+      const mockSuggestions: DateSuggestion[] = [
+        {
+          id: '1',
+          name: 'Sunset Picnic',
+          type: 'Outdoor',
+          description: 'A romantic picnic at the park with wine and cheese',
+          estimatedCost: budget,
+          duration: duration,
+          whyPerfect: `Perfect for ${selectedPerson.name} based on their interests`,
+        },
+        {
+          id: '2',
+          name: 'Cooking Class',
+          type: 'Activity',
+          description: 'Learn to make pasta together at a local cooking school',
+          estimatedCost: budget,
+          duration: duration,
+          whyPerfect: 'Interactive and fun way to bond',
+        },
+      ];
+      setSuggestions(mockSuggestions);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('[PlanDate] Error generating suggestions:', error);
+      Alert.alert('Error', 'Failed to generate suggestions');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelectSuggestion = (suggestion: DateSuggestion) => {
-    console.log('[PlanDate] User selected suggestion:', suggestion.name);
     Alert.alert(
-      'Schedule This Date?',
-      `Would you like to schedule "${suggestion.name}" with ${selectedPersonName}?`,
+      'Schedule Date',
+      `Would you like to schedule "${suggestion.name}" with ${selectedPerson?.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Schedule',
           onPress: () => {
+            setShowSuggestions(false);
             router.push('/dating/schedule' as any);
           },
         },
@@ -117,177 +106,127 @@ export default function PlanDateScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen 
+      <Stack.Screen
         options={{
-          headerShown: true,
-          title: 'Plan a Date',
-          headerBackTitle: 'Back',
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-        }} 
+          headerShown: false,
+        }}
       />
-      
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
+
+      <LinearGradient
+        colors={['#FF6B9D', '#C44569']}
+        style={styles.header}
       >
-        <Text style={styles.subtitle}>
-          Get AI-powered date suggestions based on your person's preferences
-        </Text>
-
-        {/* Person Selection */}
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Select Person *</Text>
-          <TouchableOpacity
-            style={styles.formInput}
-            onPress={() => setShowPersonPicker(true)}
-          >
-            <View style={styles.personDisplay}>
-              {selectedPersonData?.imageUrl && (
-                <Image
-                  source={{ uri: selectedPersonData.imageUrl }}
-                  style={styles.personPhoto}
-                />
-              )}
-              <Text style={[styles.formInputText, !selectedPersonName && styles.placeholder]}>
-                {selectedPersonName || 'Select person'}
-              </Text>
-            </View>
-            <IconSymbol
-              ios_icon_name="chevron.down"
-              android_material_icon_name="arrow-drop-down"
-              size={20}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* City */}
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>City *</Text>
-          <TextInput
-            style={[styles.formInput, styles.textInput]}
-            value={city}
-            onChangeText={setCity}
-            placeholder="Enter city name"
-            placeholderTextColor={colors.textSecondary}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            console.log('[PlanDate] User tapped back button');
+            router.back();
+          }}
+        >
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color="#fff"
           />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Plan a Date</Text>
+        <View style={styles.headerSpacer} />
+      </LinearGradient>
+
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.sectionTitle}>Who are you planning a date with?</Text>
+        <TouchableOpacity
+          style={styles.personSelector}
+          onPress={() => setShowPersonPicker(true)}
+        >
+          {selectedPerson ? (
+            <View style={styles.selectedPerson}>
+              {selectedPerson.imageUrl ? (
+                <Image source={{ uri: selectedPerson.imageUrl }} style={styles.personImage} />
+              ) : (
+                <View style={styles.personImagePlaceholder}>
+                  <IconSymbol
+                    ios_icon_name="person.fill"
+                    android_material_icon_name="person"
+                    size={32}
+                    color={colors.textSecondary}
+                  />
+                </View>
+              )}
+              <Text style={styles.personName}>{selectedPerson.name}</Text>
+            </View>
+          ) : (
+            <Text style={styles.placeholderText}>Select from roster</Text>
+          )}
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Budget</Text>
+        <View style={styles.optionsRow}>
+          {BUDGET_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[styles.optionButton, budget === option && styles.optionButtonActive]}
+              onPress={() => setBudget(option)}
+            >
+              <Text style={[styles.optionText, budget === option && styles.optionTextActive]}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Budget */}
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Budget</Text>
-          <View style={styles.optionsGrid}>
-            {BUDGET_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[styles.optionButton, budget === option.value && styles.optionButtonActive]}
-                onPress={() => setBudget(option.value)}
-              >
-                <Text style={[styles.optionLabel, budget === option.value && styles.optionLabelActive]}>
-                  {option.label}
-                </Text>
-                <Text style={[styles.optionDescription, budget === option.value && styles.optionDescriptionActive]}>
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <Text style={styles.sectionTitle}>Duration</Text>
+        <View style={styles.optionsColumn}>
+          {DURATION_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[styles.optionButton, duration === option && styles.optionButtonActive]}
+              onPress={() => setDuration(option)}
+            >
+              <Text style={[styles.optionText, duration === option && styles.optionTextActive]}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Duration */}
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Duration</Text>
-          <View style={styles.optionsGrid}>
-            {DURATION_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[styles.optionButton, duration === option.value && styles.optionButtonActive]}
-                onPress={() => setDuration(option.value)}
-              >
-                <Text style={[styles.optionLabel, duration === option.value && styles.optionLabelActive]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        <Text style={styles.sectionTitle}>Preferences (optional)</Text>
+        <TextInput
+          style={styles.textInput}
+          value={preferences}
+          onChangeText={setPreferences}
+          placeholder="e.g., outdoor activities, food preferences..."
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={4}
+        />
 
         <TouchableOpacity
           style={styles.generateButton}
           onPress={handleGenerateSuggestions}
           disabled={loading}
         >
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
-            style={styles.generateButtonGradient}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <IconSymbol
-                  ios_icon_name="sparkles"
-                  android_material_icon_name="auto-awesome"
-                  size={20}
-                  color="#fff"
-                />
-                <Text style={styles.generateButtonText}>Generate Suggestions</Text>
-              </>
-            )}
-          </LinearGradient>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <IconSymbol
+                ios_icon_name="sparkles"
+                android_material_icon_name="auto-awesome"
+                size={20}
+                color="#fff"
+              />
+              <Text style={styles.generateButtonText}>Generate Suggestions</Text>
+            </>
+          )}
         </TouchableOpacity>
-
-        {/* Suggestions */}
-        {suggestions.length > 0 && (
-          <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>Date Suggestions</Text>
-            {suggestions.map((suggestion) => (
-              <TouchableOpacity
-                key={suggestion.id}
-                style={styles.suggestionCard}
-                onPress={() => handleSelectSuggestion(suggestion)}
-              >
-                <View style={styles.suggestionHeader}>
-                  <Text style={styles.suggestionName}>{suggestion.name}</Text>
-                  <View style={styles.suggestionType}>
-                    <Text style={styles.suggestionTypeText}>{suggestion.type}</Text>
-                  </View>
-                </View>
-                <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
-                <View style={styles.suggestionDetails}>
-                  <View style={styles.suggestionDetail}>
-                    <IconSymbol
-                      ios_icon_name="dollarsign.circle"
-                      android_material_icon_name="attach-money"
-                      size={16}
-                      color={colors.primary}
-                    />
-                    <Text style={styles.suggestionDetailText}>{suggestion.estimatedCost}</Text>
-                  </View>
-                  <View style={styles.suggestionDetail}>
-                    <IconSymbol
-                      ios_icon_name="clock"
-                      android_material_icon_name="access-time"
-                      size={16}
-                      color={colors.primary}
-                    />
-                    <Text style={styles.suggestionDetailText}>{suggestion.duration}</Text>
-                  </View>
-                </View>
-                <View style={styles.whyPerfect}>
-                  <IconSymbol
-                    ios_icon_name="heart.fill"
-                    android_material_icon_name="favorite"
-                    size={14}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.whyPerfectText}>{suggestion.whyPerfect}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
       </ScrollView>
 
       {/* Person Picker Modal */}
@@ -298,40 +237,83 @@ export default function PlanDateScreen() {
         onRequestClose={() => setShowPersonPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.pickerModal}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Person</Text>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Person</Text>
               <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
-                <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
               </TouchableOpacity>
             </View>
             <ScrollView>
               {roster.map((person) => (
                 <TouchableOpacity
                   key={person.id}
-                  style={styles.pickerItem}
+                  style={styles.personOption}
                   onPress={() => {
-                    setSelectedPerson(person.id);
-                    setSelectedPersonName(person.name);
-                    setSelectedPersonData(person);
+                    setSelectedPerson(person);
                     setShowPersonPicker(false);
                   }}
                 >
-                  {person.imageUrl && (
-                    <Image
-                      source={{ uri: person.imageUrl }}
-                      style={styles.pickerPersonPhoto}
-                    />
+                  {person.imageUrl ? (
+                    <Image source={{ uri: person.imageUrl }} style={styles.personOptionImage} />
+                  ) : (
+                    <View style={styles.personOptionImagePlaceholder}>
+                      <IconSymbol
+                        ios_icon_name="person.fill"
+                        android_material_icon_name="person"
+                        size={24}
+                        color={colors.textSecondary}
+                      />
+                    </View>
                   )}
-                  <Text style={styles.pickerItemText}>{person.name}</Text>
-                  {selectedPerson === person.id && (
-                    <IconSymbol
-                      ios_icon_name="checkmark"
-                      android_material_icon_name="check"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  )}
+                  <Text style={styles.personOptionName}>{person.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Suggestions Modal */}
+      <Modal
+        visible={showSuggestions}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSuggestions(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Date Suggestions</Text>
+              <TouchableOpacity onPress={() => setShowSuggestions(false)}>
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {suggestions.map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion.id}
+                  style={styles.suggestionCard}
+                  onPress={() => handleSelectSuggestion(suggestion)}
+                >
+                  <Text style={styles.suggestionName}>{suggestion.name}</Text>
+                  <Text style={styles.suggestionType}>{suggestion.type}</Text>
+                  <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
+                  <View style={styles.suggestionDetails}>
+                    <Text style={styles.suggestionDetail}>💰 {suggestion.estimatedCost}</Text>
+                    <Text style={styles.suggestionDetail}>⏱️ {suggestion.duration}</Text>
+                  </View>
+                  <Text style={styles.suggestionWhy}>{suggestion.whyPerfect}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -347,227 +329,222 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  headerSpacer: {
+    width: 40,
+  },
   content: {
     flex: 1,
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 24,
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  formLabel: {
-    fontSize: 14,
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 12,
   },
-  formInput: {
+  personSelector: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.card,
-    borderRadius: 8,
-    padding: 12,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  formInputText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  placeholder: {
-    color: colors.textSecondary,
-  },
-  textInput: {
-    color: colors.text,
-  },
-  personDisplay: {
+  selectedPerson: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
   },
-  personPhoto: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.primary,
+  personImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  optionsGrid: {
+  personImagePlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  personName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  optionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
+  },
+  optionsColumn: {
+    gap: 12,
   },
   optionButton: {
     flex: 1,
-    minWidth: '45%',
-    backgroundColor: colors.card,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    padding: 12,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+    alignItems: 'center',
   },
   optionButtonActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  optionLabel: {
-    fontSize: 16,
+  optionText: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
   },
-  optionLabelActive: {
+  optionTextActive: {
     color: '#fff',
   },
-  optionDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  optionDescriptionActive: {
-    color: '#fff',
-    opacity: 0.9,
+  textInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
   generateButton: {
-    marginTop: 8,
-    marginBottom: 32,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  generateButtonGradient: {
-    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 24,
   },
   generateButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },
-  suggestionsContainer: {
-    marginTop: 8,
-  },
-  suggestionsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  suggestionCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  suggestionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  suggestionName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  suggestionType: {
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  suggestionTypeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  suggestionDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12,
-  },
-  suggestionDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  suggestionDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  suggestionDetailText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  whyPerfect: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 8,
-  },
-  whyPerfectText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  pickerModal: {
-    backgroundColor: colors.backgroundAlt,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '60%',
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
   },
-  pickerHeader: {
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  pickerTitle: {
-    fontSize: 18,
+  modalTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
-  pickerItem: {
+  personOption: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: 12,
   },
-  pickerItemText: {
-    flex: 1,
+  personOptionImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  personOptionImagePlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  personOptionName: {
     fontSize: 16,
     color: colors.text,
   },
-  pickerPersonPhoto: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
+  suggestionCard: {
+    backgroundColor: colors.card,
+    padding: 16,
+    margin: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  suggestionName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  suggestionType: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: 8,
+  },
+  suggestionDescription: {
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 12,
+  },
+  suggestionDetails: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 8,
+  },
+  suggestionDetail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  suggestionWhy: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: colors.textSecondary,
   },
 });

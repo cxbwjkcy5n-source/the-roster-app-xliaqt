@@ -15,6 +15,14 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 
+const MENU_COLORS = {
+  'have-date': ['#FF6B9D', '#C44569'],
+  'plan-date': ['#4FACFE', '#00F2FE'],
+  'on-date': ['#FA709A', '#FEE140'],
+  'dating-coach': ['#A8E063', '#56AB2F'],
+  'my-dates': ['#FF512F', '#DD2476'],
+};
+
 export default function DatingScreen() {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
@@ -32,6 +40,7 @@ export default function DatingScreen() {
       icon: 'calendar-today',
       iosIcon: 'calendar',
       description: 'Schedule an upcoming date',
+      colors: MENU_COLORS['have-date'],
       action: () => {
         console.log('[Dating] User tapped "I have a date"');
         setShowMenu(false);
@@ -44,6 +53,7 @@ export default function DatingScreen() {
       icon: 'edit',
       iosIcon: 'pencil',
       description: 'Get AI-powered date ideas',
+      colors: MENU_COLORS['plan-date'],
       action: () => {
         console.log('[Dating] User tapped "Plan a date"');
         setShowMenu(false);
@@ -56,6 +66,7 @@ export default function DatingScreen() {
       icon: 'security',
       iosIcon: 'shield.fill',
       description: 'Safety features for your date',
+      colors: MENU_COLORS['on-date'],
       action: () => {
         console.log('[Dating] User tapped "I\'m on a date"');
         setShowMenu(false);
@@ -68,6 +79,7 @@ export default function DatingScreen() {
       icon: 'person',
       iosIcon: 'person.fill',
       description: 'Get advice and tips',
+      colors: MENU_COLORS['dating-coach'],
       action: () => {
         console.log('[Dating] User tapped "Dating Coach"');
         setShowMenu(false);
@@ -80,6 +92,7 @@ export default function DatingScreen() {
       icon: 'favorite',
       iosIcon: 'heart.fill',
       description: 'View your date history',
+      colors: MENU_COLORS['my-dates'],
       action: () => {
         console.log('[Dating] User tapped "My dates"');
         setShowMenu(false);
@@ -90,7 +103,10 @@ export default function DatingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.header}>
+      <LinearGradient 
+        colors={['#FF6B9D', '#C44569']} 
+        style={styles.header}
+      >
         <Text style={styles.headerTitle}>Dating</Text>
         <Text style={styles.headerSubtitle}>Manage your dating life</Text>
       </LinearGradient>
@@ -104,7 +120,7 @@ export default function DatingScreen() {
           }}
         >
           <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
+            colors={['#FF6B9D', '#C44569']}
             style={styles.mainButtonGradient}
           >
             <IconSymbol
@@ -122,7 +138,7 @@ export default function DatingScreen() {
         </Text>
       </View>
 
-      {/* Menu Modal - Opens from top */}
+      {/* Menu Modal - Opens from bottom with vibrant colored bubbles */}
       <Modal
         visible={showMenu}
         animationType="slide"
@@ -142,31 +158,42 @@ export default function DatingScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
+            <ScrollView 
+              style={styles.modalScroll} 
+              contentContainerStyle={styles.modalScrollContent}
+            >
               {menuItems.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.menuItem}
                   onPress={item.action}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.menuIconContainer}>
+                  <LinearGradient
+                    colors={item.colors}
+                    style={styles.menuItemGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <View style={styles.menuIconBubble}>
+                      <IconSymbol
+                        ios_icon_name={item.iosIcon}
+                        android_material_icon_name={item.icon}
+                        size={28}
+                        color="#fff"
+                      />
+                    </View>
+                    <View style={styles.menuTextContainer}>
+                      <Text style={styles.menuItemTitle}>{item.title}</Text>
+                      <Text style={styles.menuItemDescription}>{item.description}</Text>
+                    </View>
                     <IconSymbol
-                      ios_icon_name={item.iosIcon}
-                      android_material_icon_name={item.icon}
+                      ios_icon_name="chevron.right"
+                      android_material_icon_name="chevron-right"
                       size={24}
-                      color={colors.primary}
+                      color="rgba(255,255,255,0.8)"
                     />
-                  </View>
-                  <View style={styles.menuTextContainer}>
-                    <Text style={styles.menuItemTitle}>{item.title}</Text>
-                    <Text style={styles.menuItemDescription}>{item.description}</Text>
-                  </View>
-                  <IconSymbol
-                    ios_icon_name="chevron.right"
-                    android_material_icon_name="chevron-right"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
+                  </LinearGradient>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -185,6 +212,8 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingVertical: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerTitle: {
     fontSize: 28,
@@ -211,7 +240,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     elevation: 8,
-    shadowColor: colors.primary,
+    shadowColor: '#FF6B9D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -236,14 +265,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-start',
-    paddingTop: 60,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    flex: 1,
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -268,18 +296,25 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   menuItem: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  menuItemGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
   },
-  menuIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.background,
+  menuIconBubble: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -288,13 +323,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
     marginBottom: 4,
   },
   menuItemDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
   },
 });
