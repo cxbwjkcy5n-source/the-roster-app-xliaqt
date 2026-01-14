@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Pressable,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,9 +20,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
+import { authenticatedGet } from '@/utils/api';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 64) / 2;
+
+interface Analytics {
+  totalProfiles: number;
+  totalDates: number;
+  upcomingDates: number;
+  completedDates: number;
+  interestLevelBreakdown: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  statusBreakdown: {
+    roster: number;
+    bench: number;
+  };
+}
 
 export default function BenchScreen() {
   const router = useRouter();
@@ -29,10 +47,235 @@ export default function BenchScreen() {
   const [showDatesModal, setShowDatesModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   const upcomingDates = dates.filter(d => d.status === 'upcoming');
   const completedDates = dates.filter(d => d.status === 'completed');
   const displayDates = datesTab === 'upcoming' ? upcomingDates : completedDates;
+
+  const loadAnalytics = useCallback(async () => {
+    try {
+      setLoadingAnalytics(true);
+      console.log('[Bench] Loading analytics...');
+      const data = await authenticatedGet<Analytics>('/api/analytics');
+      console.log('[Bench] Analytics loaded:', data);
+      setAnalytics(data);
+    } catch (error) {
+      console.error('[Bench] Error loading analytics:', error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showAnalyticsModal && !analytics) {
+      loadAnalytics();
+    }
+  }, [showAnalyticsModal, analytics, loadAnalytics]);
+
+  const getInterestPercentages = () => {
+    if (!analytics) return { high: 0, medium: 0, low: 0 };
+    const total = analytics.interestLevelBreakdown.high + 
+                  analytics.interestLevelBreakdown.medium + 
+                  analytics.interestLevelBreakdown.low;
+    if (total === 0) return { high: 0, medium: 0, low: 0 };
+    return {
+      high: (analytics.interestLevelBreakdown.high / total) * 100,
+      medium: (analytics.interestLevelBreakdown.medium / total) * 100,
+      low: (analytics.interestLevelBreakdown.low / total) * 100,
+    };
+  };
+
+  const renderAnalyticsInfographic = () => {
+    if (!analytics) {
+      console.log('[Bench] Analytics is null, cannot render infographic');
+      return null;
+    }
+    
+    console.log('[Bench] Rendering analytics infographic with data:', analytics);
+    
+    const interestPercentages = getInterestPercentages();
+    const totalProfiles = analytics.totalProfiles;
+    const rosterPercentage = totalProfiles > 0 ? (analytics.statusBreakdown.roster / totalProfiles) * 100 : 0;
+    const benchPercentage = totalProfiles > 0 ? (analytics.statusBreakdown.bench / totalProfiles) * 100 : 0;
+
+    return (
+      <ScrollView style={styles.analyticsScroll} contentContainerStyle={styles.analyticsContent}>
+        {/* Hero Stats */}
+        <View style={styles.heroStatsContainer}>
+          <LinearGradient
+            colors={['#667eea', '#764ba2']}
+            style={styles.heroStatCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <IconSymbol
+              ios_icon_name="person.3.fill"
+              android_material_icon_name="group"
+              size={32}
+              color="#fff"
+            />
+            <Text style={styles.heroStatValue}>{analytics.totalProfiles}</Text>
+            <Text style={styles.heroStatLabel}>Total Profiles</Text>
+          </LinearGradient>
+
+          <LinearGradient
+            colors={['#FF6B9D', '#C44569']}
+            style={styles.heroStatCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <IconSymbol
+              ios_icon_name="calendar"
+              android_material_icon_name="calendar-today"
+              size={32}
+              color="#fff"
+            />
+            <Text style={styles.heroStatValue}>{analytics.totalDates}</Text>
+            <Text style={styles.heroStatLabel}>Total Dates</Text>
+          </LinearGradient>
+        </View>
+
+        {/* Dates Breakdown */}
+        <View style={styles.infographicSection}>
+          <Text style={styles.sectionTitle}>📅 Dates Overview</Text>
+          <View style={styles.datesBreakdownContainer}>
+            <View style={styles.dateBreakdownCard}>
+              <View style={[styles.dateIconCircle, { backgroundColor: '#4FACFE' }]}>
+                <IconSymbol
+                  ios_icon_name="clock.fill"
+                  android_material_icon_name="schedule"
+                  size={24}
+                  color="#fff"
+                />
+              </View>
+              <Text style={styles.dateBreakdownValue}>{analytics.upcomingDates}</Text>
+              <Text style={styles.dateBreakdownLabel}>Upcoming</Text>
+            </View>
+
+            <View style={styles.dateBreakdownCard}>
+              <View style={[styles.dateIconCircle, { backgroundColor: '#2E7D32' }]}>
+                <IconSymbol
+                  ios_icon_name="checkmark.circle.fill"
+                  android_material_icon_name="check-circle"
+                  size={24}
+                  color="#fff"
+                />
+              </View>
+              <Text style={styles.dateBreakdownValue}>{analytics.completedDates}</Text>
+              <Text style={styles.dateBreakdownLabel}>Completed</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Interest Level Breakdown */}
+        <View style={styles.infographicSection}>
+          <Text style={styles.sectionTitle}>💚 Interest Levels</Text>
+          
+          {/* High Interest */}
+          <View style={styles.interestRow}>
+            <View style={styles.interestLabelContainer}>
+              <View style={[styles.interestDot, { backgroundColor: '#2E7D32' }]} />
+              <Text style={styles.interestLabel}>High</Text>
+            </View>
+            <View style={styles.interestBarContainer}>
+              <View 
+                style={[
+                  styles.interestBar, 
+                  { 
+                    width: `${interestPercentages.high}%`,
+                    backgroundColor: '#2E7D32'
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.high}</Text>
+          </View>
+
+          {/* Medium Interest */}
+          <View style={styles.interestRow}>
+            <View style={styles.interestLabelContainer}>
+              <View style={[styles.interestDot, { backgroundColor: '#FFC107' }]} />
+              <Text style={styles.interestLabel}>Medium</Text>
+            </View>
+            <View style={styles.interestBarContainer}>
+              <View 
+                style={[
+                  styles.interestBar, 
+                  { 
+                    width: `${interestPercentages.medium}%`,
+                    backgroundColor: '#FFC107'
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.medium}</Text>
+          </View>
+
+          {/* Low Interest */}
+          <View style={styles.interestRow}>
+            <View style={styles.interestLabelContainer}>
+              <View style={[styles.interestDot, { backgroundColor: '#DC3545' }]} />
+              <Text style={styles.interestLabel}>Low</Text>
+            </View>
+            <View style={styles.interestBarContainer}>
+              <View 
+                style={[
+                  styles.interestBar, 
+                  { 
+                    width: `${interestPercentages.low}%`,
+                    backgroundColor: '#DC3545'
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.low}</Text>
+          </View>
+        </View>
+
+        {/* Roster vs Bench */}
+        <View style={styles.infographicSection}>
+          <Text style={styles.sectionTitle}>⚡ Status Distribution</Text>
+          <View style={styles.statusContainer}>
+            <View style={styles.statusCard}>
+              <LinearGradient
+                colors={['#2E7D32', '#1a4d2e']}
+                style={styles.statusCardGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="star.fill"
+                  android_material_icon_name="star"
+                  size={28}
+                  color="#fff"
+                />
+                <Text style={styles.statusValue}>{analytics.statusBreakdown.roster}</Text>
+                <Text style={styles.statusLabel}>Roster</Text>
+                <Text style={styles.statusPercentage}>{rosterPercentage.toFixed(0)}%</Text>
+              </LinearGradient>
+            </View>
+
+            <View style={styles.statusCard}>
+              <LinearGradient
+                colors={['#DC3545', '#a02834']}
+                style={styles.statusCardGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="pause.circle.fill"
+                  android_material_icon_name="pause-circle"
+                  size={28}
+                  color="#fff"
+                />
+                <Text style={styles.statusValue}>{analytics.statusBreakdown.bench}</Text>
+                <Text style={styles.statusLabel}>Bench</Text>
+                <Text style={styles.statusPercentage}>{benchPercentage.toFixed(0)}%</Text>
+              </LinearGradient>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -218,7 +461,7 @@ export default function BenchScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal */}
+      {/* Analytics Modal - FIX: Show same infographic as roster page */}
       <Modal
         visible={showAnalyticsModal}
         animationType="slide"
@@ -238,20 +481,18 @@ export default function BenchScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <View style={styles.analyticsContent}>
-              <Text style={styles.analyticsText}>
-                View detailed analytics on the Roster screen
-              </Text>
-              <TouchableOpacity
-                style={styles.goToRosterButton}
-                onPress={() => {
-                  setShowAnalyticsModal(false);
-                  router.push('/(tabs)/roster' as any);
-                }}
-              >
-                <Text style={styles.goToRosterButtonText}>Go to Roster</Text>
-              </TouchableOpacity>
-            </View>
+            {loadingAnalytics ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.actionRed} />
+                <Text style={styles.loadingText}>Loading analytics...</Text>
+              </View>
+            ) : analytics ? (
+              renderAnalyticsInfographic()
+            ) : (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.emptyText}>Failed to load analytics</Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -470,27 +711,169 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 4,
   },
-  analyticsContent: {
+  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
-  analyticsText: {
-    fontSize: 16,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
+  },
+  // INFOGRAPHIC STYLES
+  analyticsScroll: {
+    flex: 1,
+  },
+  analyticsContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  heroStatsContainer: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 24,
   },
-  goToRosterButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+  heroStatCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  heroStatValue: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#fff',
+    marginTop: 8,
+  },
+  heroStatLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  infographicSection: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginBottom: 16,
+  },
+  datesBreakdownContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateBreakdownCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
   },
-  goToRosterButtonText: {
-    color: colors.white,
-    fontSize: 16,
+  dateIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dateBreakdownValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginBottom: 4,
+  },
+  dateBreakdownLabel: {
+    fontSize: 12,
+    color: colors.grey,
+  },
+  interestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  interestLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 80,
+  },
+  interestDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  interestLabel: {
+    fontSize: 14,
     fontWeight: '600',
+    color: colors.darkText,
+  },
+  interestBarContainer: {
+    flex: 1,
+    height: 24,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginHorizontal: 12,
+  },
+  interestBar: {
+    height: '100%',
+    borderRadius: 12,
+  },
+  interestValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.darkText,
+    width: 40,
+    textAlign: 'right',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statusCard: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  statusCardGradient: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  statusValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#fff',
+    marginTop: 12,
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
+  statusPercentage: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 8,
   },
 });
