@@ -25,6 +25,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// FIX: Reduce profile image size - was SCREEN_WIDTH, now 0.6
+const PROFILE_IMAGE_SIZE = SCREEN_WIDTH * 0.6;
 
 const FAVORITE_COLORS = [
   'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Black', 'White', 'Brown', 'Gray'
@@ -305,39 +307,41 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Profile Image - FULL WIDTH like crop view */}
-        <TouchableOpacity
-          style={styles.imageContainer}
-          onPress={isEditing ? pickImage : undefined}
-          disabled={!isEditing}
-        >
-          {profileImage || user?.image ? (
-            <Image
-              source={{ uri: profileImage || user?.image }}
-              style={styles.profileImage}
-            />
-          ) : (
-            <View style={[styles.profileImage, styles.placeholderImage]}>
-              <IconSymbol
-                ios_icon_name="person.circle.fill"
-                android_material_icon_name="account-circle"
-                size={120}
-                color={colors.primary}
+        {/* FIX: Profile Image - Smaller size (was SCREEN_WIDTH, now 0.6 * SCREEN_WIDTH) */}
+        <View style={styles.imageContainerWrapper}>
+          <TouchableOpacity
+            style={styles.imageContainer}
+            onPress={isEditing ? pickImage : undefined}
+            disabled={!isEditing}
+          >
+            {profileImage || user?.image ? (
+              <Image
+                source={{ uri: profileImage || user?.image }}
+                style={styles.profileImage}
               />
-            </View>
-          )}
-          {isEditing && (
-            <View style={styles.imageOverlay}>
-              <IconSymbol
-                ios_icon_name="camera.fill"
-                android_material_icon_name="camera"
-                size={40}
-                color="#fff"
-              />
-              <Text style={styles.imageOverlayText}>Tap to change photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            ) : (
+              <View style={[styles.profileImage, styles.placeholderImage]}>
+                <IconSymbol
+                  ios_icon_name="person.circle.fill"
+                  android_material_icon_name="account-circle"
+                  size={100}
+                  color={colors.primary}
+                />
+              </View>
+            )}
+            {isEditing && (
+              <View style={styles.imageOverlay}>
+                <IconSymbol
+                  ios_icon_name="camera.fill"
+                  android_material_icon_name="camera"
+                  size={32}
+                  color="#fff"
+                />
+                <Text style={styles.imageOverlayText}>Tap to change</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
         {/* Profile Fields */}
         <View style={styles.fieldsContainer}>
@@ -701,11 +705,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textSecondary,
   },
+  imageContainerWrapper: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
   imageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
+    width: PROFILE_IMAGE_SIZE,
+    height: PROFILE_IMAGE_SIZE,
     position: 'relative',
-    marginBottom: 24,
+    borderRadius: PROFILE_IMAGE_SIZE / 2,
+    overflow: 'hidden',
   },
   profileImage: {
     width: '100%',
@@ -728,7 +737,7 @@ const styles = StyleSheet.create({
   },
   imageOverlayText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
   },

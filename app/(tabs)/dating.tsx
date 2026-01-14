@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,17 +27,22 @@ export default function DatingScreen() {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
 
-  // Automatically show menu when this screen is focused
-  React.useEffect(() => {
-    console.log('[Dating] Screen focused - opening submenu');
-    setShowMenu(true);
+  // FIX: Automatically show menu when this screen is focused
+  useEffect(() => {
+    console.log('[Dating] Screen focused - auto-opening submenu');
+    // Small delay to ensure smooth animation
+    const timer = setTimeout(() => {
+      setShowMenu(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const menuItems = [
     {
       id: 'have-date',
       title: 'I have a date',
-      icon: 'calendar-today',
+      icon: 'calendar-today' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
       iosIcon: 'calendar',
       description: 'Schedule an upcoming date',
       colors: MENU_COLORS['have-date'],
@@ -50,7 +55,7 @@ export default function DatingScreen() {
     {
       id: 'plan-date',
       title: 'Plan a date',
-      icon: 'edit',
+      icon: 'edit' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
       iosIcon: 'pencil',
       description: 'Get AI-powered date ideas',
       colors: MENU_COLORS['plan-date'],
@@ -63,7 +68,7 @@ export default function DatingScreen() {
     {
       id: 'on-date',
       title: "I'm on a date",
-      icon: 'security',
+      icon: 'security' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
       iosIcon: 'shield.fill',
       description: 'Safety features for your date',
       colors: MENU_COLORS['on-date'],
@@ -76,7 +81,7 @@ export default function DatingScreen() {
     {
       id: 'dating-coach',
       title: 'Dating Coach',
-      icon: 'person',
+      icon: 'person' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
       iosIcon: 'person.fill',
       description: 'Get advice and tips',
       colors: MENU_COLORS['dating-coach'],
@@ -89,7 +94,7 @@ export default function DatingScreen() {
     {
       id: 'my-dates',
       title: 'My dates',
-      icon: 'favorite',
+      icon: 'favorite' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
       iosIcon: 'heart.fill',
       description: 'View your date history',
       colors: MENU_COLORS['my-dates'],
@@ -138,7 +143,7 @@ export default function DatingScreen() {
         </Text>
       </View>
 
-      {/* Menu Modal - Opens from bottom with vibrant colored bubbles */}
+      {/* FIX: Menu Modal - Opens from bottom with vibrant colored bubbles - AUTO-OPENS */}
       <Modal
         visible={showMenu}
         animationType="slide"

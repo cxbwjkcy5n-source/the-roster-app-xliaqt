@@ -181,6 +181,8 @@ export default function FloatingTabBar({
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
+              // FIX: Ensure icon color has high contrast
+              const iconColor = isActive ? '#2E7D32' : (theme.dark ? '#FFFFFF' : '#000000');
 
               return (
                 <TouchableOpacity
@@ -192,8 +194,9 @@ export default function FloatingTabBar({
                   <View style={styles.tabContent}>
                     <MaterialIcons
                       name={tab.icon}
-                      size={24}
-                      color={isActive ? '#2E7D32' : (theme.dark ? '#FFFFFF' : '#000000')}
+                      size={26}
+                      color={iconColor}
+                      style={styles.iconStyle}
                     />
                     <Text
                       style={[
@@ -289,6 +292,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+  },
+  iconStyle: {
+    // Ensure icon is visible with proper opacity
+    opacity: 1,
   },
   tabLabel: {
     fontSize: 9,

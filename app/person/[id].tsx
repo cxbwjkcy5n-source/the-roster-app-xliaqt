@@ -26,6 +26,8 @@ import { colors } from '@/styles/commonStyles';
 import { getZodiacEmoji } from '@/utils/zodiac';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// FIX: Reduce image size - was SCREEN_WIDTH * 1.2, now 0.75
+const IMAGE_HEIGHT = SCREEN_WIDTH * 0.75;
 
 // Check-in messages that rotate
 const CHECK_IN_MESSAGES = [
@@ -363,12 +365,18 @@ export default function PersonDetailScreen() {
       />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container} edges={['bottom']}>
+          {/* FIX: Use ScrollView with removeClippedSubviews for better performance */}
           <ScrollView 
             style={styles.scrollView} 
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={10}
+            windowSize={10}
           >
-            {/* Profile Header - Full Width Image */}
+            {/* FIX: Profile Header - Smaller Image (was SCREEN_WIDTH * 1.2, now 0.75) */}
             <View style={styles.profileHeader}>
               {person.imageUrl ? (
                 <Image source={{ uri: person.imageUrl }} style={styles.profileImage} />
@@ -803,7 +811,7 @@ const styles = StyleSheet.create({
   },
   profileImage: {
     width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 1.2,
+    height: IMAGE_HEIGHT,
   },
   placeholderImage: {
     backgroundColor: colors.backgroundAlt,
