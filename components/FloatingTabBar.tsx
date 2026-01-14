@@ -15,6 +15,7 @@ import { BlurView } from 'expo-blur';
 import { useTheme } from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
+import { colors } from '@/styles/commonStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -35,8 +36,8 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = screenWidth / 2.5,
-  borderRadius = 35,
+  containerWidth = screenWidth - 40, // FIX: Full width with margins
+  borderRadius = 30,
   bottomMargin,
   onAddPress
 }: FloatingTabBarProps) {
@@ -106,23 +107,17 @@ export default function FloatingTabBar({
   const dynamicStyles = {
     blurContainer: {
       ...styles.blurContainer,
-      borderWidth: 1.2,
-      borderColor: 'rgba(255, 255, 255, 1)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.9)',
       ...Platform.select({
         ios: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.8)'
-            : 'rgba(255, 255, 255, 0.6)',
+          backgroundColor: 'rgba(255, 255, 255, 0.85)',
         },
         android: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.6)',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
         },
         web: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
         },
@@ -133,9 +128,7 @@ export default function FloatingTabBar({
     },
     indicator: {
       ...styles.indicator,
-      backgroundColor: theme.dark
-        ? 'rgba(255, 255, 255, 0.08)'
-        : 'rgba(0, 0, 0, 0.04)',
+      backgroundColor: 'rgba(17, 163, 106, 0.1)', // Roster green tint
       width: `${tabWidthPercent}%` as `${number}%`,
     },
   };
@@ -151,17 +144,17 @@ export default function FloatingTabBar({
         styles.container,
         {
           width: containerWidth,
-          marginBottom: bottomMargin ?? 20
+          marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Center Add Button - Bigger and Solid Color */}
+        {/* Center Add Button - Retro Red with White Phone Icon */}
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleAddPress}
           activeOpacity={0.8}
         >
           <View style={styles.addButtonInner}>
-            <MaterialIcons name="add" size={40} color="#FFFFFF" />
+            <MaterialIcons name="add" size={36} color={colors.white} />
           </View>
         </TouchableOpacity>
 
@@ -181,8 +174,8 @@ export default function FloatingTabBar({
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
-              // FIX: Ensure icon color has high contrast
-              const iconColor = isActive ? '#2E7D32' : (theme.dark ? '#FFFFFF' : '#000000');
+              // FIX: High contrast icon colors - Active: Roster Green, Inactive: Grey
+              const iconColor = isActive ? colors.navActive : colors.navInactive;
 
               return (
                 <TouchableOpacity
@@ -194,15 +187,15 @@ export default function FloatingTabBar({
                   <View style={styles.tabContent}>
                     <MaterialIcons
                       name={tab.icon}
-                      size={26}
+                      size={24}
                       color={iconColor}
                       style={styles.iconStyle}
                     />
                     <Text
                       style={[
                         styles.tabLabel,
-                        { color: theme.dark ? '#FFFFFF' : '#000000' },
-                        isActive && { color: '#2E7D32', fontWeight: '600' },
+                        { color: colors.navInactive },
+                        isActive && { color: colors.navActive, fontWeight: '700' },
                       ]}
                     >
                       {tab.label}
@@ -233,9 +226,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    top: -35,
+    top: -32,
     left: '50%',
-    marginLeft: -40,
+    marginLeft: -36,
     zIndex: 1001,
     ...Platform.select({
       web: {
@@ -244,19 +237,19 @@ const styles = StyleSheet.create({
     }),
   },
   addButtonInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#2E7D32',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.navFAB, // Retro Red
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 16,
+    elevation: 12,
     borderWidth: 4,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   blurContainer: {
     overflow: 'hidden',
@@ -269,11 +262,11 @@ const styles = StyleSheet.create({
     top: 4,
     left: 2,
     bottom: 4,
-    borderRadius: 27,
+    borderRadius: 24,
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 60,
+    height: 64,
     alignItems: 'center',
     paddingHorizontal: 4,
   },
@@ -291,15 +284,14 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 4,
   },
   iconStyle: {
-    // Ensure icon is visible with proper opacity
     opacity: 1,
   },
   tabLabel: {
-    fontSize: 9,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
     marginTop: 2,
   },
 });

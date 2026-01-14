@@ -11,26 +11,24 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/styles/commonStyles';
+import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 
 const MENU_COLORS = {
-  'have-date': ['#FF6B9D', '#C44569'],
-  'plan-date': ['#4FACFE', '#00F2FE'],
-  'on-date': ['#FA709A', '#FEE140'],
-  'dating-coach': ['#A8E063', '#56AB2F'],
-  'my-dates': ['#FF512F', '#DD2476'],
+  'have-date': ['#11A36A', '#0d8555'],
+  'plan-date': ['#2FB8A8', '#26a69a'],
+  'on-date': ['#E9243F', '#c41e35'],
+  'dating-coach': ['#C8A04F', '#b8903f'],
+  'my-dates': ['#E9243F', '#ff4757'],
 };
 
 export default function DatingScreen() {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
 
-  // FIX: Automatically show menu when this screen is focused
   useEffect(() => {
     console.log('[Dating] Screen focused - auto-opening submenu');
-    // Small delay to ensure smooth animation
     const timer = setTimeout(() => {
       setShowMenu(true);
     }, 300);
@@ -108,11 +106,12 @@ export default function DatingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Dating Header - Action Red Gradient */}
       <LinearGradient 
-        colors={['#FF6B9D', '#C44569']} 
+        colors={gradients.actionRed} 
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Dating</Text>
+        <Text style={styles.headerTitle}>DATING</Text>
         <Text style={styles.headerSubtitle}>Manage your dating life</Text>
       </LinearGradient>
 
@@ -123,15 +122,16 @@ export default function DatingScreen() {
             console.log('[Dating] User tapped main dating button');
             setShowMenu(true);
           }}
+          activeOpacity={0.85}
         >
           <LinearGradient
-            colors={['#FF6B9D', '#C44569']}
+            colors={gradients.actionRed}
             style={styles.mainButtonGradient}
           >
             <IconSymbol
               ios_icon_name="heart.fill"
               android_material_icon_name="favorite"
-              size={32}
+              size={48}
               color={colors.white}
             />
             <Text style={styles.mainButtonText}>Dating Menu</Text>
@@ -143,7 +143,7 @@ export default function DatingScreen() {
         </Text>
       </View>
 
-      {/* FIX: Menu Modal - Opens from bottom with vibrant colored bubbles - AUTO-OPENS */}
+      {/* Dating Submenu Modal */}
       <Modal
         visible={showMenu}
         animationType="slide"
@@ -159,20 +159,21 @@ export default function DatingScreen() {
                   ios_icon_name="xmark"
                   android_material_icon_name="close"
                   size={24}
-                  color={colors.text}
+                  color={colors.darkText}
                 />
               </TouchableOpacity>
             </View>
             <ScrollView 
               style={styles.modalScroll} 
               contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
             >
               {menuItems.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.menuItem}
                   onPress={item.action}
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                 >
                   <LinearGradient
                     colors={item.colors}
@@ -185,7 +186,7 @@ export default function DatingScreen() {
                         ios_icon_name={item.iosIcon}
                         android_material_icon_name={item.icon}
                         size={28}
-                        color="#fff"
+                        color={colors.white}
                       />
                     </View>
                     <View style={styles.menuTextContainer}>
@@ -196,7 +197,7 @@ export default function DatingScreen() {
                       ios_icon_name="chevron.right"
                       android_material_icon_name="chevron-right"
                       size={24}
-                      color="rgba(255,255,255,0.8)"
+                      color="rgba(255,255,255,0.9)"
                     />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -212,7 +213,7 @@ export default function DatingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
   header: {
     paddingHorizontal: 20,
@@ -221,51 +222,56 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: colors.white,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.white,
-    opacity: 0.9,
-    marginTop: 4,
+    opacity: 0.95,
+    marginTop: 6,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingHorizontal: 32,
+    paddingBottom: 120,
   },
   mainButton: {
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 280,
     aspectRatio: 1,
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#E9243F',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 16,
+    elevation: 12,
   },
   mainButtonGradient: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: 20,
   },
   mainButtonText: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: colors.white,
+    letterSpacing: -0.5,
   },
   infoText: {
-    marginTop: 24,
-    fontSize: 14,
-    color: colors.textSecondary,
+    marginTop: 28,
+    fontSize: 15,
+    color: colors.charcoal,
     textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 22,
   },
   modalOverlay: {
     flex: 1,
@@ -273,9 +279,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: '80%',
     minHeight: '60%',
   },
@@ -283,59 +289,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.darkText,
+    letterSpacing: -0.5,
   },
   modalScroll: {
     flex: 1,
   },
   modalScrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   menuItem: {
     marginBottom: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
-    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   menuItemGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
   },
   menuIconBubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   menuTextContainer: {
     flex: 1,
   },
   menuItemTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 19,
+    fontWeight: '800',
+    color: colors.white,
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   menuItemDescription: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '500',
   },
 });

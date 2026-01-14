@@ -7,13 +7,17 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/styles/commonStyles';
+import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
+
+const { width: screenWidth } = Dimensions.get('window');
+const CARD_WIDTH = (screenWidth - 64) / 2; // Two cards per row with padding
 
 export default function BenchScreen() {
   const router = useRouter();
@@ -21,8 +25,9 @@ export default function BenchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient colors={['#D32F2F', '#C62828']} style={styles.header}>
-        <Text style={styles.headerTitle}>The Bench</Text>
+      {/* Bench Header - Red Gradient */}
+      <LinearGradient colors={gradients.benchRed} style={styles.header}>
+        <Text style={styles.headerTitle}>THE BENCH</Text>
         <Text style={styles.headerSubtitle}>Paused connections</Text>
       </LinearGradient>
 
@@ -32,7 +37,7 @@ export default function BenchScreen() {
             <IconSymbol
               ios_icon_name="pause.circle"
               android_material_icon_name="pause-circle-outline"
-              size={64}
+              size={72}
               color={colors.grey}
             />
             <Text style={styles.emptyText}>No one on the bench</Text>
@@ -46,7 +51,11 @@ export default function BenchScreen() {
               <TouchableOpacity
                 key={person.id}
                 style={styles.personCard}
-                onPress={() => router.push(`/person/${person.id}` as any)}
+                onPress={() => {
+                  console.log('[Bench] User tapped person card:', person.name);
+                  router.push(`/person/${person.id}` as any);
+                }}
+                activeOpacity={0.9}
               >
                 <View style={styles.cardImageContainer}>
                   {person.imageUrl ? (
@@ -62,7 +71,7 @@ export default function BenchScreen() {
                     </View>
                   )}
                   <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.7)']}
+                    colors={['transparent', 'rgba(0,0,0,0.85)']}
                     style={styles.cardGradient}
                   >
                     <Text style={styles.cardName}>{person.name}</Text>
@@ -88,7 +97,7 @@ export default function BenchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
   header: {
     paddingHorizontal: 20,
@@ -97,38 +106,41 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: '#fff',
+    color: colors.white,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 4,
+    fontSize: 15,
+    color: colors.white,
+    opacity: 0.95,
+    marginTop: 6,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: 20,
+    paddingBottom: 120,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginTop: 20,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.grey,
     marginTop: 8,
+    fontWeight: '500',
   },
   grid: {
     flexDirection: 'row',
@@ -136,12 +148,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   personCard: {
-    width: '48%',
-    aspectRatio: 0.75,
+    width: CARD_WIDTH,
+    aspectRatio: 0.7,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: colors.card,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.benchCardOutline,
   },
   cardImageContainer: {
     flex: 1,
@@ -152,7 +171,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   placeholderImage: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -165,25 +184,28 @@ const styles = StyleSheet.create({
   },
   cardName: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    fontWeight: '800',
+    color: colors.white,
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   cardInfo: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.9,
+    fontSize: 13,
+    color: colors.white,
+    opacity: 0.95,
+    fontWeight: '600',
   },
   reasonBadge: {
-    marginTop: 6,
-    backgroundColor: 'rgba(211, 47, 47, 0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    marginTop: 8,
+    backgroundColor: 'rgba(233, 36, 63, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   reasonText: {
-    fontSize: 10,
-    color: '#fff',
+    fontSize: 11,
+    color: colors.white,
     fontStyle: 'italic',
+    fontWeight: '600',
   },
 });
