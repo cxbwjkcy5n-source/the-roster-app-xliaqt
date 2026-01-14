@@ -8,13 +8,13 @@ export const colors = {
   secondary: '#2d6a4f',      // Medium Dark Green
   accent: '#52b788',         // Light Green
   
-  background: '#0f1419',     // Dark background
-  backgroundAlt: '#1a1f26',  // Alt dark background
-  text: '#e3e3e3',           // Light text
-  textSecondary: '#9ca3af',  // Secondary text
-  grey: '#6c757d',           // Grey
-  card: '#1e2329',           // Dark card background
-  border: '#374151',         // Border color
+  background: '#ffffff',     // White background
+  backgroundAlt: '#f5f5f5',  // Light grey background
+  text: '#1a1a1a',           // Dark text
+  textSecondary: '#6c757d',  // Secondary text
+  grey: '#9ca3af',           // Grey
+  card: '#ffffff',           // White card background
+  border: '#e5e7eb',         // Light border color
   
   // Status colors
   red: '#dc3545',            // Red for flags/bench

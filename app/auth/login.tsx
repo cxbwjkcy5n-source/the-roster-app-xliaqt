@@ -32,10 +32,10 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    console.log('[Login] Starting login process...');
+    console.log('[Login] Starting login process for:', email);
     
     try {
-      console.log('[Login] Attempting email login for:', email);
+      console.log('[Login] Attempting email login...');
       await signInWithEmail(email, password);
       console.log('[Login] Login successful - navigation handled by AuthContext');
       // Navigation is handled in signInWithEmail, so we don't set loading to false
@@ -43,7 +43,24 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error('[Login] Login error:', error);
       setLoading(false); // Only set loading to false on error
-      Alert.alert('Login Failed', error.message || 'Invalid credentials. Please try again.');
+      
+      // Provide helpful error messages
+      const errorMessage = error.message || 'Invalid credentials';
+      
+      if (errorMessage.toLowerCase().includes('invalid') || 
+          errorMessage.toLowerCase().includes('unauthorized') ||
+          errorMessage.toLowerCase().includes('401')) {
+        Alert.alert(
+          'Login Failed', 
+          'Invalid email or password. If you don\'t have an account yet, please sign up first.',
+          [
+            { text: 'Try Again', style: 'cancel' },
+            { text: 'Sign Up', onPress: () => router.push('/auth/signup') }
+          ]
+        );
+      } else {
+        Alert.alert('Login Failed', errorMessage);
+      }
     }
   };
 
