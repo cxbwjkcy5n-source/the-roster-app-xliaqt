@@ -10,6 +10,8 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -165,7 +167,10 @@ export default function RosterScreen() {
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => setShowDatesModal(true)}
+              onPress={() => {
+                console.log('[RosterScreen] User tapped My Dates button');
+                setShowDatesModal(true);
+              }}
             >
               <IconSymbol
                 ios_icon_name="calendar"
@@ -176,7 +181,10 @@ export default function RosterScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => setShowAnalyticsModal(true)}
+              onPress={() => {
+                console.log('[RosterScreen] User tapped Analytics button');
+                setShowAnalyticsModal(true);
+              }}
             >
               <IconSymbol
                 ios_icon_name="chart.bar.fill"
@@ -199,152 +207,168 @@ export default function RosterScreen() {
         )}
       </ScrollView>
 
-      {/* My Dates Modal */}
+      {/* My Dates Modal - FIX: Opens at top now */}
       <Modal
         visible={showDatesModal}
         animationType="slide"
         transparent
         onRequestClose={() => setShowDatesModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>My Dates</Text>
-              <TouchableOpacity onPress={() => setShowDatesModal(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[styles.tab, datesTab === 'upcoming' && styles.activeTab]}
-                onPress={() => setDatesTab('upcoming')}
-              >
-                <Text
-                  style={[styles.tabText, datesTab === 'upcoming' && styles.activeTabText]}
-                >
-                  Upcoming
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, datesTab === 'completed' && styles.activeTab]}
-                onPress={() => setDatesTab('completed')}
-              >
-                <Text
-                  style={[styles.tabText, datesTab === 'completed' && styles.activeTabText]}
-                >
-                  Completed
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll}>
-              {displayDates.length === 0 ? (
-                <Text style={styles.emptyText}>
-                  {datesTab === 'upcoming' ? 'No upcoming dates' : 'No completed dates'}
-                </Text>
-              ) : (
-                displayDates.map((date) => {
-                  // Find the person's name from roster or bench
-                  const person = [...roster, ...bench].find(p => p.id === date.profileId);
-                  const personName = person?.name || date.profileName || 'Unknown';
-                  
-                  return (
-                    <View key={date.id} style={styles.dateCard}>
-                      <Text style={styles.dateCardName}>{personName}</Text>
-                      <Text style={styles.dateCardDate}>{new Date(date.date).toLocaleDateString()}</Text>
-                      {date.notes && <Text style={styles.dateCardNotes}>{date.notes}</Text>}
-                    </View>
-                  );
-                })
-              )}
-            </ScrollView>
+        <TouchableWithoutFeedback onPress={() => {
+          console.log('[RosterScreen] User tapped outside modal to dismiss');
+          Keyboard.dismiss();
+          setShowDatesModal(false);
+        }}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>My Dates</Text>
+                  <TouchableOpacity onPress={() => setShowDatesModal(false)}>
+                    <IconSymbol
+                      ios_icon_name="xmark"
+                      android_material_icon_name="close"
+                      size={24}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.tabContainer}>
+                  <TouchableOpacity
+                    style={[styles.tab, datesTab === 'upcoming' && styles.activeTab]}
+                    onPress={() => setDatesTab('upcoming')}
+                  >
+                    <Text
+                      style={[styles.tabText, datesTab === 'upcoming' && styles.activeTabText]}
+                    >
+                      Upcoming
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.tab, datesTab === 'completed' && styles.activeTab]}
+                    onPress={() => setDatesTab('completed')}
+                  >
+                    <Text
+                      style={[styles.tabText, datesTab === 'completed' && styles.activeTabText]}
+                    >
+                      Completed
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.modalScroll}>
+                  {displayDates.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      {datesTab === 'upcoming' ? 'No upcoming dates' : 'No completed dates'}
+                    </Text>
+                  ) : (
+                    displayDates.map((date) => {
+                      // Find the person's name from roster or bench
+                      const person = [...roster, ...bench].find(p => p.id === date.profileId);
+                      const personName = person?.name || date.profileName || 'Unknown';
+                      
+                      return (
+                        <View key={date.id} style={styles.dateCard}>
+                          <Text style={styles.dateCardName}>{personName}</Text>
+                          <Text style={styles.dateCardDate}>{new Date(date.date).toLocaleDateString()}</Text>
+                          {date.notes && <Text style={styles.dateCardNotes}>{date.notes}</Text>}
+                        </View>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal */}
+      {/* Analytics Modal - FIX: Opens at top now */}
       <Modal
         visible={showAnalyticsModal}
         animationType="slide"
         transparent
         onRequestClose={() => setShowAnalyticsModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Dating Analytics</Text>
-              <TouchableOpacity onPress={() => setShowAnalyticsModal(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll}>
-              {loadingAnalytics ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.loadingText}>Loading analytics...</Text>
+        <TouchableWithoutFeedback onPress={() => {
+          console.log('[RosterScreen] User tapped outside analytics modal to dismiss');
+          Keyboard.dismiss();
+          setShowAnalyticsModal(false);
+        }}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Dating Analytics</Text>
+                  <TouchableOpacity onPress={() => setShowAnalyticsModal(false)}>
+                    <IconSymbol
+                      ios_icon_name="xmark"
+                      android_material_icon_name="close"
+                      size={24}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
                 </View>
-              ) : analytics ? (
-                <>
-                  <View style={styles.analyticsCard}>
-                    <Text style={styles.analyticsTitle}>Total Profiles</Text>
-                    <Text style={styles.analyticsValue}>{analytics.totalProfiles}</Text>
-                  </View>
-                  <View style={styles.analyticsCard}>
-                    <Text style={styles.analyticsTitle}>Total Dates</Text>
-                    <Text style={styles.analyticsValue}>{analytics.totalDates}</Text>
-                  </View>
-                  <View style={styles.analyticsRow}>
-                    <View style={[styles.analyticsCard, { flex: 1, marginRight: 8 }]}>
-                      <Text style={styles.analyticsTitle}>Upcoming</Text>
-                      <Text style={styles.analyticsValue}>{analytics.upcomingDates}</Text>
+                <ScrollView style={styles.modalScroll}>
+                  {loadingAnalytics ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={styles.loadingText}>Loading analytics...</Text>
                     </View>
-                    <View style={[styles.analyticsCard, { flex: 1, marginLeft: 8 }]}>
-                      <Text style={styles.analyticsTitle}>Completed</Text>
-                      <Text style={styles.analyticsValue}>{analytics.completedDates}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Interest Level</Text>
-                    <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>High:</Text>
-                      <Text style={styles.breakdownValue}>{analytics.interestLevelBreakdown.high}</Text>
-                    </View>
-                    <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>Medium:</Text>
-                      <Text style={styles.breakdownValue}>{analytics.interestLevelBreakdown.medium}</Text>
-                    </View>
-                    <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>Low:</Text>
-                      <Text style={styles.breakdownValue}>{analytics.interestLevelBreakdown.low}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Status</Text>
-                    <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>Roster:</Text>
-                      <Text style={styles.breakdownValue}>{analytics.statusBreakdown.roster}</Text>
-                    </View>
-                    <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>Bench:</Text>
-                      <Text style={styles.breakdownValue}>{analytics.statusBreakdown.bench}</Text>
-                    </View>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.emptyText}>Failed to load analytics</Text>
-              )}
-            </ScrollView>
+                  ) : analytics ? (
+                    <>
+                      <View style={styles.analyticsCard}>
+                        <Text style={styles.analyticsTitle}>Total Profiles</Text>
+                        <Text style={styles.analyticsValue}>{analytics.totalProfiles}</Text>
+                      </View>
+                      <View style={styles.analyticsCard}>
+                        <Text style={styles.analyticsTitle}>Total Dates</Text>
+                        <Text style={styles.analyticsValue}>{analytics.totalDates}</Text>
+                      </View>
+                      <View style={styles.analyticsRow}>
+                        <View style={[styles.analyticsCard, { flex: 1, marginRight: 8 }]}>
+                          <Text style={styles.analyticsTitle}>Upcoming</Text>
+                          <Text style={styles.analyticsValue}>{analytics.upcomingDates}</Text>
+                        </View>
+                        <View style={[styles.analyticsCard, { flex: 1, marginLeft: 8 }]}>
+                          <Text style={styles.analyticsTitle}>Completed</Text>
+                          <Text style={styles.analyticsValue}>{analytics.completedDates}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Interest Level</Text>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>High:</Text>
+                          <Text style={styles.breakdownValue}>{analytics.interestLevelBreakdown.high}</Text>
+                        </View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Medium:</Text>
+                          <Text style={styles.breakdownValue}>{analytics.interestLevelBreakdown.medium}</Text>
+                        </View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Low:</Text>
+                          <Text style={styles.breakdownValue}>{analytics.interestLevelBreakdown.low}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Status</Text>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Roster:</Text>
+                          <Text style={styles.breakdownValue}>{analytics.statusBreakdown.roster}</Text>
+                        </View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Bench:</Text>
+                          <Text style={styles.breakdownValue}>{analytics.statusBreakdown.bench}</Text>
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={styles.emptyText}>Failed to load analytics</Text>
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -496,7 +520,8 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
   },
   modalContent: {
     backgroundColor: colors.background,

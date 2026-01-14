@@ -39,7 +39,7 @@ const CHECK_IN_MESSAGES = [
 export default function PersonDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { roster, bench, dates, interactions, reminders, addInteraction, addReminder, moveToBench, moveToRoster, deletePerson, updatePerson } = useRoster();
+  const { roster, bench, dates, interactions, reminders, addInteraction, addReminder, moveToBench, moveToRoster, deletePerson, updatePerson, addFlag, refreshProfiles } = useRoster();
   
   const [person, setPerson] = useState<RosterPerson | null>(null);
   const [showBenchModal, setShowBenchModal] = useState(false);
@@ -48,6 +48,10 @@ export default function PersonDetailScreen() {
   const [showChemistryTimeline, setShowChemistryTimeline] = useState(false);
   const [profileInteractions, setProfileInteractions] = useState<Interaction[]>([]);
   const [checkInMessageIndex, setCheckInMessageIndex] = useState(0);
+  
+  // FIX: Add flag input states - always available, not just in edit mode
+  const [redFlagInput, setRedFlagInput] = useState('');
+  const [greenFlagInput, setGreenFlagInput] = useState('');
 
   useEffect(() => {
     const allPeople = [...roster, ...bench];
@@ -70,6 +74,41 @@ export default function PersonDetailScreen() {
     } catch (error) {
       console.error('[PersonDetail] Error loading interactions:', error);
       setProfileInteractions([]);
+    }
+  };
+
+  // FIX: Add flag handlers - always available
+  const handleAddRedFlag = async () => {
+    if (!redFlagInput.trim() || !person) return;
+    
+    try {
+      console.log('[PersonDetail] Adding red flag:', redFlagInput.trim());
+      await addFlag(person.id, redFlagInput.trim(), 'red');
+      setRedFlagInput('');
+      
+      // Refresh profiles to get updated flags
+      await refreshProfiles();
+      console.log('[PersonDetail] Red flag added successfully');
+    } catch (error) {
+      console.error('[PersonDetail] Error adding red flag:', error);
+      Alert.alert('Error', 'Failed to add red flag');
+    }
+  };
+
+  const handleAddGreenFlag = async () => {
+    if (!greenFlagInput.trim() || !person) return;
+    
+    try {
+      console.log('[PersonDetail] Adding green flag:', greenFlagInput.trim());
+      await addFlag(person.id, greenFlagInput.trim(), 'green');
+      setGreenFlagInput('');
+      
+      // Refresh profiles to get updated flags
+      await refreshProfiles();
+      console.log('[PersonDetail] Green flag added successfully');
+    } catch (error) {
+      console.error('[PersonDetail] Error adding green flag:', error);
+      Alert.alert('Error', 'Failed to add green flag');
     }
   };
 
@@ -322,339 +361,411 @@ export default function PersonDetailScreen() {
           ),
         }}
       />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Profile Header - Full Width Image */}
-          <View style={styles.profileHeader}>
-            {person.imageUrl ? (
-              <Image source={{ uri: person.imageUrl }} style={styles.profileImage} />
-            ) : (
-              <View style={[styles.profileImage, styles.placeholderImage]}>
-                <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={80} color={colors.grey} />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+          <ScrollView 
+            style={styles.scrollView} 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Profile Header - Full Width Image */}
+            <View style={styles.profileHeader}>
+              {person.imageUrl ? (
+                <Image source={{ uri: person.imageUrl }} style={styles.profileImage} />
+              ) : (
+                <View style={[styles.profileImage, styles.placeholderImage]}>
+                  <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={80} color={colors.grey} />
+                </View>
+              )}
+              <View style={[styles.interestBadge, { backgroundColor: getInterestColor(person.interestLevel) }]}>
+                <Text style={styles.interestText}>{person.interestLevel.toUpperCase()}</Text>
               </View>
-            )}
-            <View style={[styles.interestBadge, { backgroundColor: getInterestColor(person.interestLevel) }]}>
-              <Text style={styles.interestText}>{person.interestLevel.toUpperCase()}</Text>
             </View>
-          </View>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('morning_text')}>
-              <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={28} color={colors.primary} />
-              <Text style={styles.quickActionText}>Morning Text</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('check_in')}>
-              <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={28} color={colors.primary} />
-              <Text style={styles.quickActionText}>Check In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowReminderModal(true)}>
-              <IconSymbol ios_icon_name="bell.fill" android_material_icon_name="notifications" size={28} color={colors.primary} />
-              <Text style={styles.quickActionText}>Set Reminder</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
+              <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('morning_text')}>
+                <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={28} color={colors.primary} />
+                <Text style={styles.quickActionText}>Morning Text</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('check_in')}>
+                <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={28} color={colors.primary} />
+                <Text style={styles.quickActionText}>Check In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowReminderModal(true)}>
+                <IconSymbol ios_icon_name="bell.fill" android_material_icon_name="notifications" size={28} color={colors.primary} />
+                <Text style={styles.quickActionText}>Set Reminder</Text>
+              </TouchableOpacity>
+            </View>
 
-          {/* Info Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Information</Text>
-            <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={22} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{person.age} years old</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.zodiacEmoji}>{getZodiacEmoji(person.zodiacSign)}</Text>
-              <Text style={styles.infoText}>{person.zodiacSign}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={22} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{person.location}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={22} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{person.relationshipType}</Text>
-            </View>
-          </View>
-
-          {/* Contact Information */}
-          {(person.phoneNumber || person.instagram || person.twitter || person.facebook || person.snapchat) && (
+            {/* Info Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Contact</Text>
-              
-              {person.phoneNumber && (
-                <TouchableOpacity style={styles.contactRow} onPress={handleCall}>
-                  <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={22} color={colors.primary} />
-                  <Text style={styles.contactText}>{person.phoneNumber}</Text>
-                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-
-              {person.instagram && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('instagram')}>
-                  <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#E4405F" />
-                  <Text style={styles.contactText}>Instagram: {person.instagram}</Text>
-                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-
-              {person.twitter && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('twitter')}>
-                  <IconSymbol ios_icon_name="at" android_material_icon_name="alternate-email" size={22} color="#1DA1F2" />
-                  <Text style={styles.contactText}>X/Twitter: {person.twitter}</Text>
-                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-
-              {person.facebook && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('facebook')}>
-                  <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="group" size={22} color="#4267B2" />
-                  <Text style={styles.contactText}>Facebook: {person.facebook}</Text>
-                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-
-              {person.snapchat && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('snapchat')}>
-                  <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#FFFC00" />
-                  <Text style={styles.contactText}>Snapchat: {person.snapchat}</Text>
-                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
+              <Text style={styles.sectionTitle}>Information</Text>
+              <View style={styles.infoRow}>
+                <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={22} color={colors.textSecondary} />
+                <Text style={styles.infoText}>{person.age} years old</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.zodiacEmoji}>{getZodiacEmoji(person.zodiacSign)}</Text>
+                <Text style={styles.infoText}>{person.zodiacSign}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={22} color={colors.textSecondary} />
+                <Text style={styles.infoText}>{person.location}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={22} color={colors.textSecondary} />
+                <Text style={styles.infoText}>{person.relationshipType}</Text>
+              </View>
             </View>
-          )}
 
-          {/* Chemistry Timeline */}
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.sectionHeader}
-              onPress={() => setShowChemistryTimeline(!showChemistryTimeline)}
-            >
-              <Text style={styles.sectionTitle}>Chemistry Timeline</Text>
-              <IconSymbol
-                ios_icon_name={showChemistryTimeline ? 'chevron.up' : 'chevron.down'}
-                android_material_icon_name={showChemistryTimeline ? 'expand-less' : 'expand-more'}
-                size={24}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-            {showChemistryTimeline && (
-              <View style={styles.timeline}>
-                {personInteractions.length === 0 && personDates.length === 0 ? (
-                  <>
-                    <View style={styles.timelineItem}>
-                      <Text style={styles.timelineIcon}>✨</Text>
-                      <View style={styles.timelineContent}>
-                        <Text style={styles.timelineName}>Added to Roster</Text>
-                        <Text style={styles.timelineDate}>
-                          {new Date(personCreatedDate).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.emptyText}>No interactions yet</Text>
-                  </>
-                ) : (
-                  <>
-                    {[
-                      { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
-                      ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
-                      ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type }))
-                    ]
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .slice(0, 10)
-                      .map((item, index) => (
-                        <View key={`timeline-${index}`} style={styles.timelineItem}>
-                          <Text style={styles.timelineIcon}>
-                            {item.type === 'added' ? '✨' : getInteractionIcon(item.type)}
-                          </Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineName}>{item.name.replace('_', ' ')}</Text>
-                            <Text style={styles.timelineDate}>
-                              {new Date(item.date).toLocaleDateString()}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
-                  </>
+            {/* Contact Information */}
+            {(person.phoneNumber || person.instagram || person.twitter || person.facebook || person.snapchat) && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Contact</Text>
+                
+                {person.phoneNumber && (
+                  <TouchableOpacity style={styles.contactRow} onPress={handleCall}>
+                    <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={22} color={colors.primary} />
+                    <Text style={styles.contactText}>{person.phoneNumber}</Text>
+                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+
+                {person.instagram && (
+                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('instagram')}>
+                    <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#E4405F" />
+                    <Text style={styles.contactText}>Instagram: {person.instagram}</Text>
+                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+
+                {person.twitter && (
+                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('twitter')}>
+                    <IconSymbol ios_icon_name="at" android_material_icon_name="alternate-email" size={22} color="#1DA1F2" />
+                    <Text style={styles.contactText}>X/Twitter: {person.twitter}</Text>
+                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+
+                {person.facebook && (
+                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('facebook')}>
+                    <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="group" size={22} color="#4267B2" />
+                    <Text style={styles.contactText}>Facebook: {person.facebook}</Text>
+                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+
+                {person.snapchat && (
+                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('snapchat')}>
+                    <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#FFFC00" />
+                    <Text style={styles.contactText}>Snapchat: {person.snapchat}</Text>
+                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
                 )}
               </View>
             )}
-          </View>
 
-          {/* Dates */}
-          {personDates.length > 0 && (
+            {/* Chemistry Timeline */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Dates ({personDates.length})</Text>
-              {personDates.slice(0, 3).map((date) => (
-                <View key={date.id} style={styles.dateCard}>
-                  <Text style={styles.dateTitle}>{date.type}</Text>
-                  <Text style={styles.dateDetails}>{date.date} at {date.time}</Text>
-                  <Text style={styles.dateLocation}>{date.location}</Text>
-                  {date.rating && (
-                    <View style={styles.ratingRow}>
-                      <Text style={styles.ratingText}>Rating: {'⭐'.repeat(date.rating)}</Text>
-                    </View>
+              <TouchableOpacity
+                style={styles.sectionHeader}
+                onPress={() => setShowChemistryTimeline(!showChemistryTimeline)}
+              >
+                <Text style={styles.sectionTitle}>Chemistry Timeline</Text>
+                <IconSymbol
+                  ios_icon_name={showChemistryTimeline ? 'chevron.up' : 'chevron.down'}
+                  android_material_icon_name={showChemistryTimeline ? 'expand-less' : 'expand-more'}
+                  size={24}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+              {showChemistryTimeline && (
+                <View style={styles.timeline}>
+                  {personInteractions.length === 0 && personDates.length === 0 ? (
+                    <>
+                      <View style={styles.timelineItem}>
+                        <Text style={styles.timelineIcon}>✨</Text>
+                        <View style={styles.timelineContent}>
+                          <Text style={styles.timelineName}>Added to Roster</Text>
+                          <Text style={styles.timelineDate}>
+                            {new Date(personCreatedDate).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.emptyText}>No interactions yet</Text>
+                    </>
+                  ) : (
+                    <>
+                      {[
+                        { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
+                        ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
+                        ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type }))
+                      ]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .slice(0, 10)
+                        .map((item, index) => (
+                          <View key={`timeline-${index}`} style={styles.timelineItem}>
+                            <Text style={styles.timelineIcon}>
+                              {item.type === 'added' ? '✨' : getInteractionIcon(item.type)}
+                            </Text>
+                            <View style={styles.timelineContent}>
+                              <Text style={styles.timelineName}>{item.name.replace('_', ' ')}</Text>
+                              <Text style={styles.timelineDate}>
+                                {new Date(item.date).toLocaleDateString()}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                    </>
                   )}
                 </View>
-              ))}
+              )}
             </View>
-          )}
 
-          {/* Reminders */}
-          {personReminders.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Active Reminders</Text>
-              {personReminders.map((reminder) => (
-                <View key={reminder.id} style={styles.reminderCard}>
-                  <IconSymbol
-                    ios_icon_name="bell.fill"
-                    android_material_icon_name="notifications"
-                    size={22}
-                    color={colors.primary}
-                  />
-                  <View style={styles.reminderContent}>
-                    <Text style={styles.reminderTitle}>{reminder.title}</Text>
-                    <Text style={styles.reminderDate}>
-                      {new Date(reminder.scheduledFor).toLocaleString()}
-                    </Text>
+            {/* Dates */}
+            {personDates.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Dates ({personDates.length})</Text>
+                {personDates.slice(0, 3).map((date) => (
+                  <View key={date.id} style={styles.dateCard}>
+                    <Text style={styles.dateTitle}>{date.type}</Text>
+                    <Text style={styles.dateDetails}>{date.date} at {date.time}</Text>
+                    <Text style={styles.dateLocation}>{date.location}</Text>
+                    {date.rating && (
+                      <View style={styles.ratingRow}>
+                        <Text style={styles.ratingText}>Rating: {'⭐'.repeat(date.rating)}</Text>
+                      </View>
+                    )}
                   </View>
-                </View>
-              ))}
-            </View>
-          )}
+                ))}
+              </View>
+            )}
 
-          {/* Flags */}
-          {(person.redFlags.length > 0 || person.greenFlags.length > 0) && (
+            {/* Reminders */}
+            {personReminders.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Active Reminders</Text>
+                {personReminders.map((reminder) => (
+                  <View key={reminder.id} style={styles.reminderCard}>
+                    <IconSymbol
+                      ios_icon_name="bell.fill"
+                      android_material_icon_name="notifications"
+                      size={22}
+                      color={colors.primary}
+                    />
+                    <View style={styles.reminderContent}>
+                      <Text style={styles.reminderTitle}>{reminder.title}</Text>
+                      <Text style={styles.reminderDate}>
+                        {new Date(reminder.scheduledFor).toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* FIX: Flags Section - Always allow adding flags, not just in edit mode */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Flags</Text>
+              
+              {/* Red Flags */}
+              <Text style={styles.flagSubtitle}>Red Flags 🚩</Text>
+              <View style={styles.flagInputContainer}>
+                <TextInput
+                  style={[styles.flagInput, { flex: 1 }]}
+                  value={redFlagInput}
+                  onChangeText={setRedFlagInput}
+                  placeholder="Add a red flag"
+                  placeholderTextColor={colors.grey}
+                  onSubmitEditing={handleAddRedFlag}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity 
+                  style={[styles.addFlagButton, { backgroundColor: colors.lowInterest }]} 
+                  onPress={handleAddRedFlag}
+                >
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={20}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              </View>
               {person.redFlags.map((flag) => (
                 <View key={flag.id} style={styles.flagItem}>
                   <Text style={styles.flagEmoji}>🚩</Text>
                   <Text style={styles.flagText}>{flag.text}</Text>
                 </View>
               ))}
+              {person.redFlags.length === 0 && (
+                <Text style={styles.noFlagsText}>No red flags yet</Text>
+              )}
+
+              {/* Green Flags */}
+              <Text style={[styles.flagSubtitle, { marginTop: 16 }]}>Green Flags ✅</Text>
+              <View style={styles.flagInputContainer}>
+                <TextInput
+                  style={[styles.flagInput, { flex: 1 }]}
+                  value={greenFlagInput}
+                  onChangeText={setGreenFlagInput}
+                  placeholder="Add a green flag"
+                  placeholderTextColor={colors.grey}
+                  onSubmitEditing={handleAddGreenFlag}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity 
+                  style={[styles.addFlagButton, { backgroundColor: colors.green }]} 
+                  onPress={handleAddGreenFlag}
+                >
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={20}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              </View>
               {person.greenFlags.map((flag) => (
                 <View key={flag.id} style={styles.flagItem}>
                   <Text style={styles.flagEmoji}>✅</Text>
                   <Text style={styles.flagText}>{flag.text}</Text>
                 </View>
               ))}
+              {person.greenFlags.length === 0 && (
+                <Text style={styles.noFlagsText}>No green flags yet</Text>
+              )}
             </View>
-          )}
 
-          {/* Contact Actions */}
-          <View style={styles.contactActions}>
-            <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
-              <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={24} color="#fff" />
-              <Text style={styles.contactButtonText}>Call</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.contactButton} onPress={handleMessage}>
-              <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color="#fff" />
-              <Text style={styles.contactButtonText}>Message</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            {person.status === 'roster' ? (
-              <TouchableOpacity style={styles.benchButton} onPress={handleMoveToBench}>
-                <IconSymbol ios_icon_name="pause.fill" android_material_icon_name="pause" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Move to Bench</Text>
+            {/* Contact Actions */}
+            <View style={styles.contactActions}>
+              <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
+                <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={24} color="#fff" />
+                <Text style={styles.contactButtonText}>Call</Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.rosterButton} onPress={handleMoveToRoster}>
-                <IconSymbol ios_icon_name="arrow.uturn.left" android_material_icon_name="undo" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Move to Roster</Text>
+              <TouchableOpacity style={styles.contactButton} onPress={handleMessage}>
+                <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color="#fff" />
+                <Text style={styles.contactButtonText}>Message</Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-              <IconSymbol ios_icon_name="trash.fill" android_material_icon_name="delete" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            </View>
 
-        {/* Bench Modal */}
-        <Modal
-          visible={showBenchModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowBenchModal(false)}
-        >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Move to Bench</Text>
-                <Text style={styles.modalSubtitle}>Why are you benching {person.name}?</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={benchReason}
-                  onChangeText={setBenchReason}
-                  placeholder="Enter reason..."
-                  placeholderTextColor={colors.textSecondary}
-                  multiline
-                  numberOfLines={3}
-                />
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={() => {
-                      setShowBenchModal(false);
-                      setBenchReason('');
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.confirmButton]}
-                    onPress={confirmMoveToBench}
-                  >
-                    <Text style={styles.confirmButtonText}>Confirm</Text>
-                  </TouchableOpacity>
-                </View>
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              {person.status === 'roster' ? (
+                <TouchableOpacity style={styles.benchButton} onPress={handleMoveToBench}>
+                  <IconSymbol ios_icon_name="pause.fill" android_material_icon_name="pause" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>Move to Bench</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.rosterButton} onPress={handleMoveToRoster}>
+                  <IconSymbol ios_icon_name="arrow.uturn.left" android_material_icon_name="undo" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>Move to Roster</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+                <IconSymbol ios_icon_name="trash.fill" android_material_icon_name="delete" size={20} color="#fff" />
+                <Text style={styles.actionButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+
+          {/* Bench Modal */}
+          <Modal
+            visible={showBenchModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowBenchModal(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => {
+              Keyboard.dismiss();
+              setShowBenchModal(false);
+            }}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Move to Bench</Text>
+                    <Text style={styles.modalSubtitle}>Why are you benching {person.name}?</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={benchReason}
+                      onChangeText={setBenchReason}
+                      placeholder="Enter reason..."
+                      placeholderTextColor={colors.textSecondary}
+                      multiline
+                      numberOfLines={3}
+                    />
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.cancelButton]}
+                        onPress={() => {
+                          setShowBenchModal(false);
+                          setBenchReason('');
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.confirmButton]}
+                        onPress={confirmMoveToBench}
+                      >
+                        <Text style={styles.confirmButtonText}>Confirm</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableWithoutFeedback>
               </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
+            </TouchableWithoutFeedback>
+          </Modal>
 
-        {/* Reminder Modal */}
-        <Modal
-          visible={showReminderModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowReminderModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.reminderModalContent}>
-              <Text style={styles.modalTitle}>Set Reminder</Text>
-              <TouchableOpacity
-                style={styles.reminderOption}
-                onPress={() => {
-                  handleSetReminder('morning_text');
-                  setShowReminderModal(false);
-                }}
-              >
-                <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={24} color={colors.primary} />
-                <Text style={styles.reminderOptionText}>Send morning text</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.reminderOption}
-                onPress={() => {
-                  handleSetReminder('check_in');
-                  setShowReminderModal(false);
-                }}
-              >
-                <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color={colors.primary} />
-                <Text style={styles.reminderOptionText}>Check in - How&apos;s your day?</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowReminderModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </SafeAreaView>
+          {/* Reminder Modal */}
+          <Modal
+            visible={showReminderModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowReminderModal(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => {
+              Keyboard.dismiss();
+              setShowReminderModal(false);
+            }}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View style={styles.reminderModalContent}>
+                    <Text style={styles.modalTitle}>Set Reminder</Text>
+                    <TouchableOpacity
+                      style={styles.reminderOption}
+                      onPress={() => {
+                        handleSetReminder('morning_text');
+                        setShowReminderModal(false);
+                      }}
+                    >
+                      <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={24} color={colors.primary} />
+                      <Text style={styles.reminderOptionText}>Send morning text</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.reminderOption}
+                      onPress={() => {
+                        handleSetReminder('check_in');
+                        setShowReminderModal(false);
+                      }}
+                    >
+                      <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color={colors.primary} />
+                      <Text style={styles.reminderOptionText}>Check in - How&apos;s your day?</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.cancelButton]}
+                      onPress={() => setShowReminderModal(false)}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
     </>
   );
 }
@@ -741,6 +852,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+  },
+  flagSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
   infoRow: {
     flexDirection: 'row',
@@ -854,6 +971,28 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  flagInputContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  flagInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.grey + '30',
+  },
+  addFlagButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   flagItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -866,6 +1005,12 @@ const styles = StyleSheet.create({
   flagText: {
     fontSize: 14,
     color: colors.text,
+  },
+  noFlagsText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
   contactActions: {
     flexDirection: 'row',

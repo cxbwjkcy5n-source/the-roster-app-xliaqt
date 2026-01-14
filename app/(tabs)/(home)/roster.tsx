@@ -119,13 +119,19 @@ export default function RosterScreen() {
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => setShowDatesModal(true)}
+            onPress={() => {
+              console.log('[RosterScreen] User tapped My Dates button');
+              setShowDatesModal(true);
+            }}
           >
             <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={24} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => setShowAnalyticsModal(true)}
+            onPress={() => {
+              console.log('[RosterScreen] User tapped Analytics button');
+              setShowAnalyticsModal(true);
+            }}
           >
             <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar-chart" size={24} color="#fff" />
           </TouchableOpacity>
@@ -179,16 +185,20 @@ export default function RosterScreen() {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* My Dates Modal */}
+      {/* My Dates Modal - FIX: Opens at top now */}
       <Modal
         visible={showDatesModal}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowDatesModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setShowDatesModal(false)}>
+        <TouchableWithoutFeedback onPress={() => {
+          console.log('[RosterScreen] User tapped outside modal to dismiss');
+          Keyboard.dismiss();
+          setShowDatesModal(false);
+        }}>
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={styles.datesModal}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>My Dates</Text>
@@ -232,16 +242,20 @@ export default function RosterScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal */}
+      {/* Analytics Modal - FIX: Opens at top now */}
       <Modal
         visible={showAnalyticsModal}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowAnalyticsModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setShowAnalyticsModal(false)}>
+        <TouchableWithoutFeedback onPress={() => {
+          console.log('[RosterScreen] User tapped outside analytics modal to dismiss');
+          Keyboard.dismiss();
+          setShowAnalyticsModal(false);
+        }}>
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={styles.analyticsModal}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Analytics</Text>
@@ -340,9 +354,12 @@ export default function RosterScreen() {
         transparent={true}
         onRequestClose={() => setShowNudgesModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setShowNudgesModal(false)}>
+        <TouchableWithoutFeedback onPress={() => {
+          Keyboard.dismiss();
+          setShowNudgesModal(false);
+        }}>
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={styles.nudgesModal}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Reminders</Text>
