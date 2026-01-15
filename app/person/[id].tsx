@@ -26,10 +26,8 @@ import { colors } from '@/styles/commonStyles';
 import { getZodiacEmoji } from '@/utils/zodiac';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-// FIX: Reduce image size - was SCREEN_WIDTH * 1.2, now 0.75
 const IMAGE_HEIGHT = SCREEN_WIDTH * 0.75;
 
-// Check-in messages that rotate
 const CHECK_IN_MESSAGES = [
   "How's your day?",
   "Tell me something exciting about your day",
@@ -51,7 +49,6 @@ export default function PersonDetailScreen() {
   const [profileInteractions, setProfileInteractions] = useState<Interaction[]>([]);
   const [checkInMessageIndex, setCheckInMessageIndex] = useState(0);
   
-  // FIX: Add flag input states - always available, not just in edit mode
   const [redFlagInput, setRedFlagInput] = useState('');
   const [greenFlagInput, setGreenFlagInput] = useState('');
 
@@ -60,7 +57,6 @@ export default function PersonDetailScreen() {
     const foundPerson = allPeople.find(p => p.id === id);
     setPerson(foundPerson || null);
     
-    // Load interactions for this profile
     if (foundPerson) {
       loadProfileInteractions(foundPerson.id);
     }
@@ -79,7 +75,6 @@ export default function PersonDetailScreen() {
     }
   };
 
-  // FIX: Add flag handlers - always available
   const handleAddRedFlag = async () => {
     if (!redFlagInput.trim() || !person) return;
     
@@ -88,7 +83,6 @@ export default function PersonDetailScreen() {
       await addFlag(person.id, redFlagInput.trim(), 'red');
       setRedFlagInput('');
       
-      // Refresh profiles to get updated flags
       await refreshProfiles();
       console.log('[PersonDetail] Red flag added successfully');
     } catch (error) {
@@ -105,7 +99,6 @@ export default function PersonDetailScreen() {
       await addFlag(person.id, greenFlagInput.trim(), 'green');
       setGreenFlagInput('');
       
-      // Refresh profiles to get updated flags
       await refreshProfiles();
       console.log('[PersonDetail] Green flag added successfully');
     } catch (error) {
@@ -266,17 +259,14 @@ export default function PersonDetailScreen() {
     }
 
     try {
-      // Prepare the message
       let message = '';
       if (type === 'morning_text') {
         message = 'Good Morning';
       } else {
-        // Rotate through check-in messages
         message = CHECK_IN_MESSAGES[checkInMessageIndex];
         setCheckInMessageIndex((checkInMessageIndex + 1) % CHECK_IN_MESSAGES.length);
       }
 
-      // Log the interaction
       const interaction: Interaction = {
         id: Date.now().toString(),
         profileId: person.id,
@@ -285,10 +275,8 @@ export default function PersonDetailScreen() {
       };
       await addInteraction(interaction);
       
-      // Reload interactions after adding
       await loadProfileInteractions(person.id);
       
-      // Open messages app with pre-filled text
       const smsUrl = `sms:${person.phoneNumber}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
       console.log('[PersonDetail] Opening messages with URL:', smsUrl);
       
@@ -334,12 +322,29 @@ export default function PersonDetailScreen() {
       case 'check_in': return '💬';
       case 'call': return '📞';
       case 'text': return '💬';
+      case 'moved_to_bench': return '⏸️';
+      case 'moved_to_roster': return '⭐';
       default: return '•';
     }
   };
 
-  // Get the created date from the person object or use a default
   const personCreatedDate = person.createdAt || new Date().toISOString();
+
+  // FIX: Build timeline with bench status changes
+  const timelineEvents = [
+    { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
+    ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
+    ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type })),
+  ];
+
+  // Add bench status changes to timeline
+  if (person.benchedAt) {
+    timelineEvents.push({
+      type: 'moved_to_bench',
+      date: person.benchedAt,
+      name: 'Moved to Bench'
+    });
+  }
 
   return (
     <>
@@ -365,7 +370,6 @@ export default function PersonDetailScreen() {
       />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container} edges={['bottom']}>
-          {/* FIX: Use ScrollView with removeClippedSubviews for better performance */}
           <ScrollView 
             style={styles.scrollView} 
             contentContainerStyle={styles.scrollContent}
@@ -376,7 +380,7 @@ export default function PersonDetailScreen() {
             initialNumToRender={10}
             windowSize={10}
           >
-            {/* FIX: Profile Header - Smaller Image (was SCREEN_WIDTH * 1.2, now 0.75) */}
+            {/* Profile Header */}
             <View style={styles.profileHeader}>
               {person.imageUrl ? (
                 <Image source={{ uri: person.imageUrl }} style={styles.profileImage} />
@@ -406,28 +410,48 @@ export default function PersonDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Info Section */}
+            {/* FIX: Info Section - Only show fields that are set */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Information</Text>
-              <View style={styles.infoRow}>
-                <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={22} color={colors.textSecondary} />
-                <Text style={styles.infoText}>{person.age} years old</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.zodiacEmoji}>{getZodiacEmoji(person.zodiacSign)}</Text>
-                <Text style={styles.infoText}>{person.zodiacSign}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={22} color={colors.textSecondary} />
-                <Text style={styles.infoText}>{person.location}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={22} color={colors.textSecondary} />
-                <Text style={styles.infoText}>{person.relationshipType}</Text>
-              </View>
+              {person.age && (
+                <View style={styles.infoRow}>
+                  <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={22} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>{person.age} years old</Text>
+                </View>
+              )}
+              {person.zodiacSign && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.zodiacEmoji}>{getZodiacEmoji(person.zodiacSign)}</Text>
+                  <Text style={styles.infoText}>{person.zodiacSign}</Text>
+                </View>
+              )}
+              {person.location && (
+                <View style={styles.infoRow}>
+                  <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={22} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>{person.location}</Text>
+                </View>
+              )}
+              {person.relationshipType && (
+                <View style={styles.infoRow}>
+                  <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={22} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>{person.relationshipType}</Text>
+                </View>
+              )}
+              {person.favoriteColor && (
+                <View style={styles.infoRow}>
+                  <IconSymbol ios_icon_name="paintpalette.fill" android_material_icon_name="palette" size={22} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>Favorite Color: {person.favoriteColor}</Text>
+                </View>
+              )}
+              {person.favoriteFood && (
+                <View style={styles.infoRow}>
+                  <IconSymbol ios_icon_name="fork.knife" android_material_icon_name="restaurant" size={22} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>Favorite Food: {person.favoriteFood}</Text>
+                </View>
+              )}
             </View>
 
-            {/* Contact Information */}
+            {/* Contact Information - Only show if any contact info exists */}
             {(person.phoneNumber || person.instagram || person.twitter || person.facebook || person.snapchat) && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Contact</Text>
@@ -474,7 +498,7 @@ export default function PersonDetailScreen() {
               </View>
             )}
 
-            {/* Chemistry Timeline */}
+            {/* FIX: Chemistry Timeline - Include bench status */}
             <View style={styles.section}>
               <TouchableOpacity
                 style={styles.sectionHeader}
@@ -490,7 +514,7 @@ export default function PersonDetailScreen() {
               </TouchableOpacity>
               {showChemistryTimeline && (
                 <View style={styles.timeline}>
-                  {personInteractions.length === 0 && personDates.length === 0 ? (
+                  {timelineEvents.length === 0 ? (
                     <>
                       <View style={styles.timelineItem}>
                         <Text style={styles.timelineIcon}>✨</Text>
@@ -504,28 +528,22 @@ export default function PersonDetailScreen() {
                       <Text style={styles.emptyText}>No interactions yet</Text>
                     </>
                   ) : (
-                    <>
-                      {[
-                        { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
-                        ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
-                        ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type }))
-                      ]
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .slice(0, 10)
-                        .map((item, index) => (
-                          <View key={`timeline-${index}`} style={styles.timelineItem}>
-                            <Text style={styles.timelineIcon}>
-                              {item.type === 'added' ? '✨' : getInteractionIcon(item.type)}
+                    timelineEvents
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .slice(0, 10)
+                      .map((item, index) => (
+                        <View key={`timeline-${index}`} style={styles.timelineItem}>
+                          <Text style={styles.timelineIcon}>
+                            {getInteractionIcon(item.type)}
+                          </Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineName}>{item.name.replace('_', ' ')}</Text>
+                            <Text style={styles.timelineDate}>
+                              {new Date(item.date).toLocaleDateString()}
                             </Text>
-                            <View style={styles.timelineContent}>
-                              <Text style={styles.timelineName}>{item.name.replace('_', ' ')}</Text>
-                              <Text style={styles.timelineDate}>
-                                {new Date(item.date).toLocaleDateString()}
-                              </Text>
-                            </View>
                           </View>
-                        ))}
-                    </>
+                        </View>
+                      ))
                   )}
                 </View>
               )}
@@ -573,7 +591,7 @@ export default function PersonDetailScreen() {
               </View>
             )}
 
-            {/* FIX: Flags Section - Always allow adding flags, not just in edit mode */}
+            {/* Flags Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Flags</Text>
               
@@ -647,16 +665,18 @@ export default function PersonDetailScreen() {
             </View>
 
             {/* Contact Actions */}
-            <View style={styles.contactActions}>
-              <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
-                <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={24} color="#fff" />
-                <Text style={styles.contactButtonText}>Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.contactButton} onPress={handleMessage}>
-                <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color="#fff" />
-                <Text style={styles.contactButtonText}>Message</Text>
-              </TouchableOpacity>
-            </View>
+            {person.phoneNumber && (
+              <View style={styles.contactActions}>
+                <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
+                  <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={24} color="#fff" />
+                  <Text style={styles.contactButtonText}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.contactButton} onPress={handleMessage}>
+                  <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color="#fff" />
+                  <Text style={styles.contactButtonText}>Message</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Action Buttons */}
             <View style={styles.actionButtons}>

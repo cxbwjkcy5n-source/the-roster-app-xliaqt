@@ -279,14 +279,12 @@ export default function BenchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* FIX: Bench Header - Same size and rounded as Roster */}
       <LinearGradient colors={gradients.benchRed} style={styles.header}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>THE BENCH</Text>
             <Text style={styles.headerSubtitle}>Paused connections</Text>
           </View>
-          {/* FIX: Add header icons (calendar and dating analytics) */}
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
@@ -367,6 +365,19 @@ export default function BenchScreen() {
                     <Text style={styles.cardInfo}>
                       {person.age} • {person.location}
                     </Text>
+                    {/* FIX: Show red and green flags */}
+                    <View style={styles.flagsContainer}>
+                      {person.redFlags.length > 0 && (
+                        <View style={styles.flagBadge}>
+                          <Text style={styles.flagText}>🚩 {person.redFlags.length}</Text>
+                        </View>
+                      )}
+                      {person.greenFlags.length > 0 && (
+                        <View style={styles.flagBadge}>
+                          <Text style={styles.flagText}>✅ {person.greenFlags.length}</Text>
+                        </View>
+                      )}
+                    </View>
                     {person.benchReason && (
                       <View style={styles.reasonBadge}>
                         <Text style={styles.reasonText} numberOfLines={2}>{person.benchReason}</Text>
@@ -380,7 +391,7 @@ export default function BenchScreen() {
         )}
       </ScrollView>
 
-      {/* My Dates Modal */}
+      {/* My Dates Modal - Opens from top */}
       <Modal
         visible={showDatesModal}
         animationType="slide"
@@ -461,7 +472,7 @@ export default function BenchScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal - FIX: Show same infographic as roster page */}
+      {/* Analytics Modal - Opens from top */}
       <Modal
         visible={showAnalyticsModal}
         animationType="slide"
@@ -618,6 +629,22 @@ const styles = StyleSheet.create({
     opacity: 0.95,
     fontWeight: '600',
   },
+  flagsContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+  },
+  flagBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  flagText: {
+    fontSize: 11,
+    color: colors.white,
+    fontWeight: '600',
+  },
   reasonBadge: {
     marginTop: 8,
     backgroundColor: 'rgba(233, 36, 63, 0.9)',
@@ -722,7 +749,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  // INFOGRAPHIC STYLES
   analyticsScroll: {
     flex: 1,
   },

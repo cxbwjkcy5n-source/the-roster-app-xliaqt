@@ -58,8 +58,14 @@ export default function SafetyScreen() {
       if (response) {
         setActiveSafetyDate(response);
       }
-    } catch (error) {
-      console.error('[Safety] Error loading active safety date:', error);
+    } catch (error: any) {
+      // FIX: Handle 404 gracefully - no active safety date is not an error
+      if (error?.response?.status === 404 || error?.message?.includes('404')) {
+        console.log('[Safety] No active safety date found (expected)');
+        setActiveSafetyDate(null);
+      } else {
+        console.error('[Safety] Error loading active safety date:', error);
+      }
     }
   }, []);
 
@@ -132,6 +138,7 @@ export default function SafetyScreen() {
       console.log('[Safety] Creating safety date...');
       const safetyData = {
         profileId: selectedPerson || null,
+        profileName: dateWithName,
         dateWithName,
         location,
         licensePlate: licensePlate || null,

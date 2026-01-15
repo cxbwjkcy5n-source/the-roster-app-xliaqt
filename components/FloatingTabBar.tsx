@@ -147,16 +147,18 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* FIX: Center Add Button - Nestled inside navigation bar */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddPress}
-          activeOpacity={0.8}
-        >
-          <View style={styles.addButtonInner}>
-            <MaterialIcons name="add" size={36} color={colors.white} />
-          </View>
-        </TouchableOpacity>
+        {/* FIX: Center Add Button - Properly positioned in center */}
+        <View style={styles.addButtonContainer}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddPress}
+            activeOpacity={0.8}
+          >
+            <View style={styles.addButtonInner}>
+              <MaterialIcons name="add" size={36} color={colors.white} />
+            </View>
+          </TouchableOpacity>
+        </View>
 
         <ContainerComponent
           {...containerProps}
@@ -222,13 +224,17 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 20,
     alignSelf: 'center',
+    position: 'relative',
+  },
+  addButtonContainer: {
+    position: 'absolute',
+    top: -32,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1001,
   },
   addButton: {
-    position: 'absolute',
-    top: -28,
-    left: '50%',
-    marginLeft: -32,
-    zIndex: 1001,
     ...Platform.select({
       web: {
         cursor: 'pointer',

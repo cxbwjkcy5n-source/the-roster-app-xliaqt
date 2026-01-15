@@ -19,18 +19,55 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DateHistoryScreen() {
   const router = useRouter();
-  const { dates, rateDate, updateDate } = useRoster(); // ✅ FIXED: Move useRoster to component level
+  const { dates, rateDate, updateDate } = useRoster();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<any>(null);
   const [rating, setRating] = useState(0);
   const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
   const [ratingNotes, setRatingNotes] = useState('');
+  
+  // FIX: Add edit state
+  const [editLocation, setEditLocation] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editTime, setEditTime] = useState('');
 
   const upcomingDates = dates.filter(d => d.status === 'upcoming');
   const completedDates = dates.filter(d => d.status === 'completed');
 
   const displayDates = activeTab === 'upcoming' ? upcomingDates : completedDates;
+
+  // FIX: Handle edit date
+  const handleEditDate = (date: any) => {
+    console.log('[DateHistory] User tapped to edit date:', date.id);
+    setSelectedDate(date);
+    setEditLocation(date.location || '');
+    setEditNotes(date.notes || '');
+    setEditTime(date.time || '');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedDate) return;
+    
+    try {
+      console.log('[DateHistory] Saving date edits');
+      await updateDate({
+        ...selectedDate,
+        location: editLocation,
+        notes: editNotes,
+        time: editTime,
+      });
+      
+      setShowEditModal(false);
+      setSelectedDate(null);
+      Alert.alert('Success', 'Date updated successfully!');
+    } catch (error) {
+      console.error('[DateHistory] Error saving date edits:', error);
+      Alert.alert('Error', 'Failed to update date. Please try again.');
+    }
+  };
 
   const handleRateDate = (date: any) => {
     console.log('[DateHistory] User tapped to rate date:', date.id);
@@ -57,10 +94,8 @@ export default function DateHistoryScreen() {
     try {
       console.log('[DateHistory] Saving rating:', { rating, wouldGoAgain, notes: ratingNotes });
       
-      // ✅ FIXED: Use rateDate from component-level hook
       await rateDate(selectedDate.id, rating, wouldGoAgain);
       
-      // Update notes if changed
       if (ratingNotes !== selectedDate.notes) {
         await updateDate({
           ...selectedDate,
@@ -159,7 +194,11 @@ export default function DateHistoryScreen() {
           </View>
         ) : (
           displayDates.map(date => (
-            <View key={date.id} style={styles.dateCard}>
+            <TouchableOpacity
+              key={date.id}
+              style={styles.dateCard}
+              onPress={() => handleEditDate(date)}
+            >
               <View style={styles.dateHeader}>
                 <View style={styles.dateHeaderLeft}>
                   <Text style={styles.dateName}>{date.profileName}</Text>
@@ -225,7 +264,10 @@ export default function DateHistoryScreen() {
               {date.status === 'completed' && (
                 <TouchableOpacity
                   style={styles.rateButton}
-                  onPress={() => handleRateDate(date)}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleRateDate(date);
+                  }}
                 >
                   <IconSymbol
                     ios_icon_name="star.fill"
@@ -252,12 +294,85 @@ export default function DateHistoryScreen() {
                   </Text>
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
 
-      {/* Rating Modal */}
+      {/* FIX: Edit Modal - Opens from top */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModal}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Date</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.editModalContent}>
+              {selectedDate && (
+                <Text style={styles.editDateName}>{selectedDate.profileName}</Text>
+              )}
+
+              <View style={styles.editSection}>
+                <Text style={styles.editLabel}>Location</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editLocation}
+                  onChangeText={setEditLocation}
+                  placeholder="Enter location"
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </View>
+
+              <View style={styles.editSection}>
+                <Text style={styles.editLabel}>Time</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editTime}
+                  onChangeText={setEditTime}
+                  placeholder="Enter time"
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </View>
+
+              <View style={styles.editSection}>
+                <Text style={styles.editLabel}>Notes</Text>
+                <TextInput
+                  style={[styles.editInput, styles.notesInput]}
+                  value={editNotes}
+                  onChangeText={setEditNotes}
+                  placeholder="Add notes..."
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.saveEditButton}
+                onPress={handleSaveEdit}
+              >
+                <Text style={styles.saveEditButtonText}>Save Changes</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rating Modal - Opens from top */}
       <Modal
         visible={showRatingModal}
         animationType="slide"
@@ -577,13 +692,74 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
   },
-  ratingModal: {
+  editModal: {
+    flex: 1,
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  editModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  editModalContent: {
+    padding: 20,
+  },
+  editDateName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  editSection: {
+    marginBottom: 20,
+  },
+  editLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  editInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  saveEditButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveEditButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  ratingModal: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   ratingModalHeader: {
     flexDirection: 'row',
