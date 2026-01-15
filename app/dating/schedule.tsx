@@ -40,7 +40,7 @@ const REMINDER_OPTIONS = [
 
 export default function ScheduleDateScreen() {
   const router = useRouter();
-  const { roster, addDate } = useRoster();
+  const { roster, bench, addDate } = useRoster();
   
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedPersonName, setSelectedPersonName] = useState('');
@@ -251,7 +251,7 @@ export default function ScheduleDateScreen() {
             />
           </View>
 
-          {/* Reminders - FIX: Add keys to mapped items */}
+          {/* Reminders */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Set Reminders</Text>
             <Text style={styles.helperText}>
@@ -294,7 +294,7 @@ export default function ScheduleDateScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Person Picker Modal */}
+        {/* Person Picker Modal - FIX: Opens from top, includes bench, color coded */}
         <Modal
           visible={showPersonPicker}
           transparent
@@ -312,34 +312,87 @@ export default function ScheduleDateScreen() {
                     </TouchableOpacity>
                   </View>
                   <ScrollView>
-                    {roster.map((person) => (
-                      <TouchableOpacity
-                        key={`person-${person.id}`}
-                        style={styles.pickerItem}
-                        onPress={() => {
-                          setSelectedPerson(person.id);
-                          setSelectedPersonName(person.name);
-                          setSelectedPersonData(person);
-                          setShowPersonPicker(false);
-                        }}
-                      >
-                        {person.imageUrl && (
-                          <Image
-                            source={{ uri: person.imageUrl }}
-                            style={styles.pickerPersonPhoto}
-                          />
-                        )}
-                        <Text style={styles.pickerItemText}>{person.name}</Text>
-                        {selectedPerson === person.id && (
-                          <IconSymbol
-                            ios_icon_name="checkmark"
-                            android_material_icon_name="check"
-                            size={20}
-                            color={colors.primary}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                    {/* Roster Section - Green */}
+                    {roster.length > 0 && (
+                      <React.Fragment>
+                        <View style={styles.sectionHeader}>
+                          <Text style={styles.sectionTitle}>Roster</Text>
+                        </View>
+                        {roster.map((person) => (
+                          <TouchableOpacity
+                            key={`person-roster-${person.id}`}
+                            style={[styles.pickerItem, styles.pickerItemRoster]}
+                            onPress={() => {
+                              console.log('[ScheduleDate] Selected person from roster:', person.name);
+                              setSelectedPerson(person.id);
+                              setSelectedPersonName(person.name);
+                              setSelectedPersonData(person);
+                              setShowPersonPicker(false);
+                            }}
+                          >
+                            {person.imageUrl && (
+                              <Image
+                                source={{ uri: person.imageUrl }}
+                                style={styles.pickerPersonPhoto}
+                              />
+                            )}
+                            <Text style={styles.pickerItemText}>{person.name}</Text>
+                            {selectedPerson === person.id && (
+                              <IconSymbol
+                                ios_icon_name="checkmark"
+                                android_material_icon_name="check"
+                                size={20}
+                                color={colors.primary}
+                              />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </React.Fragment>
+                    )}
+
+                    {/* Bench Section - Red */}
+                    {bench.length > 0 && (
+                      <React.Fragment>
+                        <View style={styles.sectionHeader}>
+                          <Text style={styles.sectionTitle}>Bench</Text>
+                        </View>
+                        {bench.map((person) => (
+                          <TouchableOpacity
+                            key={`person-bench-${person.id}`}
+                            style={[styles.pickerItem, styles.pickerItemBench]}
+                            onPress={() => {
+                              console.log('[ScheduleDate] Selected person from bench:', person.name);
+                              setSelectedPerson(person.id);
+                              setSelectedPersonName(person.name);
+                              setSelectedPersonData(person);
+                              setShowPersonPicker(false);
+                            }}
+                          >
+                            {person.imageUrl && (
+                              <Image
+                                source={{ uri: person.imageUrl }}
+                                style={styles.pickerPersonPhoto}
+                              />
+                            )}
+                            <Text style={styles.pickerItemText}>{person.name}</Text>
+                            {selectedPerson === person.id && (
+                              <IconSymbol
+                                ios_icon_name="checkmark"
+                                android_material_icon_name="check"
+                                size={20}
+                                color={colors.primary}
+                              />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </React.Fragment>
+                    )}
+
+                    {roster.length === 0 && bench.length === 0 && (
+                      <View style={styles.emptyState}>
+                        <Text style={styles.emptyStateText}>No people added yet</Text>
+                      </View>
+                    )}
                   </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
@@ -529,13 +582,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   pickerModal: {
     backgroundColor: colors.backgroundAlt,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '60%',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    maxHeight: '70%',
   },
   pickerHeader: {
     flexDirection: 'row',
@@ -550,6 +603,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.border,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   pickerItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -557,6 +622,14 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  pickerItemRoster: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#11A36A',
+  },
+  pickerItemBench: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#E9243F',
   },
   pickerItemText: {
     flex: 1,
@@ -568,5 +641,14 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     marginRight: 12,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });

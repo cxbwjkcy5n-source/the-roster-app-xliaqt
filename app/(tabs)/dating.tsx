@@ -147,7 +147,7 @@ export default function DatingScreen() {
         </Text>
       </View>
 
-      {/* Dating Submenu Modal */}
+      {/* Dating Submenu Modal - FIX: Changed to slide from top */}
       <Modal
         visible={showMenu}
         animationType="slide"
@@ -284,12 +284,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     maxHeight: '80%',
     minHeight: '60%',
   },
