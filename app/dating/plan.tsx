@@ -36,7 +36,7 @@ const BUDGET_OPTIONS = ['$', '$$', '$$$', '$$$$'];
 const DURATION_OPTIONS = ['1-2 hours', '2-4 hours', '4+ hours', 'Full day'];
 
 export default function PlanDateScreen() {
-  const { roster } = useRoster();
+  const { roster, bench } = useRoster();
   const router = useRouter();
   const [selectedPerson, setSelectedPerson] = useState<RosterPerson | null>(null);
   const [showPersonPicker, setShowPersonPicker] = useState(false);
@@ -48,7 +48,7 @@ export default function PlanDateScreen() {
   const [suggestions, setSuggestions] = useState<DateSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // FIX: Request location on mount
+  // Request location on mount
   useEffect(() => {
     requestLocationPermission();
   }, []);
@@ -147,6 +147,9 @@ export default function PlanDateScreen() {
     );
   };
 
+  // Combine roster and bench for person selection
+  const allPeople = [...roster, ...bench];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen
@@ -180,11 +183,14 @@ export default function PlanDateScreen() {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.sectionTitle}>Who are you planning a date with?</Text>
         <TouchableOpacity
-          style={styles.personSelector}
-          onPress={() => setShowPersonPicker(true)}
+          style={styles.dropdownButton}
+          onPress={() => {
+            console.log('[PlanDate] User tapped person dropdown');
+            setShowPersonPicker(true);
+          }}
         >
           {selectedPerson ? (
-            <View style={styles.selectedPerson}>
+            <View style={styles.selectedPersonContent}>
               {selectedPerson.imageUrl ? (
                 <Image source={{ uri: selectedPerson.imageUrl }} style={styles.personImage} />
               ) : (
@@ -192,25 +198,25 @@ export default function PlanDateScreen() {
                   <IconSymbol
                     ios_icon_name="person.fill"
                     android_material_icon_name="person"
-                    size={32}
+                    size={20}
                     color={colors.textSecondary}
                   />
                 </View>
               )}
-              <Text style={styles.personName}>{selectedPerson.name}</Text>
+              <Text style={styles.dropdownText}>{selectedPerson.name}</Text>
             </View>
           ) : (
-            <Text style={styles.placeholderText}>Select from roster</Text>
+            <Text style={styles.dropdownPlaceholder}>Select from roster or bench</Text>
           )}
           <IconSymbol
-            ios_icon_name="chevron.right"
-            android_material_icon_name="chevron-right"
-            size={20}
+            ios_icon_name="chevron.down"
+            android_material_icon_name="arrow-drop-down"
+            size={24}
             color={colors.textSecondary}
           />
         </TouchableOpacity>
 
-        {/* FIX: Add location input */}
+        {/* Location input */}
         <Text style={styles.sectionTitle}>Your Location</Text>
         <View style={styles.locationContainer}>
           <TextInput
@@ -298,7 +304,7 @@ export default function PlanDateScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Person Picker Modal */}
+      {/* Person Picker Dropdown Modal */}
       <Modal
         visible={showPersonPicker}
         transparent
@@ -306,7 +312,13 @@ export default function PlanDateScreen() {
         onRequestClose={() => setShowPersonPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setShowPersonPicker(false)}
+          />
+          <View style={styles.dropdownModal}>
+            <View style={styles.dropdownHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Person</Text>
               <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
@@ -318,31 +330,59 @@ export default function PlanDateScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView>
-              {roster.map((person) => (
-                <TouchableOpacity
-                  key={person.id}
-                  style={styles.personOption}
-                  onPress={() => {
-                    setSelectedPerson(person);
-                    setShowPersonPicker(false);
-                  }}
-                >
-                  {person.imageUrl ? (
-                    <Image source={{ uri: person.imageUrl }} style={styles.personOptionImage} />
-                  ) : (
-                    <View style={styles.personOptionImagePlaceholder}>
+            <ScrollView style={styles.dropdownScroll}>
+              {allPeople.length > 0 ? (
+                allPeople.map((person) => {
+                  const isOnBench = bench.some(p => p.id === person.id);
+                  return (
+                    <TouchableOpacity
+                      key={person.id}
+                      style={styles.personOption}
+                      onPress={() => {
+                        console.log('[PlanDate] User selected person:', person.name);
+                        setSelectedPerson(person);
+                        setShowPersonPicker(false);
+                      }}
+                    >
+                      <View style={styles.personOptionContent}>
+                        {person.imageUrl ? (
+                          <Image source={{ uri: person.imageUrl }} style={styles.personOptionImage} />
+                        ) : (
+                          <View style={styles.personOptionImagePlaceholder}>
+                            <IconSymbol
+                              ios_icon_name="person.fill"
+                              android_material_icon_name="person"
+                              size={24}
+                              color={colors.textSecondary}
+                            />
+                          </View>
+                        )}
+                        <View style={styles.personInfo}>
+                          <Text style={styles.personOptionName}>{person.name}</Text>
+                          <View style={[
+                            styles.statusBadge,
+                            { backgroundColor: isOnBench ? colors.red : colors.green }
+                          ]}>
+                            <Text style={styles.statusBadgeText}>
+                              {isOnBench ? 'Bench' : 'Roster'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
                       <IconSymbol
-                        ios_icon_name="person.fill"
-                        android_material_icon_name="person"
-                        size={24}
+                        ios_icon_name="chevron.right"
+                        android_material_icon_name="chevron-right"
+                        size={20}
                         color={colors.textSecondary}
                       />
-                    </View>
-                  )}
-                  <Text style={styles.personOptionName}>{person.name}</Text>
-                </TouchableOpacity>
-              ))}
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No people in roster or bench</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -356,7 +396,13 @@ export default function PlanDateScreen() {
         onRequestClose={() => setShowSuggestions(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setShowSuggestions(false)}
+          />
+          <View style={styles.suggestionsModal}>
+            <View style={styles.dropdownHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Date Suggestions</Text>
               <TouchableOpacity onPress={() => setShowSuggestions(false)}>
@@ -435,7 +481,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
-  personSelector: {
+  dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -444,33 +490,36 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: 12,
   },
-  selectedPerson: {
+  selectedPersonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   personImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   personImagePlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  personName: {
+  dropdownText: {
     fontSize: 16,
-    fontWeight: '600',
     color: colors.text,
+    fontWeight: '500',
   },
-  placeholderText: {
+  dropdownPlaceholder: {
     fontSize: 16,
     color: colors.textSecondary,
+    flex: 1,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -559,21 +608,39 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  dropdownModal: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '60%',
+  },
+  suggestionsModal: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
+  },
+  dropdownHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -582,13 +649,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  dropdownScroll: {
+    maxHeight: 400,
+  },
   personOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  personOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   personOptionImage: {
     width: 48,
@@ -603,9 +679,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  personInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   personOptionName: {
     fontSize: 16,
     color: colors.text,
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  emptyState: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   suggestionCard: {
     backgroundColor: colors.card,

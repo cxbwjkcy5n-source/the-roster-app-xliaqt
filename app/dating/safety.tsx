@@ -39,7 +39,7 @@ interface SafetyDate {
 
 export default function SafetyScreen() {
   const router = useRouter();
-  const { roster } = useRoster();
+  const { roster, bench } = useRoster();
   const [selectedPerson, setSelectedPerson] = useState('');
   const [dateWithName, setDateWithName] = useState('');
   const [location, setLocation] = useState('');
@@ -59,7 +59,7 @@ export default function SafetyScreen() {
         setActiveSafetyDate(response);
       }
     } catch (error: any) {
-      // FIX: Handle 404 gracefully - no active safety date is not an error
+      // Handle 404 gracefully - no active safety date is not an error
       if (error?.response?.status === 404 || error?.message?.includes('404')) {
         console.log('[Safety] No active safety date found (expected)');
         setActiveSafetyDate(null);
@@ -110,6 +110,7 @@ export default function SafetyScreen() {
   };
 
   const handleSelectPerson = (personId: string, personName: string) => {
+    console.log('[Safety] User selected person:', personName);
     setSelectedPerson(personId);
     setDateWithName(personName);
     setShowPersonPicker(false);
@@ -202,6 +203,9 @@ export default function SafetyScreen() {
     );
   };
 
+  // Combine roster and bench for person selection
+  const allPeople = [...roster, ...bench];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen
@@ -287,12 +291,21 @@ export default function SafetyScreen() {
 
             <Text style={styles.sectionTitle}>Who are you going on a date with?</Text>
             <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowPersonPicker(true)}
+              style={styles.dropdownButton}
+              onPress={() => {
+                console.log('[Safety] User tapped person dropdown');
+                setShowPersonPicker(true);
+              }}
             >
-              <Text style={dateWithName ? styles.inputText : styles.placeholderText}>
-                {dateWithName || 'Select from roster or enter name'}
+              <Text style={dateWithName ? styles.dropdownText : styles.dropdownPlaceholder}>
+                {dateWithName || 'Select from roster or bench'}
               </Text>
+              <IconSymbol
+                ios_icon_name="chevron.down"
+                android_material_icon_name="arrow-drop-down"
+                size={24}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
 
             <Text style={styles.sectionTitle}>Location</Text>
@@ -379,7 +392,7 @@ export default function SafetyScreen() {
         )}
       </ScrollView>
 
-      {/* Person Picker Modal */}
+      {/* Person Picker Dropdown Modal */}
       <Modal
         visible={showPersonPicker}
         transparent
@@ -387,7 +400,13 @@ export default function SafetyScreen() {
         onRequestClose={() => setShowPersonPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setShowPersonPicker(false)}
+          />
+          <View style={styles.dropdownModal}>
+            <View style={styles.dropdownHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Person</Text>
               <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
@@ -399,16 +418,41 @@ export default function SafetyScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView>
-              {roster.map((person) => (
-                <TouchableOpacity
-                  key={person.id}
-                  style={styles.personOption}
-                  onPress={() => handleSelectPerson(person.id, person.name)}
-                >
-                  <Text style={styles.personOptionName}>{person.name}</Text>
-                </TouchableOpacity>
-              ))}
+            <ScrollView style={styles.dropdownScroll}>
+              {allPeople.length > 0 ? (
+                allPeople.map((person) => {
+                  const isOnBench = bench.some(p => p.id === person.id);
+                  return (
+                    <TouchableOpacity
+                      key={person.id}
+                      style={styles.personOption}
+                      onPress={() => handleSelectPerson(person.id, person.name)}
+                    >
+                      <View style={styles.personOptionContent}>
+                        <Text style={styles.personOptionName}>{person.name}</Text>
+                        <View style={[
+                          styles.statusBadge,
+                          { backgroundColor: isOnBench ? colors.red : colors.green }
+                        ]}>
+                          <Text style={styles.statusBadgeText}>
+                            {isOnBench ? 'Bench' : 'Roster'}
+                          </Text>
+                        </View>
+                      </View>
+                      <IconSymbol
+                        ios_icon_name="chevron.right"
+                        android_material_icon_name="chevron-right"
+                        size={20}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No people in roster or bench</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -464,6 +508,27 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  },
+  dropdownPlaceholder: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    flex: 1,
   },
   input: {
     backgroundColor: colors.card,
@@ -596,21 +661,33 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  dropdownModal: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '60%',
+  },
+  dropdownHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -619,13 +696,44 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  dropdownScroll: {
+    maxHeight: 400,
+  },
   personOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  personOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
   personOptionName: {
     fontSize: 16,
     color: colors.text,
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  emptyState: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 });

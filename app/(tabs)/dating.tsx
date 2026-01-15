@@ -106,7 +106,7 @@ export default function DatingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* FIX: Dating Header - Same size and rounded as other pages */}
+      {/* Dating Header */}
       <LinearGradient 
         colors={gradients.actionRed} 
         style={styles.header}
@@ -147,7 +147,7 @@ export default function DatingScreen() {
         </Text>
       </View>
 
-      {/* Dating Submenu Modal - FIX: Changed to slide from top */}
+      {/* Dating Submenu Modal - Opens from BOTTOM */}
       <Modal
         visible={showMenu}
         animationType="slide"
@@ -155,7 +155,13 @@ export default function DatingScreen() {
         onRequestClose={() => setShowMenu(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setShowMenu(false)}
+          />
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Dating Menu</Text>
               <TouchableOpacity onPress={() => setShowMenu(false)}>
@@ -283,22 +289,34 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-start',
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: '80%',
     minHeight: '60%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
