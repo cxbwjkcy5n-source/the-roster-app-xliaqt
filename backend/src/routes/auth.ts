@@ -1,4 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { eq } from 'drizzle-orm';
+import * as authSchema from '../db/auth-schema.js';
 import type { App } from '../index.js';
 
 interface SignInRequest {
@@ -120,8 +122,23 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
 
         app.logger.info({ email }, 'Sign-in attempt');
 
+        // First verify user exists in database
+        const existingUser = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.email, email),
+        });
+
+        if (!existingUser) {
+          app.logger.warn({ email }, 'Sign-in failed: user not found');
+          return reply.status(401).send({
+            error: { message: 'Invalid email or password' },
+          });
+        }
+
+        app.logger.info({ email, userId: existingUser.id }, 'User found in database');
+
         // Call Better Auth's sign-in endpoint
         const baseUrl = getBaseUrl(request);
+        app.logger.debug({ baseUrl, email }, 'Calling Better Auth sign-in endpoint');
 
         const signInResponse = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
           method: 'POST',
@@ -131,11 +148,15 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           body: JSON.stringify({ email, password }),
         });
 
+        app.logger.debug({ status: signInResponse.status, email }, 'Better Auth sign-in response received');
+
         if (!signInResponse.ok) {
-          const errorData = await signInResponse.json().catch(() => ({}));
+          const errorData = await signInResponse
+            .json()
+            .catch(() => ({ message: 'Unknown error' }));
           app.logger.warn(
             { email, status: signInResponse.status, error: errorData },
-            'Sign-in failed'
+            'Better Auth sign-in failed'
           );
           return reply.status(401).send({
             error: { message: 'Invalid email or password' },
@@ -145,7 +166,10 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
         const data = (await signInResponse.json()) as AuthResponse;
 
         if (!data.user || !data.session) {
-          app.logger.error({ email }, 'Sign-in response missing user or session data');
+          app.logger.error(
+            { email, userId: existingUser.id },
+            'Sign-in response missing user or session data'
+          );
           return reply.status(500).send({
             error: { message: 'Authentication failed. Please try again.' },
           });
@@ -167,7 +191,7 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           },
         });
       } catch (error) {
-        app.logger.error({ err: error }, 'Sign-in error');
+        app.logger.error({ err: error, message: String(error) }, 'Sign-in error');
         return reply.status(500).send({
           error: { message: 'Sign-in failed. Please try again.' },
         });
@@ -238,8 +262,21 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
 
         app.logger.info({ email, name }, 'Sign-up attempt');
 
+        // Check if email already exists
+        const existingUser = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.email, email),
+        });
+
+        if (existingUser) {
+          app.logger.warn({ email }, 'Sign-up failed: email already registered');
+          return reply.status(400).send({
+            error: { message: 'This email is already registered' },
+          });
+        }
+
         // Call Better Auth's sign-up endpoint
         const baseUrl = getBaseUrl(request);
+        app.logger.debug({ baseUrl, email }, 'Calling Better Auth sign-up endpoint');
 
         const signUpResponse = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
           method: 'POST',
@@ -249,13 +286,15 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           body: JSON.stringify({ email, password, name }),
         });
 
+        app.logger.debug({ status: signUpResponse.status, email }, 'Better Auth sign-up response received');
+
         if (!signUpResponse.ok) {
-          const errorData = (await signUpResponse.json().catch(() => ({}))) as {
+          const errorData = (await signUpResponse.json().catch(() => ({ message: 'Unknown error' }))) as {
             message?: string;
           };
           app.logger.warn(
             { email, status: signUpResponse.status, error: errorData },
-            'Sign-up failed'
+            'Better Auth sign-up failed'
           );
           return reply.status(signUpResponse.status).send({
             error: {
@@ -290,7 +329,7 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           },
         });
       } catch (error) {
-        app.logger.error({ err: error }, 'Sign-up error');
+        app.logger.error({ err: error, message: String(error) }, 'Sign-up error');
         return reply.status(500).send({
           error: { message: 'Sign-up failed. Please try again.' },
         });
@@ -347,6 +386,7 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
 
         // Call Better Auth's get-session endpoint
         const baseUrl = getBaseUrl(request);
+        app.logger.debug({ baseUrl }, 'Calling Better Auth get-session endpoint');
 
         const sessionResponse = await fetch(`${baseUrl}/api/auth/get-session`, {
           method: 'GET',
@@ -354,6 +394,8 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
             Authorization: `Bearer ${token}`,
           },
         });
+
+        app.logger.debug({ status: sessionResponse.status }, 'Better Auth session response received');
 
         if (!sessionResponse.ok) {
           app.logger.warn({ status: sessionResponse.status }, 'Session fetch failed');
@@ -387,7 +429,7 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           },
         });
       } catch (error) {
-        app.logger.error({ err: error }, 'Session check error');
+        app.logger.error({ err: error, message: String(error) }, 'Session check error');
         return reply.status(500).send({
           error: { message: 'Session check failed' },
         });
@@ -422,20 +464,29 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
 
           // Call Better Auth's sign-out endpoint
           const baseUrl = getBaseUrl(request);
+          app.logger.debug({ baseUrl }, 'Calling Better Auth sign-out endpoint');
 
-          await fetch(`${baseUrl}/api/auth/sign-out`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+          try {
+            const signOutResponse = await fetch(`${baseUrl}/api/auth/sign-out`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            app.logger.debug({ status: signOutResponse.status }, 'Better Auth sign-out response received');
+          } catch (fetchError) {
+            app.logger.warn({ err: fetchError }, 'Better Auth sign-out request failed');
+            // Continue anyway - we'll still return success
+          }
+        } else {
+          app.logger.info('Sign-out requested without token');
         }
 
         return reply.send({
           message: 'Signed out successfully',
         });
       } catch (error) {
-        app.logger.error({ err: error }, 'Sign-out error');
+        app.logger.error({ err: error, message: String(error) }, 'Sign-out error');
         return reply.status(500).send({
           error: { message: 'Sign-out failed' },
         });
