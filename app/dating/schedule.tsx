@@ -251,7 +251,7 @@ export default function ScheduleDateScreen() {
             />
           </View>
 
-          {/* Reminders */}
+          {/* Reminders - FIX: Add keys to mapped items */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Set Reminders</Text>
             <Text style={styles.helperText}>
@@ -259,7 +259,7 @@ export default function ScheduleDateScreen() {
             </Text>
             {REMINDER_OPTIONS.map((option) => (
               <TouchableOpacity
-                key={option.value}
+                key={`reminder-${option.value}`}
                 style={styles.checkboxRow}
                 onPress={() => toggleReminder(option.value)}
               >
@@ -301,46 +301,50 @@ export default function ScheduleDateScreen() {
           animationType="slide"
           onRequestClose={() => setShowPersonPicker(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.pickerModal}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Select Person</Text>
-                <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
-                  <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView>
-                {roster.map((person) => (
-                  <TouchableOpacity
-                    key={person.id}
-                    style={styles.pickerItem}
-                    onPress={() => {
-                      setSelectedPerson(person.id);
-                      setSelectedPersonName(person.name);
-                      setSelectedPersonData(person);
-                      setShowPersonPicker(false);
-                    }}
-                  >
-                    {person.imageUrl && (
-                      <Image
-                        source={{ uri: person.imageUrl }}
-                        style={styles.pickerPersonPhoto}
-                      />
-                    )}
-                    <Text style={styles.pickerItemText}>{person.name}</Text>
-                    {selectedPerson === person.id && (
-                      <IconSymbol
-                        ios_icon_name="checkmark"
-                        android_material_icon_name="check"
-                        size={20}
-                        color={colors.primary}
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+          <TouchableWithoutFeedback onPress={() => setShowPersonPicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Person</Text>
+                    <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView>
+                    {roster.map((person) => (
+                      <TouchableOpacity
+                        key={`person-${person.id}`}
+                        style={styles.pickerItem}
+                        onPress={() => {
+                          setSelectedPerson(person.id);
+                          setSelectedPersonName(person.name);
+                          setSelectedPersonData(person);
+                          setShowPersonPicker(false);
+                        }}
+                      >
+                        {person.imageUrl && (
+                          <Image
+                            source={{ uri: person.imageUrl }}
+                            style={styles.pickerPersonPhoto}
+                          />
+                        )}
+                        <Text style={styles.pickerItemText}>{person.name}</Text>
+                        {selectedPerson === person.id && (
+                          <IconSymbol
+                            ios_icon_name="checkmark"
+                            android_material_icon_name="check"
+                            size={20}
+                            color={colors.primary}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </Modal>
 
         {/* Type Picker Modal */}
@@ -350,38 +354,42 @@ export default function ScheduleDateScreen() {
           animationType="slide"
           onRequestClose={() => setShowTypePicker(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.pickerModal}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Select Date Type</Text>
-                <TouchableOpacity onPress={() => setShowTypePicker(false)}>
-                  <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView>
-                {DATE_TYPES.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={styles.pickerItem}
-                    onPress={() => {
-                      setDateType(type);
-                      setShowTypePicker(false);
-                    }}
-                  >
-                    <Text style={styles.pickerItemText}>{type}</Text>
-                    {dateType === type && (
-                      <IconSymbol
-                        ios_icon_name="checkmark"
-                        android_material_icon_name="check"
-                        size={20}
-                        color={colors.primary}
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+          <TouchableWithoutFeedback onPress={() => setShowTypePicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Date Type</Text>
+                    <TouchableOpacity onPress={() => setShowTypePicker(false)}>
+                      <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView>
+                    {DATE_TYPES.map((type) => (
+                      <TouchableOpacity
+                        key={`type-${type}`}
+                        style={styles.pickerItem}
+                        onPress={() => {
+                          setDateType(type);
+                          setShowTypePicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerItemText}>{type}</Text>
+                        {dateType === type && (
+                          <IconSymbol
+                            ios_icon_name="checkmark"
+                            android_material_icon_name="check"
+                            size={20}
+                            color={colors.primary}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </Modal>
 
         {/* Date Picker */}

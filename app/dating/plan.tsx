@@ -1,7 +1,7 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { authenticatedPost, BACKEND_URL } from '@/utils/api';
 import { useRoster } from '@/contexts/RosterContext';
 import { colors } from '@/styles/commonStyles';
@@ -42,9 +43,46 @@ export default function PlanDateScreen() {
   const [budget, setBudget] = useState('$$');
   const [duration, setDuration] = useState('2-4 hours');
   const [preferences, setPreferences] = useState('');
+  const [userLocation, setUserLocation] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<DateSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // FIX: Request location on mount
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+
+  const requestLocationPermission = async () => {
+    try {
+      console.log('[PlanDate] Requesting location permission...');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Permission',
+          'We need your location to suggest nearby date ideas. You can also enter your location manually.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      console.log('[PlanDate] Getting current location...');
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      
+      // Reverse geocode to get city name
+      const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (geocode.length > 0) {
+        const { city, region } = geocode[0];
+        const locationString = `${city}, ${region}`;
+        setUserLocation(locationString);
+        console.log('[PlanDate] Location set:', locationString);
+      }
+    } catch (error) {
+      console.error('[PlanDate] Error getting location:', error);
+    }
+  };
 
   const handleGenerateSuggestions = async () => {
     if (!selectedPerson) {
@@ -52,17 +90,22 @@ export default function PlanDateScreen() {
       return;
     }
 
+    if (!userLocation.trim()) {
+      Alert.alert('Location Required', 'Please enter your location to get personalized suggestions');
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('[PlanDate] Generating date suggestions...');
-      // TODO: Backend Integration - POST /api/dates/suggestions with { profileId, budget, duration, preferences }
+      console.log('[PlanDate] Generating date suggestions with location:', userLocation);
+      // TODO: Backend Integration - POST /api/dates/suggestions with { profileId, budget, duration, preferences, location: userLocation }
       // For now, show mock data
       const mockSuggestions: DateSuggestion[] = [
         {
           id: '1',
           name: 'Sunset Picnic',
           type: 'Outdoor',
-          description: 'A romantic picnic at the park with wine and cheese',
+          description: `A romantic picnic at a park in ${userLocation} with wine and cheese`,
           estimatedCost: budget,
           duration: duration,
           whyPerfect: `Perfect for ${selectedPerson.name} based on their interests`,
@@ -71,7 +114,7 @@ export default function PlanDateScreen() {
           id: '2',
           name: 'Cooking Class',
           type: 'Activity',
-          description: 'Learn to make pasta together at a local cooking school',
+          description: `Learn to make pasta together at a local cooking school in ${userLocation}`,
           estimatedCost: budget,
           duration: duration,
           whyPerfect: 'Interactive and fun way to bond',
@@ -166,6 +209,32 @@ export default function PlanDateScreen() {
             color={colors.textSecondary}
           />
         </TouchableOpacity>
+
+        {/* FIX: Add location input */}
+        <Text style={styles.sectionTitle}>Your Location</Text>
+        <View style={styles.locationContainer}>
+          <TextInput
+            style={styles.locationInput}
+            value={userLocation}
+            onChangeText={setUserLocation}
+            placeholder="Enter your city or location"
+            placeholderTextColor={colors.textSecondary}
+          />
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={requestLocationPermission}
+          >
+            <IconSymbol
+              ios_icon_name="location.fill"
+              android_material_icon_name="my-location"
+              size={20}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.helperText}>
+          📍 We&apos;ll use your location to suggest nearby date ideas
+        </Text>
 
         <Text style={styles.sectionTitle}>Budget</Text>
         <View style={styles.optionsRow}>
@@ -402,6 +471,36 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  locationInput: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  locationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  helperText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   optionsRow: {
     flexDirection: 'row',

@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -15,18 +18,13 @@ import {
   Keyboard,
   Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { IconSymbol } from "@/components/IconSymbol";
-import { useTheme } from "@react-navigation/native";
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "expo-router";
-import { colors } from "@/styles/commonStyles";
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from "@react-navigation/native";
+import { colors } from "@/styles/commonStyles";
+import { IconSymbol } from "@/components/IconSymbol";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-// FIX: Reduce profile image size - was SCREEN_WIDTH, now 0.6
-const PROFILE_IMAGE_SIZE = SCREEN_WIDTH * 0.6;
 
 const FAVORITE_COLORS = [
   'Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Black', 'White', 'Brown', 'Gray'
@@ -64,11 +62,11 @@ export default function ProfileScreen() {
     if (!user) return;
     
     try {
-      console.log('[Profile] Loading profile data from backend...');
+      console.log('[Profile iOS] Loading profile data from backend...');
       const { authenticatedGet } = await import('@/utils/api');
       const profileData = await authenticatedGet('/api/user/profile');
       
-      console.log('[Profile] Profile data loaded:', profileData);
+      console.log('[Profile iOS] Profile data loaded:', profileData);
       
       if (profileData.name) setName(profileData.name);
       if (profileData.image) setProfileImage(profileData.image);
@@ -81,7 +79,7 @@ export default function ProfileScreen() {
       if (profileData.twitter) setTwitter(profileData.twitter);
       if (profileData.notes) setNotes(profileData.notes);
     } catch (error) {
-      console.error('[Profile] Error loading profile data:', error);
+      console.error('[Profile iOS] Error loading profile data:', error);
     }
   }, [user]);
 
@@ -99,7 +97,7 @@ export default function ProfileScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: [16, 9],
       quality: 0.8,
     });
 
@@ -108,7 +106,7 @@ export default function ProfileScreen() {
       setProfileImage(uri);
       
       try {
-        console.log('[Profile] Uploading profile image...');
+        console.log('[Profile iOS] Uploading profile image...');
         
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'profile-image.jpg';
@@ -137,11 +135,11 @@ export default function ProfileScreen() {
         }
 
         const uploadData = await uploadResponse.json();
-        console.log('[Profile] Image uploaded successfully:', uploadData.url);
+        console.log('[Profile iOS] Image uploaded successfully:', uploadData.url);
         
         setProfileImageKey(uploadData.key);
       } catch (error) {
-        console.error('[Profile] Image upload failed:', error);
+        console.error('[Profile iOS] Image upload failed:', error);
         Alert.alert('Error', 'Failed to upload image. Please try again.');
       }
     }
@@ -150,7 +148,7 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     try {
       setLoading(true);
-      console.log('[Profile] Saving profile data...');
+      console.log('[Profile iOS] Saving profile data...');
       
       const profileData: any = {
         name: name.trim(),
@@ -169,10 +167,10 @@ export default function ProfileScreen() {
       
       const { authenticatedPut } = await import('@/utils/api');
       await authenticatedPut('/api/user/profile', profileData);
-      console.log('[Profile] Profile data saved successfully');
+      console.log('[Profile iOS] Profile data saved successfully');
       
       if (isFirstLogin) {
-        console.log('[Profile] First login - marking as complete');
+        console.log('[Profile iOS] First login - marking as complete');
         
         const { authenticatedPost } = await import('@/utils/api');
         await authenticatedPost('/api/user/complete-profile', {});
@@ -186,6 +184,7 @@ export default function ProfileScreen() {
             {
               text: 'Get Started',
               onPress: () => {
+                // FIX: Show detailed view after completion, not editable
                 setIsEditing(false);
               }
             }
@@ -196,7 +195,7 @@ export default function ProfileScreen() {
         Alert.alert('Success', 'Profile updated successfully');
       }
     } catch (error) {
-      console.error('[Profile] Error saving profile:', error);
+      console.error('[Profile iOS] Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
@@ -293,100 +292,138 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* FIX: Profile Image - Smaller size */}
-        <View style={styles.imageContainerWrapper}>
-          <TouchableOpacity
-            style={styles.imageContainer}
-            onPress={isEditing ? pickImage : undefined}
-            disabled={!isEditing}
-          >
-            {profileImage || user?.image ? (
-              <Image
-                source={{ uri: profileImage || user?.image }}
-                style={styles.profileImage}
+        {/* FIX: Profile Image - Full width banner style */}
+        <TouchableOpacity
+          style={styles.imageContainer}
+          onPress={isEditing ? pickImage : undefined}
+          disabled={!isEditing}
+        >
+          {profileImage || user?.image ? (
+            <Image
+              source={{ uri: profileImage || user?.image }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={[styles.profileImage, styles.placeholderImage]}>
+              <IconSymbol
+                ios_icon_name="person.circle.fill"
+                android_material_icon_name="account-circle"
+                size={100}
+                color={colors.primary}
               />
-            ) : (
-              <View style={[styles.profileImage, styles.placeholderImage]}>
-                <IconSymbol
-                  ios_icon_name="person.circle.fill"
-                  android_material_icon_name="account-circle"
-                  size={100}
-                  color={colors.primary}
-                />
-              </View>
-            )}
-            {isEditing && (
-              <View style={styles.imageOverlay}>
-                <IconSymbol
-                  ios_icon_name="camera.fill"
-                  android_material_icon_name="camera"
-                  size={32}
-                  color="#fff"
-                />
-                <Text style={styles.imageOverlayText}>Tap to change</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+            </View>
+          )}
+          {isEditing && (
+            <View style={styles.imageOverlay}>
+              <IconSymbol
+                ios_icon_name="camera.fill"
+                android_material_icon_name="camera"
+                size={32}
+                color="#fff"
+              />
+              <Text style={styles.imageOverlayText}>Tap to change</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.fieldsContainer}>
           <View style={styles.section}>
             <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              editable={isEditing}
-              placeholder="Your name"
-              placeholderTextColor={colors.textSecondary}
-            />
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                editable={isEditing}
+                placeholder="Your name"
+                placeholderTextColor={colors.textSecondary}
+              />
+            ) : (
+              <Text style={styles.valueText}>{name || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Age</Text>
-            <TextInput
-              style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              editable={isEditing}
-              placeholder="Your age"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="number-pad"
-            />
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={age}
+                onChangeText={setAge}
+                editable={isEditing}
+                placeholder="Your age"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="number-pad"
+              />
+            ) : (
+              <Text style={styles.valueText}>{age || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Location</Text>
-            <TextInput
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              editable={isEditing}
-              placeholder="City, State"
-              placeholderTextColor={colors.textSecondary}
-            />
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={location}
+                onChangeText={setLocation}
+                editable={isEditing}
+                placeholder="City, State"
+                placeholderTextColor={colors.textSecondary}
+              />
+            ) : (
+              <Text style={styles.valueText}>{location || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              editable={isEditing}
-              placeholder="(555) 123-4567"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="phone-pad"
-            />
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                editable={isEditing}
+                placeholder="(555) 123-4567"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="phone-pad"
+              />
+            ) : (
+              <Text style={styles.valueText}>{phoneNumber || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Favorite Color</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.pickerButton]}
-              onPress={() => isEditing && setShowColorPicker(true)}
-              disabled={!isEditing}
-            >
+            {isEditing ? (
+              <TouchableOpacity
+                style={[styles.input, styles.pickerButton]}
+                onPress={() => isEditing && setShowColorPicker(true)}
+                disabled={!isEditing}
+              >
+                <View style={styles.colorDisplay}>
+                  {favoriteColor && (
+                    <View
+                      style={[
+                        styles.colorCircle,
+                        { backgroundColor: getColorDisplay(favoriteColor) }
+                      ]}
+                    />
+                  )}
+                  <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]}>
+                    {favoriteColor || 'Select color'}
+                  </Text>
+                </View>
+                {isEditing && (
+                  <IconSymbol
+                    ios_icon_name="chevron.down"
+                    android_material_icon_name="arrow-drop-down"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                )}
+              </TouchableOpacity>
+            ) : (
               <View style={styles.colorDisplay}>
                 {favoriteColor && (
                   <View
@@ -396,80 +433,86 @@ export default function ProfileScreen() {
                     ]}
                   />
                 )}
-                <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]}>
-                  {favoriteColor || 'Select color'}
-                </Text>
+                <Text style={styles.valueText}>{favoriteColor || 'Not set'}</Text>
               </View>
-              {isEditing && (
-                <IconSymbol
-                  ios_icon_name="chevron.down"
-                  android_material_icon_name="arrow-drop-down"
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              )}
-            </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Favorite Food Type</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.pickerButton]}
-              onPress={() => isEditing && setShowFoodPicker(true)}
-              disabled={!isEditing}
-            >
-              <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]}>
-                {favoriteFoodType || 'Select food type'}
-              </Text>
-              {isEditing && (
-                <IconSymbol
-                  ios_icon_name="chevron.down"
-                  android_material_icon_name="arrow-drop-down"
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              )}
-            </TouchableOpacity>
+            {isEditing ? (
+              <TouchableOpacity
+                style={[styles.input, styles.pickerButton]}
+                onPress={() => isEditing && setShowFoodPicker(true)}
+                disabled={!isEditing}
+              >
+                <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]}>
+                  {favoriteFoodType || 'Select food type'}
+                </Text>
+                {isEditing && (
+                  <IconSymbol
+                    ios_icon_name="chevron.down"
+                    android_material_icon_name="arrow-drop-down"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                )}
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.valueText}>{favoriteFoodType || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Instagram</Text>
-            <TextInput
-              style={styles.input}
-              value={instagram}
-              onChangeText={setInstagram}
-              editable={isEditing}
-              placeholder="@username"
-              placeholderTextColor={colors.textSecondary}
-              autoCapitalize="none"
-            />
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={instagram}
+                onChangeText={setInstagram}
+                editable={isEditing}
+                placeholder="@username"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+              />
+            ) : (
+              <Text style={styles.valueText}>{instagram || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Twitter/X</Text>
-            <TextInput
-              style={styles.input}
-              value={twitter}
-              onChangeText={setTwitter}
-              editable={isEditing}
-              placeholder="@username"
-              placeholderTextColor={colors.textSecondary}
-              autoCapitalize="none"
-            />
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={twitter}
+                onChangeText={setTwitter}
+                editable={isEditing}
+                placeholder="@username"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+              />
+            ) : (
+              <Text style={styles.valueText}>{twitter || 'Not set'}</Text>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.label}>Notes</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={notes}
-              onChangeText={setNotes}
-              editable={isEditing}
-              placeholder="Personal notes..."
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              numberOfLines={4}
-            />
+            {isEditing ? (
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={notes}
+                onChangeText={setNotes}
+                editable={isEditing}
+                placeholder="Personal notes..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={4}
+              />
+            ) : (
+              <Text style={styles.valueText}>{notes || 'No notes'}</Text>
+            )}
           </View>
 
           <TouchableOpacity
@@ -686,16 +729,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textSecondary,
   },
-  imageContainerWrapper: {
-    alignItems: 'center',
-    marginVertical: 24,
-  },
   imageContainer: {
-    width: PROFILE_IMAGE_SIZE,
-    height: PROFILE_IMAGE_SIZE,
+    width: SCREEN_WIDTH,
+    height: 200,
     position: 'relative',
-    borderRadius: PROFILE_IMAGE_SIZE / 2,
-    overflow: 'hidden',
+    marginBottom: 24,
   },
   profileImage: {
     width: '100%',
@@ -742,6 +780,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     color: colors.text,
     backgroundColor: colors.card,
+  },
+  valueText: {
+    fontSize: 16,
+    color: colors.text,
+    paddingVertical: 8,
   },
   textArea: {
     minHeight: 100,
