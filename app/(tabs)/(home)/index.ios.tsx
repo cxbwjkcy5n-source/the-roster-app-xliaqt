@@ -52,7 +52,6 @@ export default function RosterScreen() {
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [layoutReady, setLayoutReady] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -60,14 +59,6 @@ export default function RosterScreen() {
       router.replace('/auth');
     }
   }, [user, authLoading, router]);
-
-  // FIX: Force layout recalculation on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLayoutReady(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const loadAnalytics = async () => {
     try {
@@ -89,7 +80,7 @@ export default function RosterScreen() {
     }
   }, [showAnalytics]);
 
-  if (authLoading || rosterLoading || !layoutReady) {
+  if (authLoading || rosterLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.rosterGreen} />
@@ -405,7 +396,7 @@ export default function RosterScreen() {
       {/* Roster Header - Green Gradient */}
       <LinearGradient colors={gradients.rosterGreen} style={styles.header}>
         <Text style={styles.headerTitle}>THE ROSTER</Text>
-        <Text style={styles.headerSubtitle}>Where You're The Coach and MVP</Text>
+        <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -440,12 +431,7 @@ export default function RosterScreen() {
         </View>
       </LinearGradient>
 
-      <View 
-        style={styles.content}
-        onLayout={(event) => {
-          console.log('[Home iOS] Content layout:', event.nativeEvent.layout);
-        }}
-      >
+      <View style={styles.content}>
         {roster.length === 0 ? (
           renderEmptyState()
         ) : (
@@ -587,12 +573,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: colors.white,
     textAlign: 'center',
     marginTop: 6,
     opacity: 0.95,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   headerButtons: {
     flexDirection: 'row',
