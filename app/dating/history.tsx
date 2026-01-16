@@ -28,7 +28,6 @@ export default function DateHistoryScreen() {
   const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
   const [ratingNotes, setRatingNotes] = useState('');
   
-  // FIX: Add edit state
   const [editLocation, setEditLocation] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editTime, setEditTime] = useState('');
@@ -38,7 +37,6 @@ export default function DateHistoryScreen() {
 
   const displayDates = activeTab === 'upcoming' ? upcomingDates : completedDates;
 
-  // FIX: Handle edit date
   const handleEditDate = (date: any) => {
     console.log('[DateHistory] User tapped to edit date:', date.id);
     setSelectedDate(date);
@@ -214,7 +212,7 @@ export default function DateHistoryScreen() {
                         ios_icon_name={i < date.rating! ? "star.fill" : "star"}
                         android_material_icon_name={i < date.rating! ? "star" : "star-border"}
                         size={16}
-                        color={i < date.rating! ? colors.yellow : colors.textSecondary}
+                        color={i < date.rating! ? colors.warning : colors.textSecondary}
                       />
                     ))}
                   </View>
@@ -253,9 +251,9 @@ export default function DateHistoryScreen() {
                     ios_icon_name={date.wouldGoAgain ? "checkmark.circle.fill" : "xmark.circle.fill"}
                     android_material_icon_name={date.wouldGoAgain ? "check-circle" : "cancel"}
                     size={16}
-                    color={date.wouldGoAgain ? colors.green : colors.red}
+                    color={date.wouldGoAgain ? colors.success : colors.danger}
                   />
-                  <Text style={[styles.wouldGoAgainText, { color: date.wouldGoAgain ? colors.green : colors.red }]}>
+                  <Text style={[styles.wouldGoAgainText, { color: date.wouldGoAgain ? colors.success : colors.danger }]}>
                     {date.wouldGoAgain ? 'Would go again' : 'Would not go again'}
                   </Text>
                 </View>
@@ -299,7 +297,7 @@ export default function DateHistoryScreen() {
         )}
       </ScrollView>
 
-      {/* FIX: Edit Modal - Opens from top */}
+      {/* Edit Modal */}
       <Modal
         visible={showEditModal}
         animationType="slide"
@@ -372,7 +370,7 @@ export default function DateHistoryScreen() {
         </View>
       </Modal>
 
-      {/* Rating Modal - Opens from top */}
+      {/* Rating Modal */}
       <Modal
         visible={showRatingModal}
         animationType="slide"
@@ -414,7 +412,7 @@ export default function DateHistoryScreen() {
                         ios_icon_name={star <= rating ? "star.fill" : "star"}
                         android_material_icon_name={star <= rating ? "star" : "star-border"}
                         size={40}
-                        color={star <= rating ? colors.yellow : colors.textSecondary}
+                        color={star <= rating ? colors.warning : colors.textSecondary}
                       />
                     </TouchableOpacity>
                   ))}
@@ -429,7 +427,7 @@ export default function DateHistoryScreen() {
                     style={[
                       styles.wouldGoAgainButton,
                       wouldGoAgain === true && styles.wouldGoAgainButtonActive,
-                      { borderColor: colors.green }
+                      { borderColor: colors.success }
                     ]}
                     onPress={() => {
                       console.log('[DateHistory] User selected: Would go again');
@@ -440,7 +438,7 @@ export default function DateHistoryScreen() {
                       ios_icon_name="checkmark.circle.fill"
                       android_material_icon_name="check-circle"
                       size={24}
-                      color={wouldGoAgain === true ? '#fff' : colors.green}
+                      color={wouldGoAgain === true ? '#fff' : colors.success}
                     />
                     <Text style={[
                       styles.wouldGoAgainButtonText,
@@ -454,7 +452,7 @@ export default function DateHistoryScreen() {
                     style={[
                       styles.wouldGoAgainButton,
                       wouldGoAgain === false && styles.wouldGoAgainButtonActive,
-                      { borderColor: colors.red }
+                      { borderColor: colors.danger }
                     ]}
                     onPress={() => {
                       console.log('[DateHistory] User selected: Would not go again');
@@ -465,7 +463,7 @@ export default function DateHistoryScreen() {
                       ios_icon_name="xmark.circle.fill"
                       android_material_icon_name="cancel"
                       size={24}
-                      color={wouldGoAgain === false ? '#fff' : colors.red}
+                      color={wouldGoAgain === false ? '#fff' : colors.danger}
                     />
                     <Text style={[
                       styles.wouldGoAgainButtonText,
