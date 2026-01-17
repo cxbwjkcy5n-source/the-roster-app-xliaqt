@@ -109,7 +109,7 @@ export default function LoginScreen() {
           end={{ x: 1, y: 1 }}
         >
           <Text style={styles.title}>THE ROSTER</Text>
-          <Text style={styles.subtitle}>Where You&apos;re The Coach and MVP</Text>
+          <Text style={styles.subtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         </LinearGradient>
 
         <View style={styles.formContainer}>
