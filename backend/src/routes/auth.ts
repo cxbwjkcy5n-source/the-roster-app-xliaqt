@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq } from 'drizzle-orm';
 import * as authSchema from '../db/auth-schema.js';
+import { verifyAndExtractUser } from '../middleware/dual-auth.js';
 import type { App } from '../index.js';
 
 interface SignInRequest {
@@ -332,6 +333,65 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
         app.logger.error({ err: error, message: String(error) }, 'Sign-up error');
         return reply.status(500).send({
           error: { message: 'Sign-up failed. Please try again.' },
+        });
+      }
+    }
+  );
+
+  // Verify token endpoint - supports both Supabase and Better Auth tokens
+  fastify.get(
+    '/api/verify-token',
+    {
+      schema: {
+        description: 'Verify Bearer token from Supabase or Better Auth',
+        tags: ['auth'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              user: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  email: { type: 'string' },
+                },
+              },
+              authSource: { type: 'string', enum: ['supabase', 'better-auth'] },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        app.logger.info('Verifying token from request');
+
+        // Extract user from token using dual auth
+        const authUser = verifyAndExtractUser(request, app.logger);
+
+        if (!authUser || !authUser.id) {
+          app.logger.warn('Token verification failed: no valid token found');
+          return reply.status(401).send({
+            error: { message: 'Invalid or missing token' },
+          });
+        }
+
+        app.logger.info(
+          { userId: authUser.id, source: authUser.source },
+          'Token verified successfully'
+        );
+
+        return reply.send({
+          user: {
+            id: authUser.id,
+            email: authUser.email,
+          },
+          authSource: authUser.source,
+        });
+      } catch (error) {
+        app.logger.error({ err: error, message: String(error) }, 'Token verification error');
+        return reply.status(500).send({
+          error: { message: 'Token verification failed' },
         });
       }
     }
