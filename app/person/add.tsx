@@ -431,7 +431,6 @@ export default function AddPersonScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Interest Level</Text>
             <View style={styles.interestContainer}>
-              {/* FIX: Add keys to mapped items */}
               {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => (
                 <TouchableOpacity
                   key={`interest-${level}`}
@@ -750,7 +749,7 @@ export default function AddPersonScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* Day Picker Modal */}
+        {/* Day Picker Modal - FIX: Add proper keys */}
         <Modal
           visible={showDayPicker}
           transparent={true}
@@ -770,7 +769,7 @@ export default function AddPersonScreen() {
                   <ScrollView style={styles.pickerScroll}>
                     {Array.from({ length: getDaysInMonth(birthMonth) }, (_, i) => i + 1).map((day) => (
                       <TouchableOpacity
-                        key={`day-${day}`}
+                        key={`day-${day}-${birthMonth}`}
                         style={[styles.pickerItem, birthDay === day && styles.pickerItemActive]}
                         onPress={() => {
                           setBirthDay(day);

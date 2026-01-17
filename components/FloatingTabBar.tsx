@@ -147,7 +147,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* FIX: Center Add Button - Properly positioned in center */}
+        {/* FIX: Properly centered Add Button with correct positioning */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -228,10 +228,9 @@ const styles = StyleSheet.create({
   },
   addButtonContainer: {
     position: 'absolute',
-    top: -32,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    top: -28,
+    left: '50%',
+    transform: [{ translateX: -32 }],
     zIndex: 1001,
   },
   addButton: {
