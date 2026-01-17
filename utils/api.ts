@@ -1,153 +1,161 @@
 
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import { supabase } from '@/lib/supabase';
 
 export const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || 'https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev';
 
-const BEARER_TOKEN_KEY = 'roster-app_bearer_token';
+console.log('[API] Backend URL:', BACKEND_URL);
+console.log('[API] Platform:', Platform.OS);
 
-export async function getBearerToken(): Promise<string | null> {
+// Helper to get auth headers with Supabase token
+async function getAuthHeaders(): Promise<HeadersInit> {
   try {
-    if (Platform.OS === 'web') {
-      // On web, better-auth uses cookies, so we don't need a bearer token
-      return null;
-    } else {
-      // On native, get the bearer token from secure storage
-      return await SecureStore.getItemAsync(BEARER_TOKEN_KEY);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.access_token) {
+      console.log('[API] Using Supabase access token for authentication');
+      return {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      };
     }
+    
+    console.log('[API] No Supabase session found');
+    return {
+      'Content-Type': 'application/json',
+    };
   } catch (error) {
-    console.error('[API] Error getting bearer token:', error);
-    return null;
+    console.error('[API] Error getting auth headers:', error);
+    return {
+      'Content-Type': 'application/json',
+    };
   }
 }
 
+// Authenticated GET request
 export async function authenticatedGet(endpoint: string) {
-  console.log('[API] GET request to:', endpoint);
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  // On native, add bearer token; on web, cookies are sent automatically
-  if (Platform.OS !== 'web') {
-    const token = await getBearerToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  try {
+    console.log('[API] GET request to:', endpoint);
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'GET',
+      headers,
+      credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+    });
+
+    console.log('[API] GET response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] GET error response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
+
+    const data = await response.json();
+    console.log('[API] GET response data received');
+    return data;
+  } catch (error) {
+    console.error('[API] GET request failed:', error);
+    throw error;
   }
-  
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-    method: 'GET',
-    headers,
-    credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
-  });
-  
-  console.log('[API] GET response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[API] GET error response:', errorText);
-    throw new Error(`API request failed: ${response.status} ${errorText}`);
-  }
-  
-  return response.json();
 }
 
-export async function authenticatedPost(endpoint: string, data: any) {
-  console.log('[API] POST request to:', endpoint, 'with data:', data);
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  // On native, add bearer token; on web, cookies are sent automatically
-  if (Platform.OS !== 'web') {
-    const token = await getBearerToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+// Authenticated POST request
+export async function authenticatedPost(endpoint: string, body: any) {
+  try {
+    console.log('[API] POST request to:', endpoint);
+    console.log('[API] POST body:', JSON.stringify(body));
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+      body: JSON.stringify(body),
+    });
+
+    console.log('[API] POST response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] POST error response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
+
+    const data = await response.json();
+    console.log('[API] POST response data received');
+    return data;
+  } catch (error) {
+    console.error('[API] POST request failed:', error);
+    throw error;
   }
-  
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-    method: 'POST',
-    headers,
-    credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
-    body: JSON.stringify(data),
-  });
-  
-  console.log('[API] POST response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[API] POST error response:', errorText);
-    throw new Error(`API request failed: ${response.status} ${errorText}`);
-  }
-  
-  return response.json();
 }
 
-export async function authenticatedPut(endpoint: string, data: any) {
-  console.log('[API] PUT request to:', endpoint, 'with data:', data);
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  // On native, add bearer token; on web, cookies are sent automatically
-  if (Platform.OS !== 'web') {
-    const token = await getBearerToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+// Authenticated PUT request
+export async function authenticatedPut(endpoint: string, body: any) {
+  try {
+    console.log('[API] PUT request to:', endpoint);
+    console.log('[API] PUT body:', JSON.stringify(body));
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'PUT',
+      headers,
+      credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+      body: JSON.stringify(body),
+    });
+
+    console.log('[API] PUT response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] PUT error response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
+
+    const data = await response.json();
+    console.log('[API] PUT response data received');
+    return data;
+  } catch (error) {
+    console.error('[API] PUT request failed:', error);
+    throw error;
   }
-  
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-    method: 'PUT',
-    headers,
-    credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
-    body: JSON.stringify(data),
-  });
-  
-  console.log('[API] PUT response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[API] PUT error response:', errorText);
-    throw new Error(`API request failed: ${response.status} ${errorText}`);
-  }
-  
-  return response.json();
 }
 
+// Authenticated DELETE request
 export async function authenticatedDelete(endpoint: string) {
-  console.log('[API] DELETE request to:', endpoint);
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  // On native, add bearer token; on web, cookies are sent automatically
-  if (Platform.OS !== 'web') {
-    const token = await getBearerToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  try {
+    console.log('[API] DELETE request to:', endpoint);
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers,
+      credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
+    });
+
+    console.log('[API] DELETE response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] DELETE error response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
+
+    // DELETE might return empty response
+    const text = await response.text();
+    if (text) {
+      const data = JSON.parse(text);
+      console.log('[API] DELETE response data received');
+      return data;
+    }
+    
+    console.log('[API] DELETE successful (no response body)');
+    return { success: true };
+  } catch (error) {
+    console.error('[API] DELETE request failed:', error);
+    throw error;
   }
-  
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-    method: 'DELETE',
-    headers,
-    credentials: Platform.OS === 'web' ? 'include' : 'same-origin',
-  });
-  
-  console.log('[API] DELETE response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[API] DELETE error response:', errorText);
-    throw new Error(`API request failed: ${response.status} ${errorText}`);
-  }
-  
-  return response.json();
 }

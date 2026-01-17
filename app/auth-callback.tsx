@@ -1,50 +1,49 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import { Platform } from "react-native";
 
-type Status = "processing" | "success" | "error";
+import React, { useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import { colors } from '@/styles/commonStyles';
 
 export default function AuthCallbackScreen() {
-  const [status, setStatus] = useState<Status>("processing");
-  const [message, setMessage] = useState("Processing authentication...");
+  const router = useRouter();
 
   useEffect(() => {
-    if (Platform.OS !== "web") return;
-    handleCallback();
-  }, []);
+    console.log('[AuthCallback] Processing OAuth callback...');
+    
+    // Handle the OAuth callback
+    const handleCallback = async () => {
+      try {
+        // Supabase automatically handles the OAuth callback
+        // We just need to check if we have a session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[AuthCallback] Error getting session:', error);
+          router.replace('/auth/login');
+          return;
+        }
 
-  const handleCallback = () => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const error = urlParams.get("error");
-
-      if (error) {
-        setStatus("error");
-        setMessage(`Authentication failed: ${error}`);
-        window.opener?.postMessage({ type: "auth-error", error }, "*");
-        return;
+        if (session) {
+          console.log('[AuthCallback] OAuth successful, redirecting to home');
+          router.replace('/(tabs)/(home)/');
+        } else {
+          console.log('[AuthCallback] No session found, redirecting to login');
+          router.replace('/auth/login');
+        }
+      } catch (error) {
+        console.error('[AuthCallback] Error handling callback:', error);
+        router.replace('/auth/login');
       }
+    };
 
-      // Check if authentication was successful by checking for session cookie
-      // BetterAuth sets cookies automatically, so we just need to notify the opener
-      setStatus("success");
-      setMessage("Authentication successful! Closing...");
-      window.opener?.postMessage({ type: "auth-success" }, "*");
-      setTimeout(() => window.close(), 1000);
-    } catch (err) {
-      setStatus("error");
-      setMessage("Failed to process authentication");
-      console.error("Auth callback error:", err);
-      window.opener?.postMessage({ type: "auth-error", error: "Processing failed" }, "*");
-    }
-  };
+    handleCallback();
+  }, [router]);
 
   return (
     <View style={styles.container}>
-      {status === "processing" && <ActivityIndicator size="large" color="#007AFF" />}
-      {status === "success" && <Text style={styles.successIcon}>✓</Text>}
-      {status === "error" && <Text style={styles.errorIcon}>✗</Text>}
-      <Text style={styles.message}>{message}</Text>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.text}>Completing sign in...</Text>
     </View>
   );
 }
@@ -52,23 +51,13 @@ export default function AuthCallbackScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
   },
-  successIcon: {
-    fontSize: 48,
-    color: "#34C759",
-  },
-  errorIcon: {
-    fontSize: 48,
-    color: "#FF3B30",
-  },
-  message: {
-    fontSize: 18,
-    marginTop: 20,
-    textAlign: "center",
-    color: "#333",
+  text: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.text,
   },
 });
