@@ -147,7 +147,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* FIX: Properly centered Add Button with correct positioning */}
+        {/* Centered Add Button - positioned to align with center of navigation bar */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -173,38 +173,81 @@ export default function FloatingTabBar({
               }
             ]} 
           />
+          {/* Updated layout: grouped tabs with center spacing for add button */}
           <View style={styles.tabsContainer}>
-            {tabs.map((tab, index) => {
-              const isActive = activeTabIndex === index;
-              const iconColor = isActive ? colors.navActive : colors.navInactive;
+            {/* Left group: Roster and Bench */}
+            <View style={styles.leftGroup}>
+              {tabs.slice(0, 2).map((tab, index) => {
+                const isActive = activeTabIndex === index;
+                const iconColor = isActive ? colors.navActive : colors.navInactive;
 
-              return (
-                <TouchableOpacity
-                  key={`tab-${index}`}
-                  style={styles.tab}
-                  onPress={() => handleTabPress(tab.route)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.tabContent}>
-                    <MaterialIcons
-                      name={tab.icon}
-                      size={26}
-                      color={iconColor}
-                      style={styles.iconStyle}
-                    />
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        { color: colors.navInactive },
-                        isActive && { color: colors.navActive, fontWeight: '700' },
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                return (
+                  <TouchableOpacity
+                    key={`tab-${index}`}
+                    style={styles.tab}
+                    onPress={() => handleTabPress(tab.route)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.tabContent}>
+                      <MaterialIcons
+                        name={tab.icon}
+                        size={26}
+                        color={iconColor}
+                        style={styles.iconStyle}
+                      />
+                      <Text
+                        style={[
+                          styles.tabLabel,
+                          { color: colors.navInactive },
+                          isActive && { color: colors.navActive, fontWeight: '700' },
+                        ]}
+                      >
+                        {tab.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Center spacer for add button */}
+            <View style={styles.centerSpacer} />
+
+            {/* Right group: Dating and Profile */}
+            <View style={styles.rightGroup}>
+              {tabs.slice(2, 4).map((tab, index) => {
+                const actualIndex = index + 2;
+                const isActive = activeTabIndex === actualIndex;
+                const iconColor = isActive ? colors.navActive : colors.navInactive;
+
+                return (
+                  <TouchableOpacity
+                    key={`tab-${actualIndex}`}
+                    style={styles.tab}
+                    onPress={() => handleTabPress(tab.route)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.tabContent}>
+                      <MaterialIcons
+                        name={tab.icon}
+                        size={26}
+                        color={iconColor}
+                        style={styles.iconStyle}
+                      />
+                      <Text
+                        style={[
+                          styles.tabLabel,
+                          { color: colors.navInactive },
+                          isActive && { color: colors.navActive, fontWeight: '700' },
+                        ]}
+                      >
+                        {tab.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </ContainerComponent>
       </View>
@@ -230,8 +273,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -28,
     left: '50%',
-    transform: [{ translateX: -32 }],
+    marginLeft: -32,
     zIndex: 1001,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addButton: {
     ...Platform.select({
@@ -273,12 +318,28 @@ const styles = StyleSheet.create({
     height: 64,
     alignItems: 'center',
     paddingHorizontal: 4,
+    justifyContent: 'space-between',
+  },
+  leftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 8,
+  },
+  rightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 8,
+  },
+  centerSpacer: {
+    width: 80,
   },
   tab: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    paddingHorizontal: 12,
     ...Platform.select({
       web: {
         cursor: 'pointer',
