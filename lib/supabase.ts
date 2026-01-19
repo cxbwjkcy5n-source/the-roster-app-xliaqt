@@ -2,74 +2,40 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 
-// Supabase configuration
-// You'll need to add these to your app.json under "extra"
-const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// Read environment variables with EXPO_PUBLIC_ prefix
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-console.log('[Supabase] Initializing with URL:', SUPABASE_URL);
-console.log('[Supabase] Platform:', Platform.OS);
+// Defensive runtime checks with clear error messages
+if (!supabaseUrl) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_SUPABASE_URL environment variable. ' +
+    'Please add EXPO_PUBLIC_SUPABASE_URL to your .env file or app.json extra config.'
+  );
+}
 
-// Custom storage adapter for Expo SecureStore (native) and localStorage (web)
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string) => {
-    try {
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          return localStorage.getItem(key);
-        }
-        return null;
-      }
-      return await SecureStore.getItemAsync(key);
-    } catch (error) {
-      console.error('[Supabase] Error getting item:', error);
-      return null;
-    }
-  },
-  setItem: async (key: string, value: string) => {
-    try {
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem(key, value);
-        }
-        return;
-      }
-      await SecureStore.setItemAsync(key, value);
-    } catch (error) {
-      console.error('[Supabase] Error setting item:', error);
-    }
-  },
-  removeItem: async (key: string) => {
-    try {
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.removeItem(key);
-        }
-        return;
-      }
-      await SecureStore.deleteItemAsync(key);
-    } catch (error) {
-      console.error('[Supabase] Error removing item:', error);
-    }
-  },
-};
+if (!supabaseAnonKey) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable. ' +
+    'Please add EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file or app.json extra config.'
+  );
+}
 
-// Create Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+console.log('[Supabase] Initializing with URL:', supabaseUrl);
+
+// Create Supabase client configured for React Native
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
-    autoRefreshToken: true,
+    storage: {
+      getItem: (key: string) => SecureStore.getItemAsync(key),
+      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    },
     persistSession: true,
+    autoRefreshToken: true,
     detectSessionInUrl: false,
   },
 });
 
-// Helper to check if Supabase is configured
-export const isSupabaseConfigured = () => {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-};
-
-console.log('[Supabase] Client initialized. Configured:', isSupabaseConfigured());
+console.log('[Supabase] Client initialized successfully');
