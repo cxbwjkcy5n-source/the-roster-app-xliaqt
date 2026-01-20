@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
+  FlatList,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +24,8 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, InterestLevel, RelationshipType } from '@/types/roster';
 import { getZodiacFromBirthday, getZodiacEmoji } from '@/utils/zodiac';
+
+const { width } = Dimensions.get('window');
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -79,6 +83,7 @@ export default function AddPersonScreen() {
   const [favoriteFoodType, setFavoriteFoodType] = useState('');
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('dating');
   const [customRelationshipType, setCustomRelationshipType] = useState('');
+  const [howMet, setHowMet] = useState(''); // NEW: How you met field
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -96,6 +101,9 @@ export default function AddPersonScreen() {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
+
+  // Carousel ref for relationship types
+  const relationshipCarouselRef = useRef<FlatList>(null);
 
   // Load existing person data if editing
   useEffect(() => {
@@ -118,6 +126,7 @@ export default function AddPersonScreen() {
         setFavoriteFoodType(existingPerson.favoriteFoodType);
         setRelationshipType(existingPerson.relationshipType);
         setCustomRelationshipType(existingPerson.customRelationshipType || '');
+        setHowMet(existingPerson.howMet || ''); // Load how met field
         setLocation(existingPerson.location);
         setPhoneNumber(existingPerson.phoneNumber);
         setInstagram(existingPerson.instagram || '');
@@ -207,6 +216,7 @@ export default function AddPersonScreen() {
 
     try {
       setSaving(true);
+      console.log('[AddPerson] Starting save process...');
       
       // Upload image to backend if selected and changed
       let uploadedImageUrl: string | undefined = photoUri;
@@ -276,6 +286,7 @@ export default function AddPersonScreen() {
         favoriteFoodType: favoriteFoodType.trim(),
         relationshipType,
         customRelationshipType: relationshipType === 'other' ? customRelationshipType.trim() : undefined,
+        howMet: howMet.trim() || undefined, // Include how met field
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
         instagram: instagram.trim() || undefined,
@@ -291,8 +302,10 @@ export default function AddPersonScreen() {
         createdAt: isEditing ? undefined : new Date().toISOString(),
       };
 
+      console.log('[AddPerson] Saving person:', person.name);
+
       if (isEditing) {
-        console.log('[AddPerson] Updating person:', person.name);
+        console.log('[AddPerson] Updating existing person');
         await updatePerson(person);
         
         // Save flags separately using the backend API directly
@@ -328,13 +341,15 @@ export default function AddPersonScreen() {
         console.log('[AddPerson] Person updated successfully, navigating back');
         router.back();
       } else {
-        console.log('[AddPerson] Saving new person:', person.name);
+        console.log('[AddPerson] Adding new person');
         await addPerson(person);
         
         // Wait for the person to be created and get the backend ID
+        console.log('[AddPerson] Waiting for backend to process...');
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Refresh profiles to get the new person with backend ID
+        console.log('[AddPerson] Refreshing profiles...');
         await refreshProfiles();
         
         // Find the newly created person
@@ -375,8 +390,8 @@ export default function AddPersonScreen() {
           }
         }
         
-        console.log('[AddPerson] Navigating to home screen');
-        // Navigate to home screen after saving (not open another add person)
+        console.log('[AddPerson] Save complete, navigating to home');
+        // FIX: Use replace instead of push to avoid white screen
         router.replace('/(tabs)/(home)');
       }
     } catch (error: any) {
@@ -397,6 +412,33 @@ export default function AddPersonScreen() {
 
   const zodiacSign = getZodiacFromBirthday(birthMonth, birthDay);
   const zodiacEmoji = getZodiacEmoji(zodiacSign);
+
+  // Render relationship type carousel item
+  const renderRelationshipType = ({ item, index }: { item: typeof relationshipTypes[0]; index: number }) => {
+    const isActive = relationshipType === item.value;
+    return (
+      <TouchableOpacity
+        key={`relationship-${item.value}`}
+        style={[
+          styles.carouselItem,
+          isActive && styles.carouselItemActive,
+        ]}
+        onPress={() => {
+          setRelationshipType(item.value);
+          relationshipCarouselRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+        }}
+      >
+        <Text
+          style={[
+            styles.carouselItemText,
+            isActive && styles.carouselItemTextActive,
+          ]}
+        >
+          {item.label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -543,29 +585,25 @@ export default function AddPersonScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* UPDATED: Relationship Type Carousel */}
           <View style={styles.section}>
             <Text style={styles.label}>Relationship Type</Text>
-            <View style={styles.relationshipGrid}>
-              {relationshipTypes.map((type) => (
-                <TouchableOpacity
-                  key={`relationship-${type.value}`}
-                  style={[
-                    styles.relationshipButton,
-                    relationshipType === type.value && styles.relationshipButtonActive,
-                  ]}
-                  onPress={() => setRelationshipType(type.value)}
-                >
-                  <Text
-                    style={[
-                      styles.relationshipButtonText,
-                      relationshipType === type.value && styles.relationshipButtonTextActive,
-                    ]}
-                  >
-                    {type.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <FlatList
+              ref={relationshipCarouselRef}
+              data={relationshipTypes}
+              renderItem={renderRelationshipType}
+              keyExtractor={(item) => `relationship-${item.value}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselContainer}
+              snapToInterval={width * 0.4 + 8}
+              decelerationRate="fast"
+              getItemLayout={(data, index) => ({
+                length: width * 0.4,
+                offset: (width * 0.4 + 8) * index,
+                index,
+              })}
+            />
             {relationshipType === 'other' && (
               <TextInput
                 style={[styles.input, { marginTop: 12 }]}
@@ -575,6 +613,18 @@ export default function AddPersonScreen() {
                 placeholderTextColor={colors.grey}
               />
             )}
+          </View>
+
+          {/* NEW: How You Met Field */}
+          <View style={styles.section}>
+            <Text style={styles.label}>How You Met</Text>
+            <TextInput
+              style={styles.input}
+              value={howMet}
+              onChangeText={setHowMet}
+              placeholder="e.g., Coffee shop, Tinder, Through friends..."
+              placeholderTextColor={colors.grey}
+            />
           </View>
 
           <View style={styles.section}>
@@ -759,7 +809,7 @@ export default function AddPersonScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* Day Picker Modal - FIX: Add proper keys */}
+        {/* Day Picker Modal */}
         <Modal
           visible={showDayPicker}
           transparent={true}
@@ -1046,28 +1096,32 @@ const styles = StyleSheet.create({
   interestButtonTextActive: {
     color: '#fff',
   },
-  relationshipGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // NEW: Carousel styles
+  carouselContainer: {
+    paddingVertical: 8,
     gap: 8,
   },
-  relationshipButton: {
+  carouselItem: {
+    width: width * 0.4,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.grey + '30',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  relationshipButtonActive: {
+  carouselItemActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  relationshipButtonText: {
+  carouselItemText: {
     fontSize: 14,
     color: colors.text,
+    textAlign: 'center',
   },
-  relationshipButtonTextActive: {
+  carouselItemTextActive: {
     color: '#fff',
     fontWeight: '600',
   },

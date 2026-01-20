@@ -437,6 +437,12 @@ export default function PersonDetailScreen() {
                   <Text style={styles.infoText}>{person.relationshipType}</Text>
                 </View>
               )}
+              {person.howMet && (
+                <View style={styles.infoRow}>
+                  <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="people" size={22} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>How We Met: {person.howMet}</Text>
+                </View>
+              )}
               {person.favoriteColor && (
                 <View style={styles.infoRow}>
                   <IconSymbol ios_icon_name="paintpalette.fill" android_material_icon_name="palette" size={22} color={colors.textSecondary} />

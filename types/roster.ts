@@ -23,6 +23,7 @@ export interface RosterPerson {
   favoriteFoodType: string;
   relationshipType: RelationshipType;
   customRelationshipType?: string;
+  howMet?: string; // NEW: How you met this person
   location: string;
   phoneNumber: string;
   instagram?: string;

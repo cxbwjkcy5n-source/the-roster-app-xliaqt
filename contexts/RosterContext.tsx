@@ -63,6 +63,7 @@ function mapProfileToRosterPerson(profile: any): RosterPerson {
     favoriteFoodType: profile.favoriteFood || '',
     relationshipType: profile.relationshipType || 'dating',
     customRelationshipType: profile.customRelationshipType,
+    howMet: profile.howYouMet, // Map from API's howYouMet to frontend's howMet
     location: profile.location || '',
     phoneNumber: profile.phoneNumber || '',
     instagram: profile.instagram,
@@ -100,6 +101,8 @@ function mapRosterPersonToProfileData(person: RosterPerson) {
     favoriteColor: person.favoriteColor,
     favoriteFood: person.favoriteFoodType,
     relationshipType: person.relationshipType,
+    customRelationshipType: person.customRelationshipType,
+    howYouMet: person.howMet, // Map from frontend's howMet to API's howYouMet
     location: person.location,
     phoneNumber: person.phoneNumber,
     instagram: person.instagram,
