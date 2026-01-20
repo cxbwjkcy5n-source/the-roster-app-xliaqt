@@ -8,10 +8,20 @@ import { Platform } from 'react-native';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// Check if Supabase is properly configured
+export function isSupabaseConfigured(): boolean {
+  return !!(
+    supabaseUrl && 
+    supabaseAnonKey && 
+    supabaseUrl !== 'YOUR_SUPABASE_PROJECT_URL' &&
+    supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY'
+  );
+}
+
 // Defensive runtime checks with clear error messages
 if (!supabaseUrl || supabaseUrl === 'YOUR_SUPABASE_PROJECT_URL') {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_URL environment variable.\n\n' +
+  console.warn(
+    '[Supabase] Missing EXPO_PUBLIC_SUPABASE_URL environment variable.\n\n' +
     'To fix this:\n' +
     '1. Create a .env file in the root directory with:\n' +
     '   EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co\n' +
@@ -22,8 +32,8 @@ if (!supabaseUrl || supabaseUrl === 'YOUR_SUPABASE_PROJECT_URL') {
 }
 
 if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable.\n\n' +
+  console.warn(
+    '[Supabase] Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable.\n\n' +
     'To fix this:\n' +
     '1. Create a .env file in the root directory with:\n' +
     '   EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co\n' +
@@ -35,6 +45,7 @@ if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
 
 console.log('[Supabase] Initializing with URL:', supabaseUrl);
 console.log('[Supabase] Platform:', Platform.OS);
+console.log('[Supabase] Is configured:', isSupabaseConfigured());
 
 // Create a storage adapter that works across platforms
 const ExpoSecureStoreAdapter = {
@@ -94,13 +105,22 @@ const ExpoSecureStoreAdapter = {
 };
 
 // Create Supabase client configured for React Native and Web
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: ExpoSecureStoreAdapter,
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: Platform.OS === 'web', // Only detect URL sessions on web
-  },
-});
+// Use placeholder values if not configured to prevent initialization errors
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      storage: ExpoSecureStoreAdapter,
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: Platform.OS === 'web', // Only detect URL sessions on web
+    },
+  }
+);
 
-console.log('[Supabase] Client initialized successfully');
+if (isSupabaseConfigured()) {
+  console.log('[Supabase] Client initialized successfully');
+} else {
+  console.warn('[Supabase] Client initialized with placeholder values - authentication will not work until configured');
+}
