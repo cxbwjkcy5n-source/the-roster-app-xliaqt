@@ -179,6 +179,8 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };
 
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Updating profile');
+
       // Verify ownership
       const existing = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -188,6 +190,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!existing) {
+        app.logger.warn({ userId: session.user.id, profileId: id }, 'Profile not found for update');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
@@ -199,6 +202,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         .where(eq(schema.rosterProfiles.id, id))
         .returning();
 
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Profile updated successfully');
       return updated;
     }
   );
