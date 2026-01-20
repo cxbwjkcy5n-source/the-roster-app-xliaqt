@@ -229,18 +229,26 @@ export default function AddPersonScreen() {
           } as any);
 
           // Upload to backend
-          const token = await import('@/utils/api').then(m => m.getBearerToken());
-          const backendUrl = await import('@/utils/api').then(m => m.BACKEND_URL);
+          const { supabase } = await import('@/lib/supabase');
+          const { data: { session } } = await supabase.auth.getSession();
+          const { BACKEND_URL } = await import('@/utils/api');
           
-          const uploadResponse = await fetch(`${backendUrl}/api/upload/profile-image`, {
+          if (!session?.access_token) {
+            console.error('[AddPerson] No access token found');
+            throw new Error('Not authenticated');
+          }
+          
+          const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'Authorization': `Bearer ${session.access_token}`,
             },
             body: formData,
           });
 
           if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            console.error('[AddPerson] Upload failed:', errorText);
             throw new Error('Failed to upload image');
           }
 
@@ -251,7 +259,9 @@ export default function AddPersonScreen() {
           console.log('[AddPerson] Image uploaded successfully:', uploadedImageUrl);
         } catch (uploadError) {
           console.error('[AddPerson] Image upload failed:', uploadError);
-          Alert.alert('Warning', 'Failed to upload image. Profile will be saved without photo.');
+          // Don't fail the whole save, just use the local URI
+          uploadedImageUrl = photoUri;
+          console.log('[AddPerson] Using local image URI as fallback');
         }
       }
 
