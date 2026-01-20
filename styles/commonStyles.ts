@@ -274,6 +274,7 @@ export const commonStyles = StyleSheet.create({
 
 // GRADIENT PRESETS
 export const gradients = {
+  primary: ['#11A36A', '#0d8555'],      // Primary gradient (roster green)
   rosterGreen: ['#11A36A', '#0d8555'],
   benchRed: ['#E9243F', '#c41e35'],
   actionRed: ['#E9243F', '#ff4757'],
