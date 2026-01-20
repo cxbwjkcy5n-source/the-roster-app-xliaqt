@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
+import { sql } from 'drizzle-orm';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerHealthRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Health check endpoint (no auth required)
   fastify.get(
@@ -17,14 +18,26 @@ export function registerHealthRoutes(app: App, fastify: FastifyInstance) {
             properties: {
               status: { type: 'string' },
               timestamp: { type: 'string' },
+              database: { type: 'string' },
             },
           },
         },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
+      let dbStatus = 'ok';
+
+      try {
+        // Test database connection
+        await app.db.execute(sql`SELECT 1`);
+      } catch (error) {
+        app.logger.warn({ err: error }, 'Database health check failed');
+        dbStatus = 'degraded';
+      }
+
       return {
         status: 'ok',
+        database: dbStatus,
         timestamp: new Date().toISOString(),
       };
     }
@@ -52,7 +65,7 @@ export function registerHealthRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       return {

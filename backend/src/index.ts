@@ -41,40 +41,65 @@ export type App = typeof app;
 
 // Run database migrations on startup
 app.logger.info('Running database migrations on startup');
-try {
-  // Add delay to allow WASM modules to initialize properly
-  // Using a longer timeout (500ms) to ensure PGlite WASM is ready
-  await new Promise(resolve => setTimeout(resolve, 500));
+let migrationAttempts = 0;
+const maxMigrationAttempts = 3;
+let migrationsSuccessful = false;
 
-  await runMigrations({ logger: app.logger });
-  app.logger.info('Database migrations completed successfully');
-} catch (error) {
-  // Log but don't fail startup - the framework may have already initialized the schema
-  // and this error might be about the drizzle schema which is optional
-  let errorMessage = "";
+while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
+  try {
+    migrationAttempts++;
 
-  if (error instanceof Error) {
-    errorMessage = error.message;
-  } else if (typeof error === "string") {
-    errorMessage = error;
-  } else {
-    errorMessage = JSON.stringify(error);
-  }
+    // Add delay between attempts
+    if (migrationAttempts > 1) {
+      app.logger.info({ attempt: migrationAttempts }, 'Waiting before retry...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
-  // Check for known WASM/initialization issues that shouldn't block startup
-  if (
-    errorMessage.includes('already exists') ||
-    errorMessage.includes('Aborted') ||
-    errorMessage.includes('CREATE SCHEMA') ||
-    errorMessage.includes('RuntimeError') ||
-    errorMessage.includes('WASM')
-  ) {
-    app.logger.info(
-      { err: errorMessage },
-      'Database WASM initialization issue detected - this is expected during local development. Continuing with startup.'
+    app.logger.info({ attempt: migrationAttempts }, 'Attempting to run migrations');
+    await runMigrations({ logger: app.logger });
+    app.logger.info('Database migrations completed successfully');
+    migrationsSuccessful = true;
+  } catch (error) {
+    // Log but don't fail startup - the framework may have already initialized the schema
+    // and this error might be about the drizzle schema which is optional
+    let errorMessage = "";
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === "string") {
+      errorMessage = error;
+    } else {
+      errorMessage = JSON.stringify(error);
+    }
+
+    app.logger.warn(
+      { err: errorMessage, attempt: migrationAttempts, maxAttempts: maxMigrationAttempts },
+      'Migration attempt failed'
     );
-  } else {
-    app.logger.warn({ err: error }, 'Migration warning during startup');
+
+    // Check for known WASM/initialization issues that shouldn't block startup
+    if (
+      errorMessage.includes('already exists') ||
+      errorMessage.includes('Aborted') ||
+      errorMessage.includes('CREATE SCHEMA') ||
+      errorMessage.includes('RuntimeError') ||
+      errorMessage.includes('WASM')
+    ) {
+      app.logger.info(
+        { err: errorMessage },
+        'Database WASM initialization issue detected - this is expected during local development.'
+      );
+      if (migrationAttempts >= maxMigrationAttempts) {
+        app.logger.info('Continuing with startup despite migration issues. Tables will be created on first use.');
+        migrationsSuccessful = true; // Allow startup to continue
+      }
+    } else {
+      // For other errors, allow startup to continue
+      if (migrationAttempts >= maxMigrationAttempts) {
+        app.logger.warn({ err: error }, 'Migration failed after all attempts. Continuing with startup.');
+        migrationsSuccessful = true;
+      }
+    }
   }
 }
 

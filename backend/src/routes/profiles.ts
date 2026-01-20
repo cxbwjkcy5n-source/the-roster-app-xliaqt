@@ -53,39 +53,58 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       const body = request.body as { name: string; [key: string]: any };
       app.logger.info({ userId: session.user.id, name: body.name }, 'Creating new profile');
 
-      const [profile] = await app.db
-        .insert(schema.rosterProfiles)
-        .values({
-          name: body.name,
-          userId: session.user.id,
-          age: body.age,
-          birthdayMonth: body.birthdayMonth,
-          birthdayDay: body.birthdayDay,
-          birthdayYear: body.birthdayYear,
-          zodiacSign: body.zodiacSign,
-          favoriteColor: body.favoriteColor,
-          favoriteFood: body.favoriteFood,
-          relationshipType: body.relationshipType,
-          location: body.location,
-          phoneNumber: body.phoneNumber,
-          instagram: body.instagram,
-          twitter: body.twitter,
-          facebook: body.facebook,
-          snapchat: body.snapchat,
-          notes: body.notes,
-          hobbies: body.hobbies,
-          interests: body.interests,
-          howYouMet: body.howYouMet,
-          interestLevel: body.interestLevel,
-          profileImageUrl: body.profileImageUrl,
-          profileImageKey: body.profileImageKey,
-          status: body.status,
-          benchReason: body.benchReason,
-        })
-        .returning();
+      try {
+        const [profile] = await app.db
+          .insert(schema.rosterProfiles)
+          .values({
+            name: body.name,
+            userId: session.user.id,
+            age: body.age,
+            birthdayMonth: body.birthdayMonth,
+            birthdayDay: body.birthdayDay,
+            birthdayYear: body.birthdayYear,
+            zodiacSign: body.zodiacSign,
+            favoriteColor: body.favoriteColor,
+            favoriteFood: body.favoriteFood,
+            relationshipType: body.relationshipType,
+            location: body.location,
+            phoneNumber: body.phoneNumber,
+            instagram: body.instagram,
+            twitter: body.twitter,
+            facebook: body.facebook,
+            snapchat: body.snapchat,
+            notes: body.notes,
+            hobbies: body.hobbies,
+            interests: body.interests,
+            howYouMet: body.howYouMet,
+            interestLevel: body.interestLevel,
+            profileImageUrl: body.profileImageUrl,
+            profileImageKey: body.profileImageKey,
+            status: body.status,
+            benchReason: body.benchReason,
+          })
+          .returning();
 
-      app.logger.info({ profileId: profile.id, userId: session.user.id }, 'Profile created successfully');
-      return profile;
+        app.logger.info({ profileId: profile.id, userId: session.user.id }, 'Profile created successfully');
+        return profile;
+      } catch (error) {
+        app.logger.error(
+          { err: error, userId: session.user.id, name: body.name },
+          'Failed to create profile'
+        );
+
+        // Return user-friendly error messages
+        if (error instanceof Error) {
+          if (error.message.includes('foreign key')) {
+            return reply.status(400).send({ error: 'User not properly initialized. Please try again.' });
+          }
+          if (error.message.includes('unique constraint')) {
+            return reply.status(409).send({ error: 'A profile with this name already exists.' });
+          }
+        }
+
+        return reply.status(500).send({ error: 'Failed to create profile. Please try again.' });
+      }
     }
   );
 
@@ -105,17 +124,22 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id }, 'Fetching all profiles');
 
-      const profiles = await app.db.query.rosterProfiles.findMany({
-        where: eq(schema.rosterProfiles.userId, session.user.id),
-        with: {
-          redFlags: true,
-          greenFlags: true,
-          dates: true,
-        },
-      });
+      try {
+        const profiles = await app.db.query.rosterProfiles.findMany({
+          where: eq(schema.rosterProfiles.userId, session.user.id),
+          with: {
+            redFlags: true,
+            greenFlags: true,
+            dates: true,
+          },
+        });
 
-      app.logger.info({ userId: session.user.id, count: profiles.length }, 'Profiles fetched successfully');
-      return profiles;
+        app.logger.info({ userId: session.user.id, count: profiles.length }, 'Profiles fetched successfully');
+        return profiles;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch profiles');
+        return reply.status(500).send({ error: 'Failed to fetch profiles. Please try again.' });
+      }
     }
   );
 
@@ -224,6 +248,8 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       const { id } = request.params as { id: string };
 
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Deleting profile');
+
       // Verify ownership
       const existing = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -233,15 +259,22 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!existing) {
+        app.logger.warn({ userId: session.user.id, profileId: id }, 'Profile not found for deletion');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
-      const [deleted] = await app.db
-        .delete(schema.rosterProfiles)
-        .where(eq(schema.rosterProfiles.id, id))
-        .returning();
+      try {
+        const [deleted] = await app.db
+          .delete(schema.rosterProfiles)
+          .where(eq(schema.rosterProfiles.id, id))
+          .returning();
 
-      return deleted;
+        app.logger.info({ userId: session.user.id, profileId: id }, 'Profile deleted successfully');
+        return deleted;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileId: id }, 'Failed to delete profile');
+        return reply.status(500).send({ error: 'Failed to delete profile. Please try again.' });
+      }
     }
   );
 
@@ -269,6 +302,8 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const body = request.body as { reason?: string };
 
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Moving profile to bench');
+
       // Verify ownership
       const existing = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -278,20 +313,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!existing) {
+        app.logger.warn({ userId: session.user.id, profileId: id }, 'Profile not found for bench action');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
-      const [updated] = await app.db
-        .update(schema.rosterProfiles)
-        .set({
-          status: 'bench',
-          benchReason: body.reason,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.rosterProfiles.id, id))
-        .returning();
+      try {
+        const [updated] = await app.db
+          .update(schema.rosterProfiles)
+          .set({
+            status: 'bench',
+            benchReason: body.reason,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.rosterProfiles.id, id))
+          .returning();
 
-      return updated;
+        app.logger.info({ userId: session.user.id, profileId: id }, 'Profile moved to bench successfully');
+        return updated;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileId: id }, 'Failed to move profile to bench');
+        return reply.status(500).send({ error: 'Failed to move profile to bench. Please try again.' });
+      }
     }
   );
 
@@ -312,6 +354,8 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       const { id } = request.params as { id: string };
 
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Moving profile back to roster');
+
       // Verify ownership
       const existing = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -321,20 +365,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!existing) {
+        app.logger.warn({ userId: session.user.id, profileId: id }, 'Profile not found for roster action');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
-      const [updated] = await app.db
-        .update(schema.rosterProfiles)
-        .set({
-          status: 'roster',
-          benchReason: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.rosterProfiles.id, id))
-        .returning();
+      try {
+        const [updated] = await app.db
+          .update(schema.rosterProfiles)
+          .set({
+            status: 'roster',
+            benchReason: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.rosterProfiles.id, id))
+          .returning();
 
-      return updated;
+        app.logger.info({ userId: session.user.id, profileId: id }, 'Profile moved to roster successfully');
+        return updated;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileId: id }, 'Failed to move profile to roster');
+        return reply.status(500).send({ error: 'Failed to move profile to roster. Please try again.' });
+      }
     }
   );
 
@@ -367,6 +418,8 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const { flagText, type } = request.body as { flagText: string; type: 'red' | 'green' };
 
+      app.logger.info({ userId: session.user.id, profileId: id, flagType: type }, 'Adding flag to profile');
+
       // Verify ownership
       const profile = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -376,21 +429,29 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!profile) {
+        app.logger.warn({ userId: session.user.id, profileId: id }, 'Profile not found for flag');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
-      if (type === 'red') {
-        const [flag] = await app.db
-          .insert(schema.redFlags)
-          .values({ profileId: id, flagText })
-          .returning();
-        return flag;
-      } else {
-        const [flag] = await app.db
-          .insert(schema.greenFlags)
-          .values({ profileId: id, flagText })
-          .returning();
-        return flag;
+      try {
+        if (type === 'red') {
+          const [flag] = await app.db
+            .insert(schema.redFlags)
+            .values({ profileId: id, flagText })
+            .returning();
+          app.logger.info({ userId: session.user.id, profileId: id, flagId: flag.id }, 'Red flag added successfully');
+          return flag;
+        } else {
+          const [flag] = await app.db
+            .insert(schema.greenFlags)
+            .values({ profileId: id, flagText })
+            .returning();
+          app.logger.info({ userId: session.user.id, profileId: id, flagId: flag.id }, 'Green flag added successfully');
+          return flag;
+        }
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileId: id }, 'Failed to add flag');
+        return reply.status(500).send({ error: 'Failed to add flag. Please try again.' });
       }
     }
   );
@@ -430,27 +491,35 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       const body = request.body as { profiles: Array<{ id: string; displayOrder: number }> };
 
+      app.logger.info({ userId: session.user.id, count: body.profiles.length }, 'Reordering profiles');
+
       let updated = 0;
 
-      // Update each profile's display order
-      for (const item of body.profiles) {
-        const existing = await app.db.query.rosterProfiles.findFirst({
-          where: and(
-            eq(schema.rosterProfiles.id, item.id),
-            eq(schema.rosterProfiles.userId, session.user.id)
-          ),
-        });
+      try {
+        // Update each profile's display order
+        for (const item of body.profiles) {
+          const existing = await app.db.query.rosterProfiles.findFirst({
+            where: and(
+              eq(schema.rosterProfiles.id, item.id),
+              eq(schema.rosterProfiles.userId, session.user.id)
+            ),
+          });
 
-        if (existing) {
-          await app.db
-            .update(schema.rosterProfiles)
-            .set({ displayOrder: item.displayOrder, updatedAt: new Date() })
-            .where(eq(schema.rosterProfiles.id, item.id));
-          updated++;
+          if (existing) {
+            await app.db
+              .update(schema.rosterProfiles)
+              .set({ displayOrder: item.displayOrder, updatedAt: new Date() })
+              .where(eq(schema.rosterProfiles.id, item.id));
+            updated++;
+          }
         }
-      }
 
-      return { updated };
+        app.logger.info({ userId: session.user.id, updated }, 'Profiles reordered successfully');
+        return { updated };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, count: body.profiles.length }, 'Failed to reorder profiles');
+        return reply.status(500).send({ error: 'Failed to reorder profiles. Please try again.' });
+      }
     }
   );
 }

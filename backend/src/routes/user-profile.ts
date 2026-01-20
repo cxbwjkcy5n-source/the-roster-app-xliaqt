@@ -36,28 +36,43 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id }, 'Fetching user profile');
 
-      let userProfile = await app.db.query.user.findFirst({
-        where: eq(authSchema.user.id, session.user.id),
-      });
+      try {
+        let userProfile = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, session.user.id),
+        });
 
-      // If user doesn't exist in database, create a record from the authenticated session
-      if (!userProfile) {
-        app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
-        try {
-          await app.db.insert(authSchema.user).values({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name || session.user.email.split('@')[0],
-            emailVerified: true,
-          });
+        // If user doesn't exist in database, create a record from the authenticated session
+        if (!userProfile) {
+          app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
+          try {
+            await app.db.insert(authSchema.user).values({
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.name || session.user.email.split('@')[0],
+              emailVerified: true,
+            });
 
-          // Fetch the newly created user
-          userProfile = await app.db.query.user.findFirst({
-            where: eq(authSchema.user.id, session.user.id),
-          });
-        } catch (error) {
-          app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile');
-          // Return a minimal profile with profileCompleted: false
+            // Fetch the newly created user
+            userProfile = await app.db.query.user.findFirst({
+              where: eq(authSchema.user.id, session.user.id),
+            });
+          } catch (error) {
+            app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile');
+            // Return a minimal profile with profileCompleted: false
+            return {
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.name || session.user.email.split('@')[0],
+              image: undefined,
+              profileCompleted: false,
+              emailVerified: true,
+              createdAt: new Date(),
+            };
+          }
+        }
+
+        if (!userProfile) {
+          app.logger.error({ userId: session.user.id }, 'User profile still not found after creation attempt');
           return {
             id: session.user.id,
             email: session.user.email,
@@ -68,32 +83,22 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
             createdAt: new Date(),
           };
         }
-      }
 
-      if (!userProfile) {
-        app.logger.error({ userId: session.user.id }, 'User profile still not found after creation attempt');
+        app.logger.info({ userId: session.user.id }, 'User profile fetched successfully');
+
         return {
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.name || session.user.email.split('@')[0],
-          image: undefined,
-          profileCompleted: false,
-          emailVerified: true,
-          createdAt: new Date(),
+          id: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.name,
+          image: userProfile.image,
+          profileCompleted: userProfile.profileCompleted || false,
+          emailVerified: userProfile.emailVerified,
+          createdAt: userProfile.createdAt,
         };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch user profile');
+        return reply.status(500).send({ error: 'Failed to fetch user profile. Please try again.' });
       }
-
-      app.logger.info({ userId: session.user.id }, 'User profile fetched successfully');
-
-      return {
-        id: userProfile.id,
-        email: userProfile.email,
-        name: userProfile.name,
-        image: userProfile.image,
-        profileCompleted: userProfile.profileCompleted || false,
-        emailVerified: userProfile.emailVerified,
-        createdAt: userProfile.createdAt,
-      };
     }
   );
 
@@ -121,43 +126,48 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id }, 'Fetching profile completion status');
 
-      let userProfile = await app.db.query.user.findFirst({
-        where: eq(authSchema.user.id, session.user.id),
-      });
+      try {
+        let userProfile = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, session.user.id),
+        });
 
-      // If user doesn't exist, create it first
-      if (!userProfile) {
-        app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
-        try {
-          await app.db.insert(authSchema.user).values({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name || session.user.email.split('@')[0],
-            emailVerified: true,
-            profileCompleted: false,
-          });
+        // If user doesn't exist, create it first
+        if (!userProfile) {
+          app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
+          try {
+            await app.db.insert(authSchema.user).values({
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.name || session.user.email.split('@')[0],
+              emailVerified: true,
+              profileCompleted: false,
+            });
 
-          // Fetch the newly created user
-          userProfile = await app.db.query.user.findFirst({
-            where: eq(authSchema.user.id, session.user.id),
-          });
-        } catch (error) {
-          app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile, returning default status');
-          // Return default status for new user
-          return {
-            profileCompleted: false,
-            requiresCompletion: true,
-          };
+            // Fetch the newly created user
+            userProfile = await app.db.query.user.findFirst({
+              where: eq(authSchema.user.id, session.user.id),
+            });
+          } catch (error) {
+            app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile, returning default status');
+            // Return default status for new user
+            return {
+              profileCompleted: false,
+              requiresCompletion: true,
+            };
+          }
         }
+
+        const profileCompleted = userProfile?.profileCompleted || false;
+        app.logger.info({ userId: session.user.id, profileCompleted }, 'Profile completion status retrieved');
+
+        return {
+          profileCompleted,
+          requiresCompletion: !profileCompleted,
+        };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch profile completion status');
+        return reply.status(500).send({ error: 'Failed to fetch profile completion status. Please try again.' });
       }
-
-      const profileCompleted = userProfile?.profileCompleted || false;
-      app.logger.info({ userId: session.user.id, profileCompleted }, 'Profile completion status retrieved');
-
-      return {
-        profileCompleted,
-        requiresCompletion: !profileCompleted,
-      };
     }
   );
 
@@ -224,88 +234,94 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id }, 'Updating user profile (upsert)');
 
-      // Check if user exists
-      const existingUser = await app.db.query.user.findFirst({
-        where: eq(authSchema.user.id, session.user.id),
-      });
+      try {
+        // Check if user exists
+        const existingUser = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, session.user.id),
+        });
 
-      // Validate name if provided
-      if (body.name !== undefined && body.name.trim().length === 0) {
-        return reply.status(400).send({ error: 'Name cannot be empty' });
-      }
+        // Validate name if provided
+        if (body.name !== undefined && body.name.trim().length === 0) {
+          app.logger.warn({ userId: session.user.id }, 'Update attempted with empty name');
+          return reply.status(400).send({ error: 'Name cannot be empty' });
+        }
 
-      // If user doesn't exist, create it
-      if (!existingUser) {
-        app.logger.info({ userId: session.user.id }, 'User profile does not exist, creating new profile');
+        // If user doesn't exist, create it
+        if (!existingUser) {
+          app.logger.info({ userId: session.user.id }, 'User profile does not exist, creating new profile');
 
-        const createData = {
-          id: session.user.id,
-          email: session.user.email,
-          name: body.name || session.user.name || 'User',
-          image: body.image,
-          imageKey: body.imageKey,
-          profileCompleted: body.profileCompleted ?? false,
-          emailVerified: true,
+          const createData = {
+            id: session.user.id,
+            email: session.user.email,
+            name: body.name || session.user.name || 'User',
+            image: body.image,
+            imageKey: body.imageKey,
+            profileCompleted: body.profileCompleted ?? false,
+            emailVerified: true,
+          };
+
+          const [createdUser] = await app.db
+            .insert(authSchema.user)
+            .values(createData)
+            .returning();
+
+          app.logger.info({ userId: session.user.id }, 'User profile created successfully');
+
+          return {
+            id: createdUser.id,
+            email: createdUser.email,
+            name: createdUser.name,
+            image: createdUser.image,
+            profileCompleted: createdUser.profileCompleted,
+            emailVerified: createdUser.emailVerified,
+            createdAt: createdUser.createdAt,
+            updatedAt: createdUser.updatedAt,
+          };
+        }
+
+        // Update existing user
+        const updateData: Record<string, any> = {
+          updatedAt: new Date(),
         };
 
-        const [createdUser] = await app.db
-          .insert(authSchema.user)
-          .values(createData)
+        if (body.name !== undefined) {
+          updateData.name = body.name;
+        }
+
+        if (body.image !== undefined) {
+          updateData.image = body.image;
+        }
+
+        if (body.imageKey !== undefined) {
+          updateData.imageKey = body.imageKey;
+        }
+
+        if (body.profileCompleted !== undefined) {
+          updateData.profileCompleted = body.profileCompleted;
+        }
+
+        const [updatedUser] = await app.db
+          .update(authSchema.user)
+          .set(updateData)
+          .where(eq(authSchema.user.id, session.user.id))
           .returning();
 
-        app.logger.info({ userId: session.user.id }, 'User profile created successfully');
+        app.logger.info({ userId: session.user.id }, 'User profile updated successfully');
 
         return {
-          id: createdUser.id,
-          email: createdUser.email,
-          name: createdUser.name,
-          image: createdUser.image,
-          profileCompleted: createdUser.profileCompleted,
-          emailVerified: createdUser.emailVerified,
-          createdAt: createdUser.createdAt,
-          updatedAt: createdUser.updatedAt,
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          image: updatedUser.image,
+          profileCompleted: updatedUser.profileCompleted,
+          emailVerified: updatedUser.emailVerified,
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt,
         };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to update user profile');
+        return reply.status(500).send({ error: 'Failed to update user profile. Please try again.' });
       }
-
-      // Update existing user
-      const updateData: Record<string, any> = {
-        updatedAt: new Date(),
-      };
-
-      if (body.name !== undefined) {
-        updateData.name = body.name;
-      }
-
-      if (body.image !== undefined) {
-        updateData.image = body.image;
-      }
-
-      if (body.imageKey !== undefined) {
-        updateData.imageKey = body.imageKey;
-      }
-
-      if (body.profileCompleted !== undefined) {
-        updateData.profileCompleted = body.profileCompleted;
-      }
-
-      const [updatedUser] = await app.db
-        .update(authSchema.user)
-        .set(updateData)
-        .where(eq(authSchema.user.id, session.user.id))
-        .returning();
-
-      app.logger.info({ userId: session.user.id }, 'User profile updated successfully');
-
-      return {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name: updatedUser.name,
-        image: updatedUser.image,
-        profileCompleted: updatedUser.profileCompleted,
-        emailVerified: updatedUser.emailVerified,
-        createdAt: updatedUser.createdAt,
-        updatedAt: updatedUser.updatedAt,
-      };
     }
   );
 
@@ -400,28 +416,38 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      // Verify user exists
-      const existingUser = await app.db.query.user.findFirst({
-        where: eq(authSchema.user.id, session.user.id),
-      });
+      app.logger.info({ userId: session.user.id }, 'Marking profile as completed');
 
-      if (!existingUser) {
-        return reply.status(404).send({ error: 'User not found' });
+      try {
+        // Verify user exists
+        const existingUser = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, session.user.id),
+        });
+
+        if (!existingUser) {
+          app.logger.warn({ userId: session.user.id }, 'User not found for profile completion');
+          return reply.status(404).send({ error: 'User not found' });
+        }
+
+        const [updatedUser] = await app.db
+          .update(authSchema.user)
+          .set({
+            profileCompleted: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(authSchema.user.id, session.user.id))
+          .returning();
+
+        app.logger.info({ userId: session.user.id }, 'Profile marked as completed successfully');
+
+        return {
+          profileCompleted: updatedUser.profileCompleted,
+          message: 'Profile setup completed successfully',
+        };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to mark profile as completed');
+        return reply.status(500).send({ error: 'Failed to mark profile as completed. Please try again.' });
       }
-
-      const [updatedUser] = await app.db
-        .update(authSchema.user)
-        .set({
-          profileCompleted: true,
-          updatedAt: new Date(),
-        })
-        .where(eq(authSchema.user.id, session.user.id))
-        .returning();
-
-      return {
-        profileCompleted: updatedUser.profileCompleted,
-        message: 'Profile setup completed successfully',
-      };
     }
   );
 }
