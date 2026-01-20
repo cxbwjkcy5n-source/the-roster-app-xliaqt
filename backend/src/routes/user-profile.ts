@@ -91,19 +91,27 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
-  // Update user profile (name and basic info)
+  // Update user profile (name and basic info) - creates profile if it doesn't exist
   fastify.put<{
     Body: {
       name?: string;
       image?: string;
       imageKey?: string;
       profileCompleted?: boolean;
+      phoneNumber?: string;
+      favoriteColor?: string;
+      favoriteFood?: string;
+      instagram?: string;
+      twitter?: string;
+      facebook?: string;
+      snapchat?: string;
+      notes?: string;
     };
   }>(
     '/api/user/profile',
     {
       schema: {
-        description: 'Update user profile information',
+        description: 'Update user profile information (creates if not exists)',
         tags: ['user-profile'],
         body: {
           type: 'object',
@@ -112,6 +120,14 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
             image: { type: 'string' },
             imageKey: { type: 'string' },
             profileCompleted: { type: 'boolean' },
+            phoneNumber: { type: 'string' },
+            favoriteColor: { type: 'string' },
+            favoriteFood: { type: 'string' },
+            instagram: { type: 'string' },
+            twitter: { type: 'string' },
+            facebook: { type: 'string' },
+            snapchat: { type: 'string' },
+            notes: { type: 'string' },
           },
         },
         response: { 200: { type: 'object' } },
@@ -126,22 +142,62 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
         image?: string;
         imageKey?: string;
         profileCompleted?: boolean;
+        phoneNumber?: string;
+        favoriteColor?: string;
+        favoriteFood?: string;
+        instagram?: string;
+        twitter?: string;
+        facebook?: string;
+        snapchat?: string;
+        notes?: string;
       };
 
-      // Verify user exists
+      app.logger.info({ userId: session.user.id }, 'Updating user profile (upsert)');
+
+      // Check if user exists
       const existingUser = await app.db.query.user.findFirst({
         where: eq(authSchema.user.id, session.user.id),
       });
-
-      if (!existingUser) {
-        return reply.status(404).send({ error: 'User not found' });
-      }
 
       // Validate name if provided
       if (body.name !== undefined && body.name.trim().length === 0) {
         return reply.status(400).send({ error: 'Name cannot be empty' });
       }
 
+      // If user doesn't exist, create it
+      if (!existingUser) {
+        app.logger.info({ userId: session.user.id }, 'User profile does not exist, creating new profile');
+
+        const createData = {
+          id: session.user.id,
+          email: session.user.email,
+          name: body.name || session.user.name || 'User',
+          image: body.image,
+          imageKey: body.imageKey,
+          profileCompleted: body.profileCompleted ?? false,
+          emailVerified: true,
+        };
+
+        const [createdUser] = await app.db
+          .insert(authSchema.user)
+          .values(createData)
+          .returning();
+
+        app.logger.info({ userId: session.user.id }, 'User profile created successfully');
+
+        return {
+          id: createdUser.id,
+          email: createdUser.email,
+          name: createdUser.name,
+          image: createdUser.image,
+          profileCompleted: createdUser.profileCompleted,
+          emailVerified: createdUser.emailVerified,
+          createdAt: createdUser.createdAt,
+          updatedAt: createdUser.updatedAt,
+        };
+      }
+
+      // Update existing user
       const updateData: Record<string, any> = {
         updatedAt: new Date(),
       };
@@ -167,6 +223,8 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
         .set(updateData)
         .where(eq(authSchema.user.id, session.user.id))
         .returning();
+
+      app.logger.info({ userId: session.user.id }, 'User profile updated successfully');
 
       return {
         id: updatedUser.id,
