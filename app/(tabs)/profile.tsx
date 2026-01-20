@@ -119,7 +119,6 @@ export default function ProfileScreen() {
           type,
         } as any);
 
-        // FIX: Get auth headers properly using supabase
         const { supabase } = await import('@/lib/supabase');
         const { BACKEND_URL } = await import('@/utils/api');
         const { data: { session } } = await supabase.auth.getSession();
@@ -152,6 +151,32 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
+    console.log('[Profile] User tapped Save button');
+    
+    // Validation for first login: name, location, and photo are required
+    if (isFirstLogin) {
+      const missingFields: string[] = [];
+      
+      if (!name.trim()) {
+        missingFields.push('Name');
+      }
+      if (!location.trim()) {
+        missingFields.push('Location');
+      }
+      if (!profileImage) {
+        missingFields.push('Photo');
+      }
+      
+      if (missingFields.length > 0) {
+        Alert.alert(
+          'Required Fields Missing',
+          `Please complete the following required fields:\n- ${missingFields.join('\n- ')}`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+    
     try {
       setLoading(true);
       console.log('[Profile] Saving profile data...');
@@ -259,7 +284,7 @@ export default function ProfileScreen() {
           </Text>
           {isFirstLogin && (
             <Text style={styles.headerSubtitle}>
-              Let&apos;s set up your profile to get started
+              Name, Location, and Photo are required
             </Text>
           )}
         </View>
@@ -289,7 +314,7 @@ export default function ProfileScreen() {
               Welcome to THE ROSTER!
             </Text>
             <Text style={styles.welcomeText}>
-              Complete your profile to personalize your experience. You can always update this later.
+              Complete your profile to get started. Name, Location, and Photo are required.
             </Text>
           </View>
         )}
@@ -312,6 +337,9 @@ export default function ProfileScreen() {
                 size={100}
                 color={colors.primary}
               />
+              {isFirstLogin && (
+                <Text style={styles.requiredBadge}>REQUIRED</Text>
+              )}
             </View>
           )}
           {isEditing && (
@@ -322,14 +350,20 @@ export default function ProfileScreen() {
                 size={32}
                 color="#fff"
               />
-              <Text style={styles.imageOverlayText}>Tap to change</Text>
+              <Text style={styles.imageOverlayText}>
+                {isFirstLogin ? 'Tap to add photo (Required)' : 'Tap to change'}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
 
         <View style={styles.fieldsContainer}>
+          {/* Name - Required for first login */}
           <View style={styles.section}>
-            <Text style={styles.label}>Name</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Name</Text>
+              {isFirstLogin && <Text style={styles.requiredText}>*Required</Text>}
+            </View>
             {isEditing ? (
               <TextInput
                 style={styles.input}
@@ -344,39 +378,46 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Age</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={age}
-                onChangeText={setAge}
-                editable={isEditing}
-                placeholder="Your age"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="number-pad"
-              />
-            ) : (
-              <Text style={styles.valueText}>{age || 'Not set'}</Text>
-            )}
+          {/* Age and Location on same row */}
+          <View style={styles.rowContainer}>
+            <View style={[styles.section, styles.halfWidth]}>
+              <Text style={styles.label}>Age</Text>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={age}
+                  onChangeText={setAge}
+                  editable={isEditing}
+                  placeholder="Age"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="number-pad"
+                />
+              ) : (
+                <Text style={styles.valueText}>{age || 'Not set'}</Text>
+              )}
+            </View>
+
+            <View style={[styles.section, styles.halfWidth]}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Location</Text>
+                {isFirstLogin && <Text style={styles.requiredText}>*Required</Text>}
+              </View>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={location}
+                  onChangeText={setLocation}
+                  editable={isEditing}
+                  placeholder="City, State"
+                  placeholderTextColor={colors.textSecondary}
+                />
+              ) : (
+                <Text style={styles.valueText}>{location || 'Not set'}</Text>
+              )}
+            </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Location</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={location}
-                onChangeText={setLocation}
-                editable={isEditing}
-                placeholder="City, State"
-                placeholderTextColor={colors.textSecondary}
-              />
-            ) : (
-              <Text style={styles.valueText}>{location || 'Not set'}</Text>
-            )}
-          </View>
-
+          {/* Phone Number */}
           <View style={styles.section}>
             <Text style={styles.label}>Phone Number</Text>
             {isEditing ? (
@@ -394,14 +435,39 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Favorite Color</Text>
-            {isEditing ? (
-              <TouchableOpacity
-                style={[styles.input, styles.pickerButton]}
-                onPress={() => isEditing && setShowColorPicker(true)}
-                disabled={!isEditing}
-              >
+          {/* Favorite Color and Food Type on same row */}
+          <View style={styles.rowContainer}>
+            <View style={[styles.section, styles.halfWidth]}>
+              <Text style={styles.label}>Favorite Color</Text>
+              {isEditing ? (
+                <TouchableOpacity
+                  style={[styles.input, styles.pickerButton]}
+                  onPress={() => isEditing && setShowColorPicker(true)}
+                  disabled={!isEditing}
+                >
+                  <View style={styles.colorDisplay}>
+                    {favoriteColor && (
+                      <View
+                        style={[
+                          styles.colorCircle,
+                          { backgroundColor: getColorDisplay(favoriteColor) }
+                        ]}
+                      />
+                    )}
+                    <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]} numberOfLines={1}>
+                      {favoriteColor || 'Color'}
+                    </Text>
+                  </View>
+                  {isEditing && (
+                    <IconSymbol
+                      ios_icon_name="chevron.down"
+                      android_material_icon_name="arrow-drop-down"
+                      size={20}
+                      color={colors.textSecondary}
+                    />
+                  )}
+                </TouchableOpacity>
+              ) : (
                 <View style={styles.colorDisplay}>
                   {favoriteColor && (
                     <View
@@ -411,93 +477,75 @@ export default function ProfileScreen() {
                       ]}
                     />
                   )}
-                  <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]}>
-                    {favoriteColor || 'Select color'}
-                  </Text>
+                  <Text style={styles.valueText}>{favoriteColor || 'Not set'}</Text>
                 </View>
-                {isEditing && (
-                  <IconSymbol
-                    ios_icon_name="chevron.down"
-                    android_material_icon_name="arrow-drop-down"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                )}
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.colorDisplay}>
-                {favoriteColor && (
-                  <View
-                    style={[
-                      styles.colorCircle,
-                      { backgroundColor: getColorDisplay(favoriteColor) }
-                    ]}
-                  />
-                )}
-                <Text style={styles.valueText}>{favoriteColor || 'Not set'}</Text>
-              </View>
-            )}
+              )}
+            </View>
+
+            <View style={[styles.section, styles.halfWidth]}>
+              <Text style={styles.label}>Favorite Food</Text>
+              {isEditing ? (
+                <TouchableOpacity
+                  style={[styles.input, styles.pickerButton]}
+                  onPress={() => isEditing && setShowFoodPicker(true)}
+                  disabled={!isEditing}
+                >
+                  <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]} numberOfLines={1}>
+                    {favoriteFoodType || 'Food'}
+                  </Text>
+                  {isEditing && (
+                    <IconSymbol
+                      ios_icon_name="chevron.down"
+                      android_material_icon_name="arrow-drop-down"
+                      size={20}
+                      color={colors.textSecondary}
+                    />
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.valueText}>{favoriteFoodType || 'Not set'}</Text>
+              )}
+            </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Favorite Food Type</Text>
-            {isEditing ? (
-              <TouchableOpacity
-                style={[styles.input, styles.pickerButton]}
-                onPress={() => isEditing && setShowFoodPicker(true)}
-                disabled={!isEditing}
-              >
-                <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]}>
-                  {favoriteFoodType || 'Select food type'}
-                </Text>
-                {isEditing && (
-                  <IconSymbol
-                    ios_icon_name="chevron.down"
-                    android_material_icon_name="arrow-drop-down"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                )}
-              </TouchableOpacity>
-            ) : (
-              <Text style={styles.valueText}>{favoriteFoodType || 'Not set'}</Text>
-            )}
+          {/* Instagram and Twitter on same row */}
+          <View style={styles.rowContainer}>
+            <View style={[styles.section, styles.halfWidth]}>
+              <Text style={styles.label}>Instagram</Text>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={instagram}
+                  onChangeText={setInstagram}
+                  editable={isEditing}
+                  placeholder="@username"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="none"
+                />
+              ) : (
+                <Text style={styles.valueText}>{instagram || 'Not set'}</Text>
+              )}
+            </View>
+
+            <View style={[styles.section, styles.halfWidth]}>
+              <Text style={styles.label}>Twitter/X</Text>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={twitter}
+                  onChangeText={setTwitter}
+                  editable={isEditing}
+                  placeholder="@username"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="none"
+                />
+              ) : (
+                <Text style={styles.valueText}>{twitter || 'Not set'}</Text>
+              )}
+            </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Instagram</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={instagram}
-                onChangeText={setInstagram}
-                editable={isEditing}
-                placeholder="@username"
-                placeholderTextColor={colors.textSecondary}
-                autoCapitalize="none"
-              />
-            ) : (
-              <Text style={styles.valueText}>{instagram || 'Not set'}</Text>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.label}>Twitter/X</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={twitter}
-                onChangeText={setTwitter}
-                editable={isEditing}
-                placeholder="@username"
-                placeholderTextColor={colors.textSecondary}
-                autoCapitalize="none"
-              />
-            ) : (
-              <Text style={styles.valueText}>{twitter || 'Not set'}</Text>
-            )}
-          </View>
-
+          {/* Notes */}
           <View style={styles.section}>
             <Text style={styles.label}>Notes</Text>
             {isEditing ? (
@@ -701,7 +749,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingBottom: 120, // FIX: Add extra padding for FloatingTabBar
+    paddingBottom: 120,
   },
   welcomeCard: {
     backgroundColor: colors.card,
@@ -742,6 +790,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  requiredBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: '#dc3545',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
   imageOverlay: {
     position: 'absolute',
     top: 0,
@@ -757,6 +817,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   fieldsContainer: {
     paddingHorizontal: 20,
@@ -764,11 +826,29 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 16,
   },
+  rowContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 0,
+  },
+  halfWidth: {
+    flex: 1,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
     color: colors.text,
+  },
+  requiredText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#dc3545',
   },
   input: {
     borderRadius: 8,
@@ -795,11 +875,13 @@ const styles = StyleSheet.create({
   },
   pickerText: {
     fontSize: 16,
+    flex: 1,
   },
   colorDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   colorCircle: {
     width: 24,
