@@ -83,7 +83,7 @@ export default function AddPersonScreen() {
   const [favoriteFoodType, setFavoriteFoodType] = useState('');
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('dating');
   const [customRelationshipType, setCustomRelationshipType] = useState('');
-  const [howMet, setHowMet] = useState(''); // NEW: How you met field
+  const [howMet, setHowMet] = useState('');
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -126,7 +126,7 @@ export default function AddPersonScreen() {
         setFavoriteFoodType(existingPerson.favoriteFoodType);
         setRelationshipType(existingPerson.relationshipType);
         setCustomRelationshipType(existingPerson.customRelationshipType || '');
-        setHowMet(existingPerson.howMet || ''); // Load how met field
+        setHowMet(existingPerson.howMet || '');
         setLocation(existingPerson.location);
         setPhoneNumber(existingPerson.phoneNumber);
         setInstagram(existingPerson.instagram || '');
@@ -286,7 +286,7 @@ export default function AddPersonScreen() {
         favoriteFoodType: favoriteFoodType.trim(),
         relationshipType,
         customRelationshipType: relationshipType === 'other' ? customRelationshipType.trim() : undefined,
-        howMet: howMet.trim() || undefined, // Include how met field
+        howMet: howMet.trim() || undefined,
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
         instagram: instagram.trim() || undefined,
@@ -505,6 +505,7 @@ export default function AddPersonScreen() {
             </View>
           </View>
 
+          {/* UPDATED: Name field */}
           <View style={styles.section}>
             <Text style={styles.label}>Name *</Text>
             <TextInput
@@ -516,31 +517,40 @@ export default function AddPersonScreen() {
             />
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.section, { flex: 1 }]}>
-              <Text style={styles.label}>Age *</Text>
-              <TextInput
-                style={styles.input}
-                value={age}
-                onChangeText={setAge}
-                placeholder="Age"
-                placeholderTextColor={colors.grey}
-                keyboardType="number-pad"
-              />
-            </View>
+          {/* UPDATED: Location moved under name */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Location *</Text>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="Enter location"
+              placeholderTextColor={colors.grey}
+            />
           </View>
 
+          {/* UPDATED: Age and Birthday on the same line */}
           <View style={styles.section}>
-            <Text style={styles.label}>Birthday</Text>
-            <View style={styles.birthdayContainer}>
+            <Text style={styles.label}>Age & Birthday *</Text>
+            <View style={styles.row}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <TextInput
+                  style={styles.input}
+                  value={age}
+                  onChangeText={setAge}
+                  placeholder="Age"
+                  placeholderTextColor={colors.grey}
+                  keyboardType="number-pad"
+                />
+              </View>
               <TouchableOpacity 
-                style={[styles.input, { flex: 2 }]} 
+                style={[styles.input, { flex: 1.5, marginRight: 8 }]} 
                 onPress={() => setShowMonthPicker(true)}
               >
                 <Text style={styles.inputText}>{months[birthMonth - 1]}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.input, { flex: 1, marginLeft: 8 }]} 
+                style={[styles.input, { flex: 0.8 }]} 
                 onPress={() => setShowDayPicker(true)}
               >
                 <Text style={styles.inputText}>{birthDay}</Text>
@@ -548,29 +558,31 @@ export default function AddPersonScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Zodiac Sign</Text>
-            <View style={styles.zodiacContainer}>
-              <Text style={styles.zodiacEmoji}>{zodiacEmoji}</Text>
-              <Text style={styles.zodiacText}>{zodiacSign}</Text>
+          {/* UPDATED: Zodiac and Favorite Color on same row */}
+          <View style={styles.row}>
+            <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.label}>Zodiac</Text>
+              <View style={styles.zodiacContainer}>
+                <Text style={styles.zodiacEmoji}>{zodiacEmoji}</Text>
+                <Text style={styles.zodiacText}>{zodiacSign}</Text>
+              </View>
             </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.label}>Favorite Color</Text>
-            <TouchableOpacity 
-              style={[styles.input, styles.colorInput]} 
-              onPress={() => setShowColorPicker(true)}
-            >
-              {favoriteColor ? (
-                <View style={styles.colorPreview}>
-                  <View style={[styles.colorSwatch, { backgroundColor: favoriteColorHex }]} />
-                  <Text style={styles.inputText}>{favoriteColor}</Text>
-                </View>
-              ) : (
-                <Text style={styles.placeholderText}>Select favorite color</Text>
-              )}
-            </TouchableOpacity>
+            <View style={[styles.section, { flex: 1 }]}>
+              <Text style={styles.label}>Fav Color</Text>
+              <TouchableOpacity 
+                style={[styles.input, styles.colorInput]} 
+                onPress={() => setShowColorPicker(true)}
+              >
+                {favoriteColor ? (
+                  <View style={styles.colorPreview}>
+                    <View style={[styles.colorSwatch, { backgroundColor: favoriteColorHex }]} />
+                    <Text style={styles.inputText} numberOfLines={1}>{favoriteColor}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.placeholderText}>Select</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -585,7 +597,7 @@ export default function AddPersonScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* UPDATED: Relationship Type Carousel */}
+          {/* Relationship Type Carousel */}
           <View style={styles.section}>
             <Text style={styles.label}>Relationship Type</Text>
             <FlatList
@@ -615,7 +627,7 @@ export default function AddPersonScreen() {
             )}
           </View>
 
-          {/* NEW: How You Met Field */}
+          {/* How You Met Field */}
           <View style={styles.section}>
             <Text style={styles.label}>How You Met</Text>
             <TextInput
@@ -623,17 +635,6 @@ export default function AddPersonScreen() {
               value={howMet}
               onChangeText={setHowMet}
               placeholder="e.g., Coffee shop, Tinder, Through friends..."
-              placeholderTextColor={colors.grey}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.label}>Location *</Text>
-            <TextInput
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Enter location"
               placeholderTextColor={colors.grey}
             />
           </View>
@@ -1001,7 +1002,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1054,9 +1055,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
   },
-  birthdayContainer: {
-    flexDirection: 'row',
-  },
   zodiacContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1096,7 +1094,6 @@ const styles = StyleSheet.create({
   interestButtonTextActive: {
     color: '#fff',
   },
-  // NEW: Carousel styles
   carouselContainer: {
     paddingVertical: 8,
     gap: 8,
