@@ -2,9 +2,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Create new roster profile
   fastify.post<{ Body: { name: string; [key: string]: any } }>(
@@ -42,7 +42,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const body = request.body as { name: string; [key: string]: any };
@@ -90,7 +90,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const profiles = await app.db.query.rosterProfiles.findMany({
@@ -118,7 +118,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -156,7 +156,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -198,7 +198,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -247,7 +247,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };

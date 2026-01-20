@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Get dating coach suggestions and tips
   fastify.get(
@@ -15,7 +15,7 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       app.logger.info({ userId: session.user.id }, 'Fetching dating coach suggestions');
@@ -109,7 +109,7 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       app.logger.info({ userId: session.user.id }, 'Fetching personalized coaching recommendations');

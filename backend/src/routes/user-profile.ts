@@ -3,9 +3,9 @@ import { eq } from 'drizzle-orm';
 import * as appSchema from '../db/schema.js';
 import * as authSchema from '../db/auth-schema.js';
 import type { App } from '../index.js';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Get current user profile info
   fastify.get(
@@ -31,7 +31,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const userProfile = await app.db.query.user.findFirst({
@@ -73,7 +73,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const userProfile = await app.db.query.user.findFirst({
@@ -118,7 +118,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const body = request.body as {
@@ -201,7 +201,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const options = { limits: { fileSize: 5 * 1024 * 1024 } }; // 5MB limit
@@ -269,7 +269,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       // Verify user exists

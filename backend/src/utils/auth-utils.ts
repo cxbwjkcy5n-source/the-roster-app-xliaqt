@@ -4,52 +4,55 @@ import type { App } from '../index.js';
 
 /**
  * Enhanced authentication middleware that supports both Supabase and Better Auth
- * Can be used as a replacement for the native app.requireAuth()
+ * Returns session object compatible with native app.requireAuth()
  */
 export async function requireDualAuth(
   request: FastifyRequest,
   reply: FastifyReply,
   app: App
-): Promise<{ user: { id: string; email?: string }; source: string } | null> {
+): Promise<any | null> {
+  app.logger.info('Authenticating request');
+
   // Try to extract user from Bearer token (Supabase or Better Auth)
   const tokenUser = verifyAndExtractUser(request, app.logger);
 
   if (tokenUser && tokenUser.id) {
-    app.logger.debug(
-      { userId: tokenUser.id, source: tokenUser.source },
-      'Authenticated via dual auth token'
+    app.logger.info(
+      { userId: tokenUser.id, email: tokenUser.email, source: tokenUser.source },
+      'User authenticated via Bearer token'
     );
+
+    // Return session object compatible with requireAuth format
     return {
       user: {
         id: tokenUser.id,
         email: tokenUser.email,
+        name: tokenUser.email?.split('@')[0] || 'User',
+        emailVerified: true,
       },
-      source: tokenUser.source,
+      session: {
+        token: request.headers.authorization?.substring(7),
+      },
     };
   }
 
   // Fall back to native app.requireAuth() for Better Auth sessions
   try {
+    app.logger.debug('Token auth failed, attempting native Better Auth session');
     const session = await app.requireAuth()(request, reply);
     if (session && session.user) {
-      app.logger.debug(
-        { userId: session.user.id },
-        'Authenticated via native Better Auth'
+      app.logger.info(
+        { userId: session.user.id, email: session.user.email },
+        'User authenticated via native Better Auth session'
       );
-      return {
-        user: {
-          id: session.user.id,
-          email: session.user.email,
-        },
-        source: 'better-auth',
-      };
+      return session;
     }
   } catch (error) {
-    app.logger.debug('Native auth check failed, token auth already attempted');
+    app.logger.debug({ err: error }, 'Native auth check failed');
   }
 
   // No valid authentication found
-  app.logger.warn('No valid authentication found');
+  app.logger.warn('Authentication failed - no valid token or session');
   return reply.status(401).send({
     error: { message: 'Unauthorized' },
   });

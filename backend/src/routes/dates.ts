@@ -2,9 +2,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Create new date
   fastify.post<{
@@ -58,7 +58,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const body = request.body as {
@@ -75,6 +75,8 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
         reminderSettings?: { oneHourBefore?: boolean; oneDayBefore?: boolean; oneWeekBefore?: boolean };
       };
 
+      app.logger.info({ userId: session.user.id, profileId: body.profileId }, 'Creating new date record');
+
       // Verify that the profile belongs to the user
       const profile = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -84,6 +86,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!profile) {
+        app.logger.warn({ userId: session.user.id, profileId: body.profileId }, 'Profile not found for date creation');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
@@ -105,6 +108,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
         })
         .returning();
 
+      app.logger.info({ dateId: date.id, userId: session.user.id, profileId: body.profileId }, 'Date record created successfully');
       return date;
     }
   );
@@ -126,10 +130,12 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { status } = request.query as { status?: 'upcoming' | 'completed' };
+
+      app.logger.info({ userId: session.user.id, status }, 'Fetching dates');
 
       // Status filtering
       if (status) {
@@ -142,6 +148,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
               eq(schema.dates.status, status)
             )
           );
+        app.logger.info({ userId: session.user.id, status, count: filteredDates.length }, 'Filtered dates fetched successfully');
         return filteredDates;
       }
 
@@ -153,6 +160,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           },
         });
 
+      app.logger.info({ userId: session.user.id, count: allDates.length }, 'All dates fetched successfully');
       return allDates;
     }
   );
@@ -170,7 +178,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -212,7 +220,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };

@@ -2,9 +2,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Create a new safety date
   fastify.post<{
@@ -65,7 +65,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const body = request.body as {
@@ -159,7 +159,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const activeSafetyDate = await app.db.query.safetyDates.findFirst({
@@ -191,7 +191,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const safetyDates = await app.db.query.safetyDates.findMany({
@@ -218,7 +218,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -253,7 +253,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -296,7 +296,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -349,7 +349,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -410,7 +410,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id, contactId } = request.params as { id: string; contactId: string };
@@ -450,7 +450,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };

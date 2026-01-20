@@ -2,9 +2,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
+import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
-  const requireAuth = app.requireAuth();
 
   // Create new profile
   fastify.post<{ Body: { name: string; [key: string]: any } }>(
@@ -47,10 +47,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const body = request.body as { name: string; [key: string]: any };
+      app.logger.info({ userId: session.user.id, name: body.name }, 'Creating new profile');
+
       const [profile] = await app.db
         .insert(schema.rosterProfiles)
         .values({
@@ -82,6 +84,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         })
         .returning();
 
+      app.logger.info({ profileId: profile.id, userId: session.user.id }, 'Profile created successfully');
       return profile;
     }
   );
@@ -97,8 +100,10 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      app.logger.info({ userId: session.user.id }, 'Fetching all profiles');
 
       const profiles = await app.db.query.rosterProfiles.findMany({
         where: eq(schema.rosterProfiles.userId, session.user.id),
@@ -109,6 +114,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         },
       });
 
+      app.logger.info({ userId: session.user.id, count: profiles.length }, 'Profiles fetched successfully');
       return profiles;
     }
   );
@@ -125,10 +131,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
+
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Fetching profile');
 
       const profile = await app.db.query.rosterProfiles.findFirst({
         where: and(
@@ -143,9 +151,11 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       });
 
       if (!profile) {
+        app.logger.warn({ userId: session.user.id, profileId: id }, 'Profile not found');
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
+      app.logger.info({ userId: session.user.id, profileId: id }, 'Profile fetched successfully');
       return profile;
     }
   );
@@ -163,7 +173,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -205,7 +215,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -249,7 +259,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -293,7 +303,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -347,7 +357,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const { id } = request.params as { id: string };
@@ -411,7 +421,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireAuth(request, reply);
+      const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
       const body = request.body as { profiles: Array<{ id: string; displayOrder: number }> };
