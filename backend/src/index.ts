@@ -1,4 +1,4 @@
-import { createApplication } from "@specific-dev/framework";
+import { createApplication, runMigrations } from "@specific-dev/framework";
 import * as appSchema from './db/schema.js';
 import * as authSchema from './db/auth-schema.js';
 
@@ -25,6 +25,15 @@ export const app = await createApplication(schema);
 
 // Export App type for use in route files
 export type App = typeof app;
+
+// Run database migrations on startup
+app.logger.info('Running database migrations on startup');
+try {
+  await runMigrations({ logger: app.logger });
+  app.logger.info('Database migrations completed successfully');
+} catch (error) {
+  app.logger.warn({ err: error }, 'Migration check during startup');
+}
 
 // Enable authentication with Better Auth configuration
 // Support email/password, Google OAuth, and Apple OAuth through proxy
