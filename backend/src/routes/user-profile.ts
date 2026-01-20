@@ -34,20 +34,63 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      const userProfile = await app.db.query.user.findFirst({
+      app.logger.info({ userId: session.user.id }, 'Fetching user profile');
+
+      let userProfile = await app.db.query.user.findFirst({
         where: eq(authSchema.user.id, session.user.id),
       });
 
+      // If user doesn't exist in database, create a record from the authenticated session
       if (!userProfile) {
-        return reply.status(404).send({ error: 'User not found' });
+        app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
+        try {
+          await app.db.insert(authSchema.user).values({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || session.user.email.split('@')[0],
+            emailVerified: true,
+          });
+
+          // Fetch the newly created user
+          userProfile = await app.db.query.user.findFirst({
+            where: eq(authSchema.user.id, session.user.id),
+          });
+        } catch (error) {
+          app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile');
+          // Return a minimal profile with profileCompleted: false
+          return {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || session.user.email.split('@')[0],
+            image: undefined,
+            profileCompleted: false,
+            emailVerified: true,
+            createdAt: new Date(),
+          };
+        }
       }
+
+      if (!userProfile) {
+        app.logger.error({ userId: session.user.id }, 'User profile still not found after creation attempt');
+        return {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name || session.user.email.split('@')[0],
+          image: undefined,
+          profileCompleted: false,
+          emailVerified: true,
+          createdAt: new Date(),
+        };
+      }
+
+      app.logger.info({ userId: session.user.id }, 'User profile fetched successfully');
 
       return {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
         image: userProfile.image,
-        profileCompleted: userProfile.profileCompleted,
+        profileCompleted: userProfile.profileCompleted || false,
         emailVerified: userProfile.emailVerified,
         createdAt: userProfile.createdAt,
       };
@@ -76,17 +119,44 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      const userProfile = await app.db.query.user.findFirst({
+      app.logger.info({ userId: session.user.id }, 'Fetching profile completion status');
+
+      let userProfile = await app.db.query.user.findFirst({
         where: eq(authSchema.user.id, session.user.id),
       });
 
+      // If user doesn't exist, create it first
       if (!userProfile) {
-        return reply.status(404).send({ error: 'User not found' });
+        app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
+        try {
+          await app.db.insert(authSchema.user).values({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || session.user.email.split('@')[0],
+            emailVerified: true,
+            profileCompleted: false,
+          });
+
+          // Fetch the newly created user
+          userProfile = await app.db.query.user.findFirst({
+            where: eq(authSchema.user.id, session.user.id),
+          });
+        } catch (error) {
+          app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile, returning default status');
+          // Return default status for new user
+          return {
+            profileCompleted: false,
+            requiresCompletion: true,
+          };
+        }
       }
 
+      const profileCompleted = userProfile?.profileCompleted || false;
+      app.logger.info({ userId: session.user.id, profileCompleted }, 'Profile completion status retrieved');
+
       return {
-        profileCompleted: userProfile.profileCompleted,
-        requiresCompletion: !userProfile.profileCompleted,
+        profileCompleted,
+        requiresCompletion: !profileCompleted,
       };
     }
   );

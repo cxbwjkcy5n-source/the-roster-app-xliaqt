@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
+import * as authSchema from '../db/auth-schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
 
@@ -46,36 +47,67 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       if (!session) return;
 
       const body = request.body as { name: string; [key: string]: any };
-      const [profile] = await app.db
-        .insert(schema.rosterProfiles)
-        .values({
-          name: body.name,
-          userId: session.user.id,
-          age: body.age,
-          birthdayMonth: body.birthdayMonth,
-          birthdayDay: body.birthdayDay,
-          birthdayYear: body.birthdayYear,
-          zodiacSign: body.zodiacSign,
-          favoriteColor: body.favoriteColor,
-          favoriteFood: body.favoriteFood,
-          relationshipType: body.relationshipType,
-          location: body.location,
-          phoneNumber: body.phoneNumber,
-          instagram: body.instagram,
-          twitter: body.twitter,
-          facebook: body.facebook,
-          snapchat: body.snapchat,
-          notes: body.notes,
-          interestLevel: body.interestLevel,
-          profileImageUrl: body.profileImageUrl,
-          profileImageKey: body.profileImageKey,
-          status: body.status,
-          benchReason: body.benchReason,
-          displayOrder: body.displayOrder,
-        })
-        .returning();
 
-      return profile;
+      app.logger.info({ userId: session.user.id, profileName: body.name }, 'Creating new roster profile');
+
+      // Ensure user record exists before creating profile (foreign key constraint)
+      try {
+        const existingUser = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, session.user.id),
+        });
+
+        if (!existingUser) {
+          app.logger.info({ userId: session.user.id }, 'User record not found, creating it for roster profile');
+          await app.db.insert(authSchema.user).values({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || session.user.email.split('@')[0],
+            emailVerified: true,
+          });
+        }
+      } catch (userError) {
+        app.logger.warn({ err: userError, userId: session.user.id }, 'Could not ensure user record exists');
+      }
+
+      try {
+        const [profile] = await app.db
+          .insert(schema.rosterProfiles)
+          .values({
+            name: body.name,
+            userId: session.user.id,
+            age: body.age,
+            birthdayMonth: body.birthdayMonth,
+            birthdayDay: body.birthdayDay,
+            birthdayYear: body.birthdayYear,
+            zodiacSign: body.zodiacSign,
+            favoriteColor: body.favoriteColor,
+            favoriteFood: body.favoriteFood,
+            relationshipType: body.relationshipType,
+            location: body.location,
+            phoneNumber: body.phoneNumber,
+            instagram: body.instagram,
+            twitter: body.twitter,
+            facebook: body.facebook,
+            snapchat: body.snapchat,
+            notes: body.notes,
+            hobbies: body.hobbies,
+            interests: body.interests,
+            howYouMet: body.howYouMet,
+            interestLevel: body.interestLevel,
+            profileImageUrl: body.profileImageUrl,
+            profileImageKey: body.profileImageKey,
+            status: body.status,
+            benchReason: body.benchReason,
+            displayOrder: body.displayOrder,
+          })
+          .returning();
+
+        app.logger.info({ profileId: profile.id, userId: session.user.id }, 'Roster profile created successfully');
+        return profile;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileName: body.name }, 'Failed to create roster profile');
+        throw error;
+      }
     }
   );
 
@@ -93,6 +125,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
+      app.logger.info({ userId: session.user.id }, 'Fetching all roster profiles');
+
       const profiles = await app.db.query.rosterProfiles.findMany({
         where: eq(schema.rosterProfiles.userId, session.user.id),
         with: {
@@ -102,6 +136,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
         },
       });
 
+      app.logger.info({ userId: session.user.id, count: profiles.length }, 'Roster profiles fetched successfully');
       return profiles;
     }
   );

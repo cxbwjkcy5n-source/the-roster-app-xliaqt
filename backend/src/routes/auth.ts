@@ -176,6 +176,20 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
+        // Update user record in database if needed
+        try {
+          await app.db
+            .update(authSchema.user)
+            .set({
+              name: data.user.name || existingUser.name,
+              image: data.user.image || existingUser.image,
+              emailVerified: data.user.emailVerified !== undefined ? data.user.emailVerified : existingUser.emailVerified,
+            })
+            .where(eq(authSchema.user.id, data.user.id));
+        } catch (dbError) {
+          app.logger.warn({ err: dbError, userId: data.user.id }, 'Could not update user record on sign-in');
+        }
+
         app.logger.info({ userId: data.user.id, email }, 'Sign-in successful');
 
         return reply.send({
@@ -312,6 +326,27 @@ export function registerAuthRoutes(app: App, fastify: FastifyInstance) {
           return reply.status(500).send({
             error: { message: 'Registration failed. Please try again.' },
           });
+        }
+
+        // Ensure user record exists in our database (Better Auth should have created it)
+        try {
+          const existingUserRecord = await app.db.query.user.findFirst({
+            where: eq(authSchema.user.id, data.user.id),
+          });
+
+          if (!existingUserRecord) {
+            app.logger.info({ userId: data.user.id, email }, 'Creating user record after Better Auth signup');
+            await app.db.insert(authSchema.user).values({
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.name || name,
+              emailVerified: data.user.emailVerified || false,
+              image: data.user.image,
+            });
+          }
+        } catch (dbError) {
+          app.logger.warn({ err: dbError, userId: data.user.id }, 'Could not ensure user record exists');
+          // Don't fail signup if user record creation fails - Better Auth might have already created it
         }
 
         app.logger.info({ userId: data.user.id, email, name }, 'Sign-up successful');
