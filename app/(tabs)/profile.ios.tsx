@@ -119,13 +119,19 @@ export default function ProfileScreen() {
           type,
         } as any);
 
-        const { getBearerToken, BACKEND_URL } = await import('@/utils/api');
-        const token = await getBearerToken();
+        // FIX: Get auth headers properly using supabase
+        const { supabase } = await import('@/lib/supabase');
+        const { BACKEND_URL } = await import('@/utils/api');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error('No access token found');
+        }
         
         const uploadResponse = await fetch(`${BACKEND_URL}/api/user/profile-image`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: formData,
         });
@@ -270,10 +276,7 @@ export default function ProfileScreen() {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          Platform.OS !== 'ios' && styles.contentContainerWithTabBar
-        ]}
+        contentContainerStyle={styles.contentContainer}
       >
         {isFirstLogin && (
           <View style={styles.welcomeCard}>
@@ -700,10 +703,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingBottom: 20,
-  },
-  contentContainerWithTabBar: {
-    paddingBottom: 100,
+    paddingBottom: 120, // FIX: Add extra padding for FloatingTabBar
   },
   welcomeCard: {
     backgroundColor: colors.card,

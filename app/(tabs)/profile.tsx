@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import { colors } from "@/styles/commonStyles";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -18,10 +17,11 @@ import {
   Keyboard,
   Dimensions,
 } from "react-native";
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from "@react-navigation/native";
-import { colors } from "@/styles/commonStyles";
+import * as ImagePicker from 'expo-image-picker';
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -68,7 +68,6 @@ export default function ProfileScreen() {
       
       console.log('[Profile] Profile data loaded:', profileData);
       
-      // Update state with backend data
       if (profileData.name) setName(profileData.name);
       if (profileData.image) setProfileImage(profileData.image);
       if (profileData.age) setAge(profileData.age.toString());
@@ -81,16 +80,13 @@ export default function ProfileScreen() {
       if (profileData.notes) setNotes(profileData.notes);
     } catch (error) {
       console.error('[Profile] Error loading profile data:', error);
-      // Don't show error alert - user might not have profile data yet
     }
   }, [user]);
 
-  // Load user profile data from backend
   useEffect(() => {
     loadProfileData();
   }, [loadProfileData]);
 
-  // Auto-enable editing on first login
   useEffect(() => {
     if (isFirstLogin) {
       setIsEditing(true);
@@ -112,7 +108,6 @@ export default function ProfileScreen() {
       try {
         console.log('[Profile] Uploading profile image...');
         
-        // Create form data for image upload
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'profile-image.jpg';
         const match = /\.(\w+)$/.exec(filename);
@@ -124,14 +119,19 @@ export default function ProfileScreen() {
           type,
         } as any);
 
-        // Upload to backend
-        const { getBearerToken, BACKEND_URL } = await import('@/utils/api');
-        const token = await getBearerToken();
+        // FIX: Get auth headers properly using supabase
+        const { supabase } = await import('@/lib/supabase');
+        const { BACKEND_URL } = await import('@/utils/api');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error('No access token found');
+        }
         
         const uploadResponse = await fetch(`${BACKEND_URL}/api/user/profile-image`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: formData,
         });
@@ -143,7 +143,6 @@ export default function ProfileScreen() {
         const uploadData = await uploadResponse.json();
         console.log('[Profile] Image uploaded successfully:', uploadData.url);
         
-        // Store the image key for saving later
         setProfileImageKey(uploadData.key);
       } catch (error) {
         console.error('[Profile] Image upload failed:', error);
@@ -157,12 +156,10 @@ export default function ProfileScreen() {
       setLoading(true);
       console.log('[Profile] Saving profile data...');
       
-      // Prepare profile data
       const profileData: any = {
         name: name.trim(),
       };
       
-      // Add optional fields if they have values
       if (age) profileData.age = parseInt(age);
       if (location) profileData.location = location.trim();
       if (phoneNumber) profileData.phoneNumber = phoneNumber.trim();
@@ -174,20 +171,16 @@ export default function ProfileScreen() {
       if (profileImage) profileData.image = profileImage;
       if (profileImageKey) profileData.imageKey = profileImageKey;
       
-      // Save profile data to backend
       const { authenticatedPut } = await import('@/utils/api');
       await authenticatedPut('/api/user/profile', profileData);
       console.log('[Profile] Profile data saved successfully');
       
-      // If this is first login, mark it as complete
       if (isFirstLogin) {
         console.log('[Profile] First login - marking as complete');
         
-        // Call the complete-profile endpoint
         const { authenticatedPost } = await import('@/utils/api');
         await authenticatedPost('/api/user/complete-profile', {});
         
-        // Update auth context
         await markFirstLoginComplete();
         
         Alert.alert(
@@ -197,9 +190,7 @@ export default function ProfileScreen() {
             {
               text: 'Get Started',
               onPress: () => {
-                // FIX: Show detailed view after completion, not editable
                 setIsEditing(false);
-                // Navigation will be handled by AuthContext
               }
             }
           ]
@@ -284,10 +275,7 @@ export default function ProfileScreen() {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          Platform.OS !== 'ios' && styles.contentContainerWithTabBar
-        ]}
+        contentContainerStyle={styles.contentContainer}
       >
         {isFirstLogin && (
           <View style={styles.welcomeCard}>
@@ -306,7 +294,6 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* FIX: Profile Image - Full width banner style */}
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={isEditing ? pickImage : undefined}
@@ -340,7 +327,6 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Profile Fields */}
         <View style={styles.fieldsContainer}>
           <View style={styles.section}>
             <Text style={styles.label}>Name</Text>
@@ -530,7 +516,6 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Privacy Policy Button */}
           <TouchableOpacity
             style={styles.privacyButton}
             onPress={() => router.push('/privacy-policy')}
@@ -550,7 +535,6 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
-          {/* EULA Button */}
           <TouchableOpacity
             style={styles.eulaButton}
             onPress={() => router.push('/eula')}
@@ -587,7 +571,6 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* Color Picker Modal */}
       <Modal
         visible={showColorPicker}
         transparent
@@ -633,7 +616,6 @@ export default function ProfileScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Food Type Picker Modal */}
       <Modal
         visible={showFoodPicker}
         transparent
@@ -719,10 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingBottom: 20,
-  },
-  contentContainerWithTabBar: {
-    paddingBottom: 100,
+    paddingBottom: 120, // FIX: Add extra padding for FloatingTabBar
   },
   welcomeCard: {
     backgroundColor: colors.card,
