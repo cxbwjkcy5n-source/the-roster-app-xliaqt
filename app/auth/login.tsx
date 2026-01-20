@@ -6,207 +6,248 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Alert,
+  ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import { LoadingButton } from '@/components/LoadingButton';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, gradients } from '@/styles/commonStyles';
+import { IconSymbol } from '@/components/IconSymbol';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function LoginScreen() {
-  const router = useRouter();
-  const { signInWithEmail, signInWithGoogle, signInWithApple } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { signInWithEmail, signInWithGoogle, signInWithApple } = useAuth();
+  const router = useRouter();
 
   const handleLogin = async () => {
+    console.log('[Login] Login button pressed');
+    
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      Alert.alert(
+        'Configuration Error',
+        'Supabase is not properly configured.\n\n' +
+        'Please follow these steps:\n\n' +
+        '1. Go to https://app.supabase.com/project/bbtvdhdfzkyhrodgclkd/settings/api\n\n' +
+        '2. Copy the "anon" key (NOT the "publishable" key)\n\n' +
+        '3. Update the .env file with:\n' +
+        'EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>\n\n' +
+        '4. Restart the Expo dev server',
+        [{ text: 'OK' }]
+      );
       return;
     }
 
     setLoading(true);
-    console.log('[Login] Starting login process for:', email);
-    
     try {
-      console.log('[Login] Attempting email login...');
+      console.log('[Login] Attempting login with email:', email);
       await signInWithEmail(email, password);
-      console.log('[Login] Login successful - navigation handled by AuthContext');
-      // Navigation is handled in signInWithEmail, so we don't set loading to false
-      // The component will unmount when navigation happens
+      console.log('[Login] Login successful');
     } catch (error: any) {
       console.error('[Login] Login error:', error);
-      setLoading(false); // Only set loading to false on error
       
-      // Provide helpful error messages
-      const errorMessage = error.message || 'Invalid credentials';
+      let errorMessage = 'Failed to sign in. Please check your credentials.';
       
-      if (errorMessage.toLowerCase().includes('invalid') || 
-          errorMessage.toLowerCase().includes('unauthorized') ||
-          errorMessage.toLowerCase().includes('401')) {
-        Alert.alert(
-          'Login Failed', 
-          'Invalid email or password. If you don\'t have an account yet, please sign up first.',
-          [
-            { text: 'Try Again', style: 'cancel' },
-            { text: 'Sign Up', onPress: () => router.push('/auth/signup') }
-          ]
-        );
-      } else {
-        Alert.alert('Login Failed', errorMessage);
+      if (error.message?.includes('Invalid API key')) {
+        errorMessage = 
+          'Invalid Supabase API key.\n\n' +
+          'Please update your .env file with the correct "anon" key from:\n' +
+          'https://app.supabase.com/project/bbtvdhdfzkyhrodgclkd/settings/api\n\n' +
+          'Make sure to use the "anon" key, NOT the "publishable" key.';
+      } else if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please verify your email address before signing in.';
       }
+      
+      Alert.alert('Login Failed', errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    console.log('[Login] Starting Google login...');
+  const handleGoogleSignIn = async () => {
+    console.log('[Login] Google sign in button pressed');
     
+    if (!isSupabaseConfigured()) {
+      Alert.alert(
+        'Configuration Error',
+        'Supabase is not properly configured. Please update your .env file with the correct Supabase credentials.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setLoading(true);
     try {
-      console.log('[Login] Attempting Google login...');
       await signInWithGoogle();
-      console.log('[Login] Google login successful - navigation handled by AuthContext');
-      // Navigation is handled in signInWithGoogle
     } catch (error: any) {
-      console.error('[Login] Google login error:', error);
-      setLoading(false); // Only set loading to false on error
-      Alert.alert('Login Failed', error.message || 'Could not sign in with Google. Please try again.');
+      console.error('[Login] Google sign in error:', error);
+      Alert.alert('Error', error.message || 'Failed to sign in with Google');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAppleLogin = async () => {
-    setLoading(true);
-    console.log('[Login] Starting Apple login...');
+  const handleAppleSignIn = async () => {
+    console.log('[Login] Apple sign in button pressed');
     
+    if (!isSupabaseConfigured()) {
+      Alert.alert(
+        'Configuration Error',
+        'Supabase is not properly configured. Please update your .env file with the correct Supabase credentials.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setLoading(true);
     try {
-      console.log('[Login] Attempting Apple login...');
       await signInWithApple();
-      console.log('[Login] Apple login successful - navigation handled by AuthContext');
-      // Navigation is handled in signInWithApple
     } catch (error: any) {
-      console.error('[Login] Apple login error:', error);
-      setLoading(false); // Only set loading to false on error
-      Alert.alert('Login Failed', error.message || 'Could not sign in with Apple. Please try again.');
+      console.error('[Login] Apple sign in error:', error);
+      Alert.alert('Error', error.message || 'Failed to sign in with Apple');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <LinearGradient
-          colors={[colors.primaryDark, colors.primary, colors.secondary]}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>THE ROSTER</Text>
-          <Text style={styles.subtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
-        </LinearGradient>
-
-        <View style={styles.formContainer}>
-          <Text style={styles.welcomeText}>Welcome Back</Text>
-
-          <View style={styles.inputContainer}>
-            <IconSymbol
-              ios_icon_name="envelope.fill"
-              android_material_icon_name="email"
-              size={20}
-              color={colors.textSecondary}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!loading}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <IconSymbol
-              ios_icon_name="lock.fill"
-              android_material_icon_name="lock"
-              size={20}
-              color={colors.textSecondary}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!loading}
-            />
-          </View>
-
-          <LoadingButton
-            title="Login"
-            onPress={handleLogin}
-            loading={loading}
-            style={styles.loginButton}
-            textStyle={styles.loginButtonText}
-          />
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.socialButton} 
-            onPress={handleGoogleLogin}
-            disabled={loading}
+          <LinearGradient
+            colors={gradients.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.header}
           >
-            <IconSymbol
-              ios_icon_name="g.circle.fill"
-              android_material_icon_name="account-circle"
-              size={24}
-              color={colors.text}
-            />
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
+            <Text style={styles.title}>THE ROSTER</Text>
+            <Text style={styles.subtitle}>Where You&apos;re The Coach and MVP</Text>
+          </LinearGradient>
 
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity 
-              style={styles.socialButton} 
-              onPress={handleAppleLogin}
+          <View style={styles.formContainer}>
+            <Text style={styles.formTitle}>Welcome Back</Text>
+
+            <View style={styles.inputContainer}>
+              <IconSymbol
+                ios_icon_name="envelope.fill"
+                android_material_icon_name="email"
+                size={20}
+                color={colors.textSecondary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <IconSymbol
+                ios_icon_name="lock.fill"
+                android_material_icon_name="lock"
+                size={20}
+                color={colors.textSecondary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                editable={!loading}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Sign In</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <IconSymbol
+                ios_icon_name="g.circle.fill"
+                android_material_icon_name="account-circle"
+                size={20}
+                color={colors.text}
+              />
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={handleAppleSignIn}
               disabled={loading}
             >
               <IconSymbol
                 ios_icon_name="apple.logo"
                 android_material_icon_name="account-circle"
-                size={24}
+                size={20}
                 color={colors.text}
               />
               <Text style={styles.socialButtonText}>Continue with Apple</Text>
             </TouchableOpacity>
-          )}
 
-          <TouchableOpacity 
-            onPress={() => router.push('/auth/signup')}
-            disabled={loading}
-          >
-            <Text style={styles.signupText}>
-              Don&apos;t have an account? <Text style={styles.signupLink}>Sign Up</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={styles.signupLink}
+              onPress={() => {
+                console.log('[Login] Navigating to signup');
+                router.push('/auth/signup');
+              }}
+              disabled={loading}
+            >
+              <Text style={styles.signupLinkText}>
+                Don&apos;t have an account? <Text style={styles.signupLinkTextBold}>Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -215,64 +256,78 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardView: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
   },
   header: {
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingVertical: 60,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
   title: {
     fontSize: 36,
-    fontWeight: '800',
-    color: colors.white,
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
+    letterSpacing: 2,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.white,
+    color: '#fff',
     opacity: 0.9,
   },
   formContainer: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    padding: 24,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -20,
   },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: '700',
+  formTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 24,
+    marginBottom: 32,
+    textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: 12,
-    paddingHorizontal: 16,
     marginBottom: 16,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
+  inputIcon: {
+    marginRight: 12,
+  },
   input: {
     flex: 1,
-    paddingVertical: 16,
-    paddingLeft: 12,
+    height: 56,
     fontSize: 16,
     color: colors.text,
   },
   loginButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 16,
     borderRadius: 12,
+    height: 56,
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
+    marginBottom: 24,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   loginButtonText: {
-    color: colors.white,
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 18,
     fontWeight: '600',
   },
   divider: {
@@ -295,8 +350,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.card,
-    paddingVertical: 14,
     borderRadius: 12,
+    height: 56,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
@@ -304,16 +359,18 @@ const styles = StyleSheet.create({
   socialButtonText: {
     marginLeft: 12,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.text,
   },
-  signupText: {
-    textAlign: 'center',
+  signupLink: {
     marginTop: 24,
-    fontSize: 14,
+    alignItems: 'center',
+  },
+  signupLinkText: {
+    fontSize: 16,
     color: colors.textSecondary,
   },
-  signupLink: {
+  signupLinkTextBold: {
     color: colors.primary,
     fontWeight: '600',
   },
