@@ -3,10 +3,16 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Try to read from environment variables
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// Try to read from environment variables first, then fall back to app.json
+const supabaseUrl = 
+  process.env.EXPO_PUBLIC_SUPABASE_URL || 
+  Constants.expoConfig?.extra?.supabaseUrl;
+
+const supabaseAnonKey = 
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+  Constants.expoConfig?.extra?.supabaseAnonKey;
 
 // Check if Supabase is properly configured
 export function isSupabaseConfigured(): boolean {
@@ -14,7 +20,8 @@ export function isSupabaseConfigured(): boolean {
     supabaseUrl && 
     supabaseAnonKey && 
     supabaseUrl !== 'YOUR_SUPABASE_PROJECT_URL' &&
-    supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY'
+    supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' &&
+    supabaseUrl.includes('supabase.co')
   );
 }
 

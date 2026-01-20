@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "The Roster",
@@ -53,8 +52,8 @@
         "origin": false
       },
       "backendUrl": "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev",
-      "supabaseUrl": "YOUR_SUPABASE_PROJECT_URL",
-      "supabaseAnonKey": "YOUR_SUPABASE_ANON_KEY"
+      "supabaseUrl": "https://bbtvdhdfzkyhrodgclkd.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJidHZkaGRmemt5aHJvZGdjbGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NjMyNTgsImV4cCI6MjA4NDQzOTI1OH0.XE0VFZN7XlLDyh9vu9mt9nfGaq4iUQblNQCphSJ5OB4"
     }
   }
 }

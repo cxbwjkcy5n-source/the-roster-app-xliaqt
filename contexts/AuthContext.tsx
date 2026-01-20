@@ -57,35 +57,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.access_token) {
-        console.log('[AuthContext] Fetching profile from backend...');
+        console.log('[AuthContext] Fetching profile from backend with token...');
         
         const headers: HeadersInit = {
           'Authorization': `Bearer ${session.access_token}`,
         };
 
         // Fetch profile status
-        const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
-          headers,
-        });
+        try {
+          const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
+            headers,
+          });
 
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          console.log('[AuthContext] Profile status:', statusData);
-          firstLoginCompleted = statusData.profileCompleted !== false;
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log('[AuthContext] Profile status:', statusData);
+            firstLoginCompleted = statusData.profileCompleted !== false;
+          } else {
+            console.log('[AuthContext] Profile status check returned:', statusResponse.status);
+          }
+        } catch (statusError) {
+          console.log('[AuthContext] Could not fetch profile status:', statusError);
         }
 
         // Fetch full profile
-        const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
-          headers,
-        });
+        try {
+          const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
+            headers,
+          });
 
-        if (profileResponse.ok) {
-          profileData = await profileResponse.json();
-          console.log('[AuthContext] Profile data:', profileData);
+          if (profileResponse.ok) {
+            profileData = await profileResponse.json();
+            console.log('[AuthContext] Profile data fetched successfully');
+          } else {
+            console.log('[AuthContext] Profile fetch returned:', profileResponse.status);
+          }
+        } catch (profileError) {
+          console.log('[AuthContext] Could not fetch profile:', profileError);
         }
       }
     } catch (error) {
-      console.error('[AuthContext] Error fetching profile:', error);
+      console.log('[AuthContext] Error fetching profile (non-critical):', error);
     }
 
     return {
@@ -102,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Fetching user session from Supabase...');
       
       if (!isSupabaseConfigured()) {
-        console.warn('[AuthContext] Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to app.json');
+        console.warn('[AuthContext] Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to .env or app.json');
         setUser(null);
         setLoading(false);
         return;
@@ -217,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Signing in with email:', email);
       
       if (!isSupabaseConfigured()) {
-        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to app.json');
+        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to .env or app.json');
       }
 
       isNavigatingRef.current = true;
@@ -259,10 +271,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Signing up with email:', email);
       
       if (!isSupabaseConfigured()) {
-        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to app.json');
+        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to .env or app.json');
       }
 
       isNavigatingRef.current = true;
+
+      // Configure redirect URL for email verification
+      const redirectUrl = Platform.OS === 'web'
+        ? `${window.location.origin}/auth-callback`
+        : 'theroster://auth-callback';
+
+      console.log('[AuthContext] Sign up redirect URL:', redirectUrl);
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -271,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             name: name || email.split('@')[0],
           },
+          emailRedirectTo: redirectUrl,
         },
       });
 
@@ -287,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] Email confirmation required');
         Alert.alert(
           'Verify your email',
-          'Please check your email and click the verification link to complete your registration.',
+          'Please check your email and click the verification link to complete your registration. The link will redirect you back to the app.',
           [{ text: 'OK' }]
         );
         isNavigatingRef.current = false;
@@ -314,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Signing in with Google...');
       
       if (!isSupabaseConfigured()) {
-        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to app.json');
+        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to .env or app.json');
       }
 
       isNavigatingRef.current = true;
@@ -349,7 +369,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Signing in with Apple...');
       
       if (!isSupabaseConfigured()) {
-        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to app.json');
+        throw new Error('Supabase is not configured. Please add SUPABASE_URL and SUPABASE_ANON_KEY to .env or app.json');
       }
 
       isNavigatingRef.current = true;
