@@ -1,16 +1,17 @@
+
 {
   "expo": {
     "name": "The Roster",
     "slug": "The Roster",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
+    "icon": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,17 +22,17 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.theroster.app"
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
       "bundler": "metro",
       "output": "static",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#FFFFFF"
     },
     "plugins": [
       "expo-font",
@@ -55,5 +56,6 @@
       "supabaseUrl": "https://bbtvdhdfzkyhrodgclkd.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJidHZkaGRmemt5aHJvZGdjbGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NjMyNTgsImV4cCI6MjA4NDQzOTI1OH0.XE0VFZN7XlLDyh9vu9mt9nfGaq4iUQblNQCphSJ5OB4"
     }
-  }
+  },
+  "scheme": "The Roster"
 }
