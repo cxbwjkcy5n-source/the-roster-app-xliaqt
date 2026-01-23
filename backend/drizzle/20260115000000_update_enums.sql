@@ -1,0 +1,4 @@
+-- Update dates type column to support additional values: movie, outdoor, other
+-- Update interactions type column to support: moved_to_bench, moved_to_roster
+-- Note: PostgreSQL text columns don't have native enum constraints in this schema,
+-- so these are compatibility notes for the application layer.
