@@ -46,7 +46,7 @@ interface Analytics {
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, loading: rosterLoading, dates, refreshDates } = useRoster();
+  const { roster, bench, loading: rosterLoading, dates, refreshDates } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showMyDates, setShowMyDates] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
