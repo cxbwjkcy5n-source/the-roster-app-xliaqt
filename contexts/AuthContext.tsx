@@ -153,8 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         const mappedUser = await mapSupabaseUser(session?.user || null);
         setUser(mappedUser);
+        // CRITICAL FIX: Set loading to false after token refresh
+        setLoading(false);
+        console.log('[AuthContext] User updated and loading set to false');
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        setLoading(false);
+        console.log('[AuthContext] User signed out and loading set to false');
       }
     });
 
@@ -248,6 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Sign in successful');
       const mappedUser = await mapSupabaseUser(data.user);
       setUser(mappedUser);
+      setLoading(false);
 
       // Navigate based on first login status
       if (mappedUser?.firstLoginCompleted === false) {
@@ -317,6 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const mappedUser = await mapSupabaseUser(data.user);
       setUser(mappedUser);
+      setLoading(false);
 
       console.log('[AuthContext] Redirecting to profile for first login');
       router.replace('/(tabs)/profile');

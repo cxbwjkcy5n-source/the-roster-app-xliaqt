@@ -1,4 +1,3 @@
-
 // Global error logging for runtime errors
 // Captures console.log/warn/error and sends to Natively server for AI debugging
 
@@ -92,11 +91,6 @@ const getLogServerUrl = (): string | null => {
 // Track if we've logged fetch errors to avoid spam
 let fetchErrorLogged = false;
 
-// Store original console methods at module load time (before any modifications)
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-const originalConsoleError = console.error;
-
 // Flush the log queue to server
 const flushLogs = async () => {
   if (logQueue.length === 0) return;
@@ -121,8 +115,10 @@ const flushLogs = async () => {
         // Log fetch errors only once to avoid spam
         if (!fetchErrorLogged) {
           fetchErrorLogged = true;
-          // Use the original console.log that we saved at module load time
-          originalConsoleLog('[Natively] Fetch error (will not repeat):', e.message || e);
+          // Use a different method to avoid recursion - write directly without going through our intercept
+          if (typeof window !== 'undefined' && window.console) {
+            (window.console as any).__proto__.log.call(console, '[Natively] Fetch error (will not repeat):', e.message || e);
+          }
         }
       });
     } catch (e) {
@@ -283,6 +279,11 @@ export const setupErrorLogging = () => {
   if (!__DEV__) {
     return;
   }
+
+  // Store original console methods BEFORE any modifications
+  const originalConsoleLog = console.log;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleError = console.error;
 
   // Log initialization info using original console (not intercepted)
   const logServerUrl = getLogServerUrl();
