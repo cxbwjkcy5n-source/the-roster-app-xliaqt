@@ -28,7 +28,6 @@ import { authenticatedGet } from '@/utils/api';
 import { DateEvent } from '@/types/roster';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = screenWidth - 64;
 
 interface Analytics {
   totalProfiles: number;
@@ -404,89 +403,85 @@ export default function RosterScreen() {
 
   const renderPersonCard = ({ item }: { item: RosterPerson }) => {
     return (
-      <View style={styles.cardWrapper}>
-        <TouchableOpacity
-          onPress={() => {
-            console.log('[Home] User tapped person card:', item.name);
-            router.push(`/person/${item.id}`);
-          }}
-          style={styles.personCard}
-          activeOpacity={0.9}
+      <TouchableOpacity
+        onPress={() => {
+          console.log('[Home] User tapped person card:', item.name);
+          router.push(`/person/${item.id}`);
+        }}
+        style={styles.personCard}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={
+            item.imageUrl
+              ? { uri: item.imageUrl }
+              : require('@/assets/images/final_quest_240x240.png')
+          }
+          style={styles.personImage}
+        />
+        <View
+          style={[
+            styles.interestBadge,
+            { backgroundColor: getInterestColor(item.interestLevel) },
+          ]}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.85)']}
+          style={styles.personInfoGradient}
         >
-          <Image
-            source={
-              item.imageUrl
-                ? { uri: item.imageUrl }
-                : require('@/assets/images/final_quest_240x240.png')
-            }
-            style={styles.personImage}
-          />
-          <View
-            style={[
-              styles.interestBadge,
-              { backgroundColor: getInterestColor(item.interestLevel) },
-            ]}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.85)']}
-            style={styles.personInfoGradient}
-          >
-            <View style={styles.personInfo}>
-              <Text style={styles.personName}>{item.name}</Text>
-              <Text style={styles.personDetails}>
-                {item.age} • {item.location}
-              </Text>
-              <View style={styles.flagsContainer}>
-                {item.redFlags && item.redFlags.length > 0 && (
-                  <View style={[styles.flagBadge, { backgroundColor: 'rgba(233, 36, 63, 0.9)' }]}>
-                    <IconSymbol 
-                      ios_icon_name="flag.fill" 
-                      android_material_icon_name="flag" 
-                      size={12} 
-                      color={colors.white} 
-                    />
-                    <Text style={styles.flagCount}>{item.redFlags.length}</Text>
-                  </View>
-                )}
-                {item.greenFlags && item.greenFlags.length > 0 && (
-                  <View style={[styles.flagBadge, { backgroundColor: 'rgba(17, 163, 106, 0.9)' }]}>
-                    <IconSymbol 
-                      ios_icon_name="flag.fill" 
-                      android_material_icon_name="flag" 
-                      size={12} 
-                      color={colors.white} 
-                    />
-                    <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
-                  </View>
-                )}
-              </View>
+          <View style={styles.personInfo}>
+            <Text style={styles.personName}>{item.name}</Text>
+            <Text style={styles.personDetails}>
+              {item.age} • {item.location}
+            </Text>
+            <View style={styles.flagsContainer}>
+              {item.redFlags && item.redFlags.length > 0 && (
+                <View style={[styles.flagBadge, { backgroundColor: 'rgba(233, 36, 63, 0.9)' }]}>
+                  <IconSymbol 
+                    ios_icon_name="flag.fill" 
+                    android_material_icon_name="flag" 
+                    size={12} 
+                    color={colors.white} 
+                  />
+                  <Text style={styles.flagCount}>{item.redFlags.length}</Text>
+                </View>
+              )}
+              {item.greenFlags && item.greenFlags.length > 0 && (
+                <View style={[styles.flagBadge, { backgroundColor: 'rgba(17, 163, 106, 0.9)' }]}>
+                  <IconSymbol 
+                    ios_icon_name="flag.fill" 
+                    android_material_icon_name="flag" 
+                    size={12} 
+                    color={colors.white} 
+                  />
+                  <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
+                </View>
+              )}
             </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
     );
   };
 
   const renderEmptyState = () => (
-    <View style={styles.cardWrapper}>
-      <TouchableOpacity
-        style={styles.emptyCard}
-        onPress={() => {
-          console.log('[Home] User tapped empty state - navigating to add person');
-          router.push('/person/add');
-        }}
-        activeOpacity={0.8}
-      >
-        <IconSymbol 
-          ios_icon_name="plus.circle" 
-          android_material_icon_name="add-circle-outline" 
-          size={72} 
-          color={colors.grey} 
-        />
-        <Text style={styles.emptyText}>Add your first person</Text>
-        <Text style={styles.emptySubtext}>Tap to get started</Text>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity
+      style={styles.emptyCard}
+      onPress={() => {
+        console.log('[Home] User tapped empty state - navigating to add person');
+        router.push('/person/add');
+      }}
+      activeOpacity={0.8}
+    >
+      <IconSymbol 
+        ios_icon_name="plus.circle" 
+        android_material_icon_name="add-circle-outline" 
+        size={72} 
+        color={colors.grey} 
+      />
+      <Text style={styles.emptyText}>Add your first person</Text>
+      <Text style={styles.emptySubtext}>Tap to get started</Text>
+    </TouchableOpacity>
   );
 
   return (
@@ -533,12 +528,16 @@ export default function RosterScreen() {
 
       <View style={styles.content}>
         {roster.length === 0 ? (
-          renderEmptyState()
+          <View style={styles.emptyStateContainer}>
+            {renderEmptyState()}
+          </View>
         ) : (
           <FlatList
             data={roster}
             renderItem={renderPersonCard}
             keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
@@ -1199,19 +1198,23 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 20,
   },
-  listContent: {
-    paddingBottom: 120,
-    alignItems: 'center',
-  },
-  cardWrapper: {
-    width: screenWidth,
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    marginBottom: 20,
+  },
+  listContent: {
+    paddingBottom: 120,
+    paddingHorizontal: 16,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   personCard: {
-    width: CARD_WIDTH,
-    height: 240,
+    width: '47%',
+    aspectRatio: 0.75,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: colors.card,
@@ -1288,8 +1291,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyCard: {
-    width: CARD_WIDTH,
-    height: 240,
+    width: '100%',
+    aspectRatio: 1.5,
     borderRadius: 20,
     borderWidth: 3,
     borderColor: colors.border,
