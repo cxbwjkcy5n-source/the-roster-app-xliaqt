@@ -520,6 +520,11 @@ export default function RosterScreen() {
                       const ratingNum = date.rating || 0;
                       const wouldGoAgainBool = date.wouldGoAgain;
                       
+                      // Find the person's image
+                      const allPeople = [...roster, ...bench];
+                      const person = allPeople.find(p => p.id === date.profileId);
+                      const personImageUrl = person?.imageUrl;
+                      
                       return (
                         <TouchableOpacity
                           key={date.id}
@@ -531,9 +536,17 @@ export default function RosterScreen() {
                           }}
                         >
                           <View style={styles.dateCardHeader}>
-                            <Text style={styles.dateCardName}>{profileNameStr}</Text>
-                            <View style={styles.dateCardTypeBadge}>
-                              <Text style={styles.dateCardTypeText}>{typeStr}</Text>
+                            {personImageUrl && (
+                              <Image 
+                                source={{ uri: personImageUrl }} 
+                                style={styles.dateCardImage}
+                              />
+                            )}
+                            <View style={styles.dateCardHeaderText}>
+                              <Text style={styles.dateCardName}>{profileNameStr}</Text>
+                              <View style={styles.dateCardTypeBadge}>
+                                <Text style={styles.dateCardTypeText}>{typeStr}</Text>
+                              </View>
                             </View>
                           </View>
                           
@@ -1026,9 +1039,21 @@ const styles = StyleSheet.create({
   },
   dateCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    gap: 12,
+  },
+  dateCardImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.backgroundAlt,
+  },
+  dateCardHeaderText: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   dateCardName: {
     fontSize: 18,

@@ -22,6 +22,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,7 @@ export default function RosterScreen() {
   const [showNudgesModal, setShowNudgesModal] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [localRoster, setLocalRoster] = useState<RosterPerson[]>([]);
+  const [isReordering, setIsReordering] = useState(false);
 
   useEffect(() => {
     setLocalRoster(roster);
@@ -59,40 +61,64 @@ export default function RosterScreen() {
     }
   };
 
-  const renderPersonCard = ({ item, index }: { item: RosterPerson; index: number }) => (
-    <TouchableOpacity
-      key={item.id}
-      onPress={() => router.push(`/person/${item.id}`)}
-      style={styles.personCard}
-    >
-      <View style={styles.cardImageContainer}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-        ) : (
-          <View style={[styles.cardImage, styles.placeholderImage]}>
-            <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={40} color={colors.grey} />
-          </View>
-        )}
-        <View style={[styles.interestBadge, { backgroundColor: getInterestColor(item.interestLevel) }]} />
-        <View style={styles.cardOverlay}>
-          <Text style={styles.cardName}>{item.name}</Text>
-          <Text style={styles.cardInfo}>{item.age} • {item.location}</Text>
-          <View style={styles.flagsContainer}>
-            {item.redFlags.length > 0 && (
-              <View style={styles.flagBadge}>
-                <Text style={styles.flagText}>🚩 {item.redFlags.length}</Text>
-              </View>
-            )}
-            {item.greenFlags.length > 0 && (
-              <View style={styles.flagBadge}>
-                <Text style={styles.flagText}>✅ {item.greenFlags.length}</Text>
-              </View>
-            )}
+  const renderPersonCard = ({ item, drag, isActive }: RenderItemParams<RosterPerson>) => (
+    <ScaleDecorator>
+      <TouchableOpacity
+        onPress={() => {
+          if (!isReordering) {
+            router.push(`/person/${item.id}`);
+          }
+        }}
+        onLongPress={isReordering ? drag : undefined}
+        disabled={isActive}
+        style={[styles.personCard, isActive && styles.personCardActive]}
+      >
+        <View style={styles.cardImageContainer}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+          ) : (
+            <View style={[styles.cardImage, styles.placeholderImage]}>
+              <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={40} color={colors.grey} />
+            </View>
+          )}
+          <View style={[styles.interestBadge, { backgroundColor: getInterestColor(item.interestLevel) }]} />
+          {isReordering && (
+            <View style={styles.dragHandle}>
+              <IconSymbol ios_icon_name="line.3.horizontal" android_material_icon_name="drag-handle" size={24} color="#fff" />
+            </View>
+          )}
+          <View style={styles.cardOverlay}>
+            <Text style={styles.cardName}>{item.name}</Text>
+            <Text style={styles.cardInfo}>{item.age} • {item.location}</Text>
+            <View style={styles.flagsContainer}>
+              {item.redFlags.length > 0 && (
+                <View style={styles.flagBadge}>
+                  <Text style={styles.flagText}>🚩 {item.redFlags.length}</Text>
+                </View>
+              )}
+              {item.greenFlags.length > 0 && (
+                <View style={styles.flagBadge}>
+                  <Text style={styles.flagText}>✅ {item.greenFlags.length}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </ScaleDecorator>
   );
+
+  const handleSaveReorder = async () => {
+    try {
+      console.log('[RosterScreen] Saving new roster order');
+      await reorderRoster(localRoster);
+      setIsReordering(false);
+      Alert.alert('Success', 'Roster order saved!');
+    } catch (error) {
+      console.error('[RosterScreen] Error saving roster order:', error);
+      Alert.alert('Error', 'Failed to save roster order');
+    }
+  };
 
   const renderEmptyState = () => (
     <TouchableOpacity
@@ -117,6 +143,24 @@ export default function RosterScreen() {
         <Text style={styles.headerTitle}>THE ROSTER</Text>
         <Text style={styles.headerSubtitle}>Where You&apos;re The Coach and MVP</Text>
         <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {
+              console.log('[RosterScreen] User tapped Reorder button');
+              if (isReordering) {
+                handleSaveReorder();
+              } else {
+                setIsReordering(true);
+              }
+            }}
+          >
+            <IconSymbol 
+              ios_icon_name={isReordering ? "checkmark" : "line.3.horizontal"} 
+              android_material_icon_name={isReordering ? "check" : "reorder"} 
+              size={24} 
+              color="#fff" 
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
@@ -161,12 +205,13 @@ export default function RosterScreen() {
           {renderEmptyState()}
         </View>
       ) : (
-        <FlatList
+        <DraggableFlatList
           data={localRoster}
           renderItem={renderPersonCard}
           keyExtractor={(item) => item.id}
-          numColumns={2}
+          onDragEnd={({ data }) => setLocalRoster(data)}
           contentContainerStyle={styles.listContent}
+          activationDistance={isReordering ? 0 : 999999}
         />
       )}
 
@@ -472,17 +517,29 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   personCard: {
-    width: (width - 48) / 2,
+    width: width - 32,
     marginBottom: 16,
-    marginHorizontal: 4,
+    marginHorizontal: 0,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.card,
   },
+  personCardActive: {
+    opacity: 0.8,
+    transform: [{ scale: 1.05 }],
+  },
+  dragHandle: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
   cardImageContainer: {
     position: 'relative',
     width: '100%',
-    height: 200,
+    height: 280,
   },
   cardImage: {
     width: '100%',

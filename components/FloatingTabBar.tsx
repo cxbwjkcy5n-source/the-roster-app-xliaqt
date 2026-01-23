@@ -81,8 +81,12 @@ export default function FloatingTabBar({
     }
   }, [activeTabIndex, animatedValue]);
 
-  const handleTabPress = (route: Href) => {
+  const [pressedTab, setPressedTab] = React.useState<number | null>(null);
+
+  const handleTabPress = (route: Href, index: number) => {
     console.log('[FloatingTabBar] Tab pressed:', route);
+    setPressedTab(index);
+    setTimeout(() => setPressedTab(null), 200);
     router.push(route);
   };
 
@@ -179,15 +183,17 @@ export default function FloatingTabBar({
             <View style={styles.leftGroup}>
               {tabs.slice(0, 2).map((tab, index) => {
                 const isActive = activeTabIndex === index;
+                const isPressed = pressedTab === index;
                 const iconColor = isActive ? colors.navActive : colors.navInactive;
 
                 return (
                   <TouchableOpacity
                     key={`tab-${index}`}
                     style={styles.tab}
-                    onPress={() => handleTabPress(tab.route)}
+                    onPress={() => handleTabPress(tab.route, index)}
                     activeOpacity={0.7}
                   >
+                    {isPressed && <View style={styles.pressOverlay} />}
                     <View style={styles.tabContent}>
                       <MaterialIcons
                         name={tab.icon}
@@ -218,15 +224,17 @@ export default function FloatingTabBar({
               {tabs.slice(2, 4).map((tab, index) => {
                 const actualIndex = index + 2;
                 const isActive = activeTabIndex === actualIndex;
+                const isPressed = pressedTab === actualIndex;
                 const iconColor = isActive ? colors.navActive : colors.navInactive;
 
                 return (
                   <TouchableOpacity
                     key={`tab-${actualIndex}`}
                     style={styles.tab}
-                    onPress={() => handleTabPress(tab.route)}
+                    onPress={() => handleTabPress(tab.route, actualIndex)}
                     activeOpacity={0.7}
                   >
+                    {isPressed && <View style={styles.pressOverlay} />}
                     <View style={styles.tabContent}>
                       <MaterialIcons
                         name={tab.icon}
@@ -340,11 +348,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
+    position: 'relative',
     ...Platform.select({
       web: {
         cursor: 'pointer',
       },
     }),
+  },
+  pressOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.navActive,
+    opacity: 0.15,
+    borderRadius: 12,
   },
   tabContent: {
     alignItems: 'center',

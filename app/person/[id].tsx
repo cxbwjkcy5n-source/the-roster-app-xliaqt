@@ -375,10 +375,12 @@ export default function PersonDetailScreen() {
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             removeClippedSubviews={true}
-            maxToRenderPerBatch={10}
-            updateCellsBatchingPeriod={50}
-            initialNumToRender={10}
-            windowSize={10}
+            maxToRenderPerBatch={5}
+            updateCellsBatchingPeriod={30}
+            initialNumToRender={5}
+            windowSize={5}
+            decelerationRate="fast"
+            showsVerticalScrollIndicator={true}
           >
             {/* Profile Header */}
             <View style={styles.profileHeader}>
