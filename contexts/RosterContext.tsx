@@ -140,8 +140,12 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       profiles.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       setRoster(profiles.filter((p: RosterPerson) => p.status === 'roster'));
       setBench(profiles.filter((p: RosterPerson) => p.status === 'bench'));
-    } catch (err) {
+    } catch (err: any) {
       console.error('[RosterContext] Failed to refresh profiles:', err);
+      // Check if it's a database error
+      if (err.message && err.message.includes('Failed to fetch profiles')) {
+        throw new Error('The app is starting up. Please wait a moment and try again.');
+      }
       throw err;
     }
   }, []);
@@ -244,7 +248,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
       setError(errorMessage);
       // Don't show alert for authentication errors - user will be redirected to login
-      if (!errorMessage.includes('Authentication')) {
+      if (!errorMessage.includes('Authentication') && !errorMessage.includes('starting up')) {
         Alert.alert('Error', errorMessage);
       }
     } finally {
