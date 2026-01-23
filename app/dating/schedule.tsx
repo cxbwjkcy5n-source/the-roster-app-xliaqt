@@ -13,6 +13,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
+  FlatList,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,6 +39,18 @@ const REMINDER_OPTIONS = [
   { label: '1 week before', value: '1w' },
 ];
 
+// Mock location suggestions - in a real app, this would use Google Places API
+const MOCK_LOCATIONS = [
+  { id: '1', name: 'Starbucks Coffee', address: '123 Main St, Downtown' },
+  { id: '2', name: 'The Italian Restaurant', address: '456 Oak Ave, City Center' },
+  { id: '3', name: 'Central Park', address: 'Park Ave, North Side' },
+  { id: '4', name: 'Movie Theater', address: '789 Cinema Blvd' },
+  { id: '5', name: 'Art Gallery', address: '321 Culture St' },
+  { id: '6', name: 'Beach Boardwalk', address: 'Oceanfront Dr' },
+  { id: '7', name: 'Downtown Bar & Grill', address: '555 Nightlife Ave' },
+  { id: '8', name: 'Botanical Gardens', address: '888 Garden Way' },
+];
+
 export default function ScheduleDateScreen() {
   const router = useRouter();
   const { roster, bench, addDate } = useRoster();
@@ -57,6 +70,33 @@ export default function ScheduleDateScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Location autocomplete state
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState(MOCK_LOCATIONS);
+
+  const handleLocationChange = (text: string) => {
+    setLocation(text);
+    
+    if (text.length > 0) {
+      // Filter suggestions based on input
+      const filtered = MOCK_LOCATIONS.filter(loc =>
+        loc.name.toLowerCase().includes(text.toLowerCase()) ||
+        loc.address.toLowerCase().includes(text.toLowerCase())
+      );
+      setLocationSuggestions(filtered);
+      setShowLocationSuggestions(true);
+    } else {
+      setLocationSuggestions(MOCK_LOCATIONS);
+      setShowLocationSuggestions(false);
+    }
+  };
+
+  const handleSelectLocation = (locationItem: typeof MOCK_LOCATIONS[0]) => {
+    console.log('[ScheduleDate] User selected location:', locationItem.name);
+    setLocation(`${locationItem.name}, ${locationItem.address}`);
+    setShowLocationSuggestions(false);
+  };
 
   const handleSave = async () => {
     console.log('[ScheduleDate] User tapped Save button');
@@ -222,18 +262,57 @@ export default function ScheduleDateScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Location */}
+          {/* Location with Autocomplete */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Location / Address *</Text>
-            <TextInput
-              style={[styles.formInput, styles.textInput]}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Enter location or address"
-              placeholderTextColor={colors.textSecondary}
-            />
+            <View style={styles.locationContainer}>
+              <View style={styles.locationInputWrapper}>
+                <IconSymbol
+                  ios_icon_name="location.fill"
+                  android_material_icon_name="location-on"
+                  size={20}
+                  color={colors.textSecondary}
+                  style={styles.locationIcon}
+                />
+                <TextInput
+                  style={[styles.formInput, styles.textInput, styles.locationInput]}
+                  value={location}
+                  onChangeText={handleLocationChange}
+                  onFocus={() => {
+                    if (location.length > 0) {
+                      setShowLocationSuggestions(true);
+                    }
+                  }}
+                  placeholder="Start typing location..."
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </View>
+              
+              {showLocationSuggestions && locationSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  {locationSuggestions.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSelectLocation(item)}
+                    >
+                      <IconSymbol
+                        ios_icon_name="mappin.circle.fill"
+                        android_material_icon_name="place"
+                        size={24}
+                        color={colors.rosterGreen}
+                      />
+                      <View style={styles.suggestionTextContainer}>
+                        <Text style={styles.suggestionName}>{item.name}</Text>
+                        <Text style={styles.suggestionAddress}>{item.address}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
             <Text style={styles.helperText}>
-              💡 Tip: Enter the full address for better directions
+              💡 Tip: Start typing to see location suggestions
             </Text>
           </View>
 
@@ -294,7 +373,7 @@ export default function ScheduleDateScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Person Picker Modal - FIX: Opens from top, includes bench, color coded */}
+        {/* Person Picker Modal */}
         <Modal
           visible={showPersonPicker}
           transparent
@@ -541,6 +620,56 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: colors.primary,
+  },
+  locationContainer: {
+    position: 'relative',
+  },
+  locationInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationIcon: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 1,
+  },
+  locationInput: {
+    paddingLeft: 40,
+    flex: 1,
+  },
+  suggestionsContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 12,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  suggestionAddress: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   checkboxRow: {
     flexDirection: 'row',

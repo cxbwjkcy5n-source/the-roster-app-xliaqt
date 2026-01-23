@@ -596,6 +596,31 @@ export default function RosterScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Add Date Button */}
+              <View style={styles.addDateButtonContainer}>
+                <TouchableOpacity
+                  style={styles.addDateButton}
+                  onPress={() => {
+                    console.log('[Home] User tapped Add a Date button');
+                    setShowMyDates(false);
+                    router.push('/dating/schedule');
+                  }}
+                >
+                  <LinearGradient
+                    colors={[colors.rosterGreen, '#1a7a4d']}
+                    style={styles.addDateButtonGradient}
+                  >
+                    <IconSymbol
+                      ios_icon_name="plus.circle.fill"
+                      android_material_icon_name="add-circle"
+                      size={20}
+                      color="#fff"
+                    />
+                    <Text style={styles.addDateButtonText}>Add a Date</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+
               <ScrollView style={styles.datesScroll}>
                 {dates.filter(d => d.status === datesTab).length === 0 ? (
                   <Text style={styles.emptyDatesText}>
@@ -1361,6 +1386,26 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: colors.white,
+  },
+  addDateButtonContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  addDateButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  addDateButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  addDateButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
   datesScroll: {
     padding: 16,
