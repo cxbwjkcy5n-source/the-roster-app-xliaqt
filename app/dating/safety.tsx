@@ -56,15 +56,17 @@ export default function SafetyScreen() {
       console.log('[Safety] Loading active safety date...');
       const response = await authenticatedGet('/api/safety-dates/active');
       if (response) {
+        console.log('[Safety] Active safety date found:', response);
         setActiveSafetyDate(response);
       }
     } catch (error: any) {
-      // Handle 404 gracefully - no active safety date is not an error
-      if (error?.response?.status === 404 || error?.message?.includes('404')) {
-        console.log('[Safety] No active safety date found (expected)');
+      // 404 is expected when there's no active safety date - this is not an error
+      if (error?.message?.includes('404') || error?.response?.status === 404) {
+        console.log('[Safety] No active safety date (this is normal)');
         setActiveSafetyDate(null);
       } else {
-        console.error('[Safety] Error loading active safety date:', error);
+        // Only log actual errors
+        console.error('[Safety] Unexpected error loading safety date:', error);
       }
     }
   }, []);
@@ -73,7 +75,9 @@ export default function SafetyScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required for safety features');
+        console.log('[Safety] Location permission denied');
+      } else {
+        console.log('[Safety] Location permission granted');
       }
     } catch (error) {
       console.error('[Safety] Error requesting location permission:', error);
@@ -87,6 +91,7 @@ export default function SafetyScreen() {
 
   const getCurrentLocation = async () => {
     try {
+      console.log('[Safety] User tapped Get Current Location');
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Denied', 'Location permission is required');
@@ -102,6 +107,7 @@ export default function SafetyScreen() {
       if (address[0]) {
         const locationString = `${address[0].street || ''}, ${address[0].city || ''}, ${address[0].region || ''}`;
         setLocation(locationString);
+        console.log('[Safety] Location set to:', locationString);
       }
     } catch (error) {
       console.error('[Safety] Error getting location:', error);
@@ -123,6 +129,8 @@ export default function SafetyScreen() {
   };
 
   const handleSendSafetyInfo = async () => {
+    console.log('[Safety] User tapped Send Safety Info');
+    
     if (!dateWithName || !location) {
       Alert.alert('Missing Information', 'Please fill in date name and location');
       return;
@@ -167,8 +175,8 @@ export default function SafetyScreen() {
   const handleCheckIn = async () => {
     if (!activeSafetyDate) return;
 
+    console.log('[Safety] User tapped Check In');
     try {
-      console.log('[Safety] Checking in...');
       await authenticatedPut(`/api/safety-dates/${activeSafetyDate.id}/check-in`, {});
       Alert.alert('Check-in Successful', 'Your emergency contacts have been notified');
     } catch (error) {
@@ -180,6 +188,7 @@ export default function SafetyScreen() {
   const handleEndSafetyDate = async () => {
     if (!activeSafetyDate) return;
 
+    console.log('[Safety] User tapped End Safety Date');
     Alert.alert(
       'End Safety Date',
       'Are you sure you want to end this safety date?',
@@ -244,7 +253,7 @@ export default function SafetyScreen() {
                 ios_icon_name="shield.fill"
                 android_material_icon_name="security"
                 size={32}
-                color={colors.green}
+                color={colors.rosterGreen}
               />
               <Text style={styles.activeTitle}>Safety Date Active</Text>
             </View>
@@ -304,7 +313,7 @@ export default function SafetyScreen() {
                 ios_icon_name="chevron.down"
                 android_material_icon_name="arrow-drop-down"
                 size={24}
-                color={colors.textSecondary}
+                color={colors.grey}
               />
             </TouchableOpacity>
 
@@ -315,7 +324,7 @@ export default function SafetyScreen() {
                 value={location}
                 onChangeText={setLocation}
                 placeholder="Where are you going?"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.grey}
               />
               <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
                 <IconSymbol
@@ -333,7 +342,7 @@ export default function SafetyScreen() {
               value={licensePlate}
               onChangeText={setLicensePlate}
               placeholder="ABC-1234"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.grey}
             />
 
             <Text style={styles.sectionTitle}>Emergency Contacts</Text>
@@ -344,27 +353,30 @@ export default function SafetyScreen() {
                   value={contact.name}
                   onChangeText={(value) => updateEmergencyContact(index, 'name', value)}
                   placeholder="Name"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.grey}
                 />
                 <TextInput
                   style={[styles.input, styles.contactInput]}
                   value={contact.phone}
                   onChangeText={(value) => updateEmergencyContact(index, 'phone', value)}
                   placeholder="Phone"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.grey}
                   keyboardType="phone-pad"
                 />
               </View>
             ))}
             <TouchableOpacity
               style={styles.addContactButton}
-              onPress={() => setEmergencyContacts([...emergencyContacts, { name: '', phone: '' }])}
+              onPress={() => {
+                console.log('[Safety] User tapped Add Another Contact');
+                setEmergencyContacts([...emergencyContacts, { name: '', phone: '' }]);
+              }}
             >
               <IconSymbol
                 ios_icon_name="plus.circle.fill"
                 android_material_icon_name="add-circle"
                 size={20}
-                color={colors.primary}
+                color={colors.rosterGreen}
               />
               <Text style={styles.addContactText}>Add Another Contact</Text>
             </TouchableOpacity>
@@ -414,7 +426,7 @@ export default function SafetyScreen() {
                   ios_icon_name="xmark"
                   android_material_icon_name="close"
                   size={24}
-                  color={colors.text}
+                  color={colors.darkText}
                 />
               </TouchableOpacity>
             </View>
@@ -432,7 +444,7 @@ export default function SafetyScreen() {
                         <Text style={styles.personOptionName}>{person.name}</Text>
                         <View style={[
                           styles.statusBadge,
-                          { backgroundColor: isOnBench ? colors.red : colors.green }
+                          { backgroundColor: isOnBench ? colors.actionRed : colors.rosterGreen }
                         ]}>
                           <Text style={styles.statusBadgeText}>
                             {isOnBench ? 'Bench' : 'Roster'}
@@ -443,7 +455,7 @@ export default function SafetyScreen() {
                         ios_icon_name="chevron.right"
                         android_material_icon_name="chevron-right"
                         size={20}
-                        color={colors.textSecondary}
+                        color={colors.grey}
                       />
                     </TouchableOpacity>
                   );
@@ -498,14 +510,14 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.grey,
     marginBottom: 24,
     lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.darkText,
     marginTop: 16,
     marginBottom: 8,
   },
@@ -522,29 +534,23 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.darkText,
     flex: 1,
   },
   dropdownPlaceholder: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.grey,
     flex: 1,
   },
   input: {
     backgroundColor: colors.card,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     fontSize: 14,
-    color: colors.text,
+    color: colors.darkText,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 12,
-  },
-  inputText: {
-    color: colors.text,
-  },
-  placeholderText: {
-    color: colors.textSecondary,
   },
   locationRow: {
     flexDirection: 'row',
@@ -556,10 +562,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   locationButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.rosterGreen,
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -581,14 +587,14 @@ const styles = StyleSheet.create({
   addContactText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.rosterGreen,
   },
   sendButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.rosterGreen,
     paddingVertical: 16,
     borderRadius: 12,
     marginTop: 24,
@@ -603,7 +609,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     borderWidth: 2,
-    borderColor: colors.green,
+    borderColor: colors.rosterGreen,
   },
   activeHeader: {
     flexDirection: 'row',
@@ -614,7 +620,7 @@ const styles = StyleSheet.create({
   activeTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.darkText,
   },
   activeInfo: {
     marginBottom: 12,
@@ -622,12 +628,12 @@ const styles = StyleSheet.create({
   activeLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.grey,
     marginBottom: 4,
   },
   activeValue: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.darkText,
   },
   activeButtons: {
     flexDirection: 'row',
@@ -640,9 +646,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.green,
+    backgroundColor: colors.rosterGreen,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   endButton: {
     flex: 1,
@@ -650,9 +656,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.red,
+    backgroundColor: colors.actionRed,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   buttonText: {
     fontSize: 14,
@@ -668,7 +674,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   dropdownModal: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '60%',
@@ -694,7 +700,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.darkText,
   },
   dropdownScroll: {
     maxHeight: 400,
@@ -715,7 +721,7 @@ const styles = StyleSheet.create({
   },
   personOptionName: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.darkText,
     fontWeight: '500',
   },
   statusBadge: {
@@ -734,6 +740,6 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.grey,
   },
 });
