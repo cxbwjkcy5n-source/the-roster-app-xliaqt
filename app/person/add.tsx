@@ -405,7 +405,7 @@ export default function AddPersonScreen() {
   const getInterestColor = (level: InterestLevel) => {
     switch (level) {
       case 'high': return colors.green;
-      case 'medium': return colors.yellow;
+      case 'medium': return '#FFC107'; // FIX: Explicitly use yellow color
       case 'low': return colors.lowInterest;
     }
   };

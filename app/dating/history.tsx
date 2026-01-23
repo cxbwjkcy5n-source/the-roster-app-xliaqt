@@ -35,7 +35,7 @@ export default function DateHistoryScreen() {
   const [editTime, setEditTime] = useState('');
   const [editDate, setEditDate] = useState('');
   
-  // Rating state
+  // Rating state - FIX: Initialize wouldGoAgain to null (no default selection)
   const [rating, setRating] = useState(0);
   const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
   const [ratingNotes, setRatingNotes] = useState('');
@@ -85,6 +85,7 @@ export default function DateHistoryScreen() {
 
   const handleRateDate = (date: any) => {
     console.log('[DateHistory] User tapped Rate Date button for:', date.id);
+    // FIX: Load existing rating or default to 0 and null (no selection)
     setRating(date.rating || 0);
     setWouldGoAgain(date.wouldGoAgain ?? null);
     setRatingNotes(date.notes || '');
@@ -545,7 +546,7 @@ export default function DateHistoryScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Rating Modal */}
+      {/* Rating Modal - FIX: No default selection for wouldGoAgain */}
       <Modal
         visible={showRatingModal}
         animationType="slide"
@@ -601,7 +602,7 @@ export default function DateHistoryScreen() {
                     <TouchableOpacity
                       style={[
                         styles.wouldGoAgainButton,
-                        wouldGoAgain === true && styles.wouldGoAgainButtonActive,
+                        wouldGoAgain === true && styles.wouldGoAgainButtonActiveYes,
                       ]}
                       onPress={() => {
                         console.log('[DateHistory] User selected: Would go again');
@@ -625,7 +626,7 @@ export default function DateHistoryScreen() {
                     <TouchableOpacity
                       style={[
                         styles.wouldGoAgainButton,
-                        wouldGoAgain === false && styles.wouldGoAgainButtonActive,
+                        wouldGoAgain === false && styles.wouldGoAgainButtonActiveNo,
                       ]}
                       onPress={() => {
                         console.log('[DateHistory] User selected: Would not go again');
@@ -998,9 +999,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
-  wouldGoAgainButtonActive: {
+  wouldGoAgainButtonActiveYes: {
     backgroundColor: colors.rosterGreen,
     borderColor: colors.rosterGreen,
+  },
+  wouldGoAgainButtonActiveNo: {
+    backgroundColor: colors.actionRed,
+    borderColor: colors.actionRed,
   },
   wouldGoAgainButtonText: {
     fontSize: 16,

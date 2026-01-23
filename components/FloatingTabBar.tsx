@@ -197,7 +197,7 @@ export default function FloatingTabBar({
                     <View style={styles.tabContent}>
                       <MaterialIcons
                         name={tab.icon}
-                        size={26}
+                        size={24}
                         color={iconColor}
                         style={styles.iconStyle}
                       />
@@ -238,7 +238,7 @@ export default function FloatingTabBar({
                     <View style={styles.tabContent}>
                       <MaterialIcons
                         name={tab.icon}
-                        size={26}
+                        size={24}
                         color={iconColor}
                         style={styles.iconStyle}
                       />
@@ -323,22 +323,22 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 64,
+    height: 70,
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     justifyContent: 'space-between',
   },
   leftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingLeft: 8,
+    gap: 4,
+    paddingLeft: 4,
   },
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingRight: 8,
+    gap: 4,
+    paddingRight: 4,
   },
   centerSpacer: {
     width: 80,
@@ -346,9 +346,10 @@ const styles = StyleSheet.create({
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     position: 'relative',
+    minHeight: 62,
     ...Platform.select({
       web: {
         cursor: 'pointer',
