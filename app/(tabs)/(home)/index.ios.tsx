@@ -23,6 +23,7 @@ import { RosterPerson } from '@/types/roster';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { authenticatedGet } from '@/utils/api';
+import { DateEvent } from '@/types/roster';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = screenWidth - 64;
@@ -45,13 +46,15 @@ interface Analytics {
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, loading: rosterLoading } = useRoster();
+  const { roster, loading: rosterLoading, dates, refreshDates } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showMyDates, setShowMyDates] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<any>(null);
+  const [showDateDetails, setShowDateDetails] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -500,7 +503,77 @@ export default function RosterScreen() {
               </View>
 
               <ScrollView style={styles.datesScroll}>
-                <Text style={styles.emptyDatesText}>No dates yet</Text>
+                {dates.filter(d => d.status === datesTab).length === 0 ? (
+                  <Text style={styles.emptyDatesText}>
+                    No {datesTab} dates
+                  </Text>
+                ) : (
+                  dates
+                    .filter(d => d.status === datesTab)
+                    .map((date) => {
+                      const dateStr = date.date;
+                      const timeStr = date.time;
+                      const profileNameStr = date.profileName || 'Unknown';
+                      const locationStr = date.location || 'No location';
+                      const typeStr = date.type || 'casual';
+                      const notesStr = date.notes || '';
+                      const ratingNum = date.rating || 0;
+                      const wouldGoAgainBool = date.wouldGoAgain;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={date.id}
+                          style={styles.dateCard}
+                          onPress={() => {
+                            console.log('[Home iOS] User tapped date card:', date.id);
+                            setSelectedDate(date);
+                            setShowDateDetails(true);
+                          }}
+                        >
+                          <View style={styles.dateCardHeader}>
+                            <Text style={styles.dateCardName}>{profileNameStr}</Text>
+                            <View style={styles.dateCardTypeBadge}>
+                              <Text style={styles.dateCardTypeText}>{typeStr}</Text>
+                            </View>
+                          </View>
+                          
+                          <View style={styles.dateCardRow}>
+                            <IconSymbol
+                              ios_icon_name="calendar"
+                              android_material_icon_name="calendar-today"
+                              size={14}
+                              color={colors.grey}
+                            />
+                            <Text style={styles.dateCardDetail}>{dateStr} at {timeStr}</Text>
+                          </View>
+                          
+                          <View style={styles.dateCardRow}>
+                            <IconSymbol
+                              ios_icon_name="location.fill"
+                              android_material_icon_name="location-on"
+                              size={14}
+                              color={colors.grey}
+                            />
+                            <Text style={styles.dateCardDetail}>{locationStr}</Text>
+                          </View>
+                          
+                          {datesTab === 'completed' && ratingNum > 0 && (
+                            <View style={styles.dateCardRating}>
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <IconSymbol
+                                  key={star}
+                                  ios_icon_name={star <= ratingNum ? "star.fill" : "star"}
+                                  android_material_icon_name={star <= ratingNum ? "star" : "star-border"}
+                                  size={14}
+                                  color={star <= ratingNum ? colors.warning : colors.grey}
+                                />
+                              ))}
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })
+                )}
               </ScrollView>
             </View>
           </View>
@@ -541,6 +614,165 @@ export default function RosterScreen() {
                 <View style={styles.loadingAnalyticsContainer}>
                   <Text style={styles.emptyDatesText}>Failed to load analytics</Text>
                 </View>
+              )}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Date Details Modal */}
+      <Modal
+        visible={showDateDetails}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDateDetails(false)}
+        presentationStyle="pageSheet"
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlayTop}>
+            <View style={styles.modalContentTop}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Date Details</Text>
+                <TouchableOpacity onPress={() => setShowDateDetails(false)}>
+                  <IconSymbol 
+                    ios_icon_name="xmark" 
+                    android_material_icon_name="close" 
+                    size={24} 
+                    color={colors.darkText} 
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {selectedDate && (
+                <ScrollView style={styles.dateDetailsScroll} contentContainerStyle={styles.dateDetailsContent}>
+                  <Text style={styles.dateDetailsName}>{selectedDate.profileName || 'Unknown'}</Text>
+                  
+                  <View style={styles.dateDetailsSection}>
+                    <View style={styles.dateDetailsRow}>
+                      <IconSymbol
+                        ios_icon_name="calendar"
+                        android_material_icon_name="calendar-today"
+                        size={20}
+                        color={colors.rosterGreen}
+                      />
+                      <View style={styles.dateDetailsTextContainer}>
+                        <Text style={styles.dateDetailsLabel}>Date & Time</Text>
+                        <Text style={styles.dateDetailsValue}>
+                          {selectedDate.date} at {selectedDate.time}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.dateDetailsRow}>
+                      <IconSymbol
+                        ios_icon_name="location.fill"
+                        android_material_icon_name="location-on"
+                        size={20}
+                        color={colors.rosterGreen}
+                      />
+                      <View style={styles.dateDetailsTextContainer}>
+                        <Text style={styles.dateDetailsLabel}>Location</Text>
+                        <Text style={styles.dateDetailsValue}>{selectedDate.location || 'No location'}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.dateDetailsRow}>
+                      <IconSymbol
+                        ios_icon_name="tag.fill"
+                        android_material_icon_name="label"
+                        size={20}
+                        color={colors.rosterGreen}
+                      />
+                      <View style={styles.dateDetailsTextContainer}>
+                        <Text style={styles.dateDetailsLabel}>Type</Text>
+                        <Text style={styles.dateDetailsValue}>{selectedDate.type || 'casual'}</Text>
+                      </View>
+                    </View>
+
+                    {selectedDate.notes && (
+                      <View style={styles.dateDetailsRow}>
+                        <IconSymbol
+                          ios_icon_name="note.text"
+                          android_material_icon_name="description"
+                          size={20}
+                          color={colors.rosterGreen}
+                        />
+                        <View style={styles.dateDetailsTextContainer}>
+                          <Text style={styles.dateDetailsLabel}>Notes</Text>
+                          <Text style={styles.dateDetailsValue}>{selectedDate.notes}</Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {selectedDate.status === 'completed' && selectedDate.rating && (
+                      <View style={styles.dateDetailsRow}>
+                        <IconSymbol
+                          ios_icon_name="star.fill"
+                          android_material_icon_name="star"
+                          size={20}
+                          color={colors.warning}
+                        />
+                        <View style={styles.dateDetailsTextContainer}>
+                          <Text style={styles.dateDetailsLabel}>Rating</Text>
+                          <View style={styles.dateDetailsRatingRow}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <IconSymbol
+                                key={star}
+                                ios_icon_name={star <= (selectedDate.rating || 0) ? "star.fill" : "star"}
+                                android_material_icon_name={star <= (selectedDate.rating || 0) ? "star" : "star-border"}
+                                size={18}
+                                color={star <= (selectedDate.rating || 0) ? colors.warning : colors.grey}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {selectedDate.status === 'completed' && selectedDate.wouldGoAgain !== undefined && (
+                      <View style={styles.dateDetailsRow}>
+                        <IconSymbol
+                          ios_icon_name={selectedDate.wouldGoAgain ? "checkmark.circle.fill" : "xmark.circle.fill"}
+                          android_material_icon_name={selectedDate.wouldGoAgain ? "check-circle" : "cancel"}
+                          size={20}
+                          color={selectedDate.wouldGoAgain ? colors.rosterGreen : colors.actionRed}
+                        />
+                        <View style={styles.dateDetailsTextContainer}>
+                          <Text style={styles.dateDetailsLabel}>Would Go Again?</Text>
+                          <Text style={[
+                            styles.dateDetailsValue,
+                            { color: selectedDate.wouldGoAgain ? colors.rosterGreen : colors.actionRed }
+                          ]}>
+                            {selectedDate.wouldGoAgain ? 'Yes' : 'No'}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.editDateButton}
+                    onPress={() => {
+                      console.log('[Home iOS] User tapped Edit Date button');
+                      setShowDateDetails(false);
+                      setShowMyDates(false);
+                      router.push('/dating/history');
+                    }}
+                  >
+                    <LinearGradient
+                      colors={[colors.rosterGreen, '#1a7a4d']}
+                      style={styles.editDateButtonGradient}
+                    >
+                      <IconSymbol
+                        ios_icon_name="pencil"
+                        android_material_icon_name="edit"
+                        size={18}
+                        color="#fff"
+                      />
+                      <Text style={styles.editDateButtonText}>Edit Date</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </ScrollView>
               )}
             </View>
           </View>
@@ -783,6 +1015,122 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 40,
     fontWeight: '500',
+  },
+  dateCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dateCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dateCardName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.darkText,
+    flex: 1,
+  },
+  dateCardTypeBadge: {
+    backgroundColor: colors.rosterGreen + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dateCardTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.rosterGreen,
+    textTransform: 'capitalize',
+  },
+  dateCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  dateCardDetail: {
+    fontSize: 14,
+    color: colors.grey,
+  },
+  dateCardRating: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  dateDetailsScroll: {
+    flex: 1,
+  },
+  dateDetailsContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  dateDetailsName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.darkText,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  dateDetailsSection: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dateDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    gap: 12,
+  },
+  dateDetailsTextContainer: {
+    flex: 1,
+  },
+  dateDetailsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.grey,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  dateDetailsValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.darkText,
+  },
+  dateDetailsRatingRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
+  },
+  editDateButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  editDateButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  editDateButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
   loadingAnalyticsContainer: {
     flex: 1,

@@ -27,6 +27,7 @@ export default function DateHistoryScreen() {
   const [rating, setRating] = useState(0);
   const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
   const [ratingNotes, setRatingNotes] = useState('');
+  const [showScheduleAnotherDate, setShowScheduleAnotherDate] = useState(false);
   
   const [editLocation, setEditLocation] = useState('');
   const [editNotes, setEditNotes] = useState('');
@@ -102,12 +103,18 @@ export default function DateHistoryScreen() {
       }
       
       setShowRatingModal(false);
-      setSelectedDate(null);
-      setRating(0);
-      setWouldGoAgain(null);
-      setRatingNotes('');
       
-      Alert.alert('Success', 'Date rating saved successfully!');
+      // If they would go again, ask if they want to schedule another date
+      if (wouldGoAgain) {
+        setShowScheduleAnotherDate(true);
+      } else {
+        // Reset and show success
+        setSelectedDate(null);
+        setRating(0);
+        setWouldGoAgain(null);
+        setRatingNotes('');
+        Alert.alert('Success', 'Date rating saved successfully!');
+      }
     } catch (error) {
       console.error('[DateHistory] Error saving rating:', error);
       Alert.alert('Error', 'Failed to save rating. Please try again.');
@@ -500,6 +507,67 @@ export default function DateHistoryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Schedule Another Date Modal */}
+      <Modal
+        visible={showScheduleAnotherDate}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          setShowScheduleAnotherDate(false);
+          setSelectedDate(null);
+          setRating(0);
+          setWouldGoAgain(null);
+          setRatingNotes('');
+        }}
+      >
+        <View style={styles.scheduleAnotherOverlay}>
+          <View style={styles.scheduleAnotherModal}>
+            <IconSymbol
+              ios_icon_name="heart.fill"
+              android_material_icon_name="favorite"
+              size={48}
+              color={colors.primary}
+            />
+            <Text style={styles.scheduleAnotherTitle}>Great to hear!</Text>
+            <Text style={styles.scheduleAnotherMessage}>
+              Would you like to schedule another date with {selectedDate?.profileName}?
+            </Text>
+            
+            <View style={styles.scheduleAnotherButtons}>
+              <TouchableOpacity
+                style={[styles.scheduleAnotherButton, styles.scheduleAnotherButtonSecondary]}
+                onPress={() => {
+                  console.log('[DateHistory] User declined to schedule another date');
+                  setShowScheduleAnotherDate(false);
+                  setSelectedDate(null);
+                  setRating(0);
+                  setWouldGoAgain(null);
+                  setRatingNotes('');
+                  Alert.alert('Success', 'Date rating saved successfully!');
+                }}
+              >
+                <Text style={styles.scheduleAnotherButtonTextSecondary}>Not Now</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.scheduleAnotherButton, styles.scheduleAnotherButtonPrimary]}
+                onPress={() => {
+                  console.log('[DateHistory] User wants to schedule another date');
+                  setShowScheduleAnotherDate(false);
+                  setSelectedDate(null);
+                  setRating(0);
+                  setWouldGoAgain(null);
+                  setRatingNotes('');
+                  router.push('/dating/schedule');
+                }}
+              >
+                <Text style={styles.scheduleAnotherButtonTextPrimary}>Yes, Schedule!</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -844,5 +912,63 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  scheduleAnotherOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  scheduleAnotherModal: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 400,
+    width: '100%',
+  },
+  scheduleAnotherTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  scheduleAnotherMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  scheduleAnotherButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  scheduleAnotherButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  scheduleAnotherButtonSecondary: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  scheduleAnotherButtonPrimary: {
+    backgroundColor: colors.primary,
+  },
+  scheduleAnotherButtonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  scheduleAnotherButtonTextPrimary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
