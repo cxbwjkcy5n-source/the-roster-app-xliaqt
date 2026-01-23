@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, lt } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
@@ -77,39 +77,44 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id, profileId: body.profileId }, 'Creating new date record');
 
-      // Verify that the profile belongs to the user
-      const profile = await app.db.query.rosterProfiles.findFirst({
-        where: and(
-          eq(schema.rosterProfiles.id, body.profileId),
-          eq(schema.rosterProfiles.userId, session.user.id)
-        ),
-      });
+      try {
+        // Verify that the profile belongs to the user
+        const profile = await app.db.query.rosterProfiles.findFirst({
+          where: and(
+            eq(schema.rosterProfiles.id, body.profileId),
+            eq(schema.rosterProfiles.userId, session.user.id)
+          ),
+        });
 
-      if (!profile) {
-        app.logger.warn({ userId: session.user.id, profileId: body.profileId }, 'Profile not found for date creation');
-        return reply.status(404).send({ error: 'Profile not found' });
+        if (!profile) {
+          app.logger.warn({ userId: session.user.id, profileId: body.profileId }, 'Profile not found for date creation');
+          return reply.status(404).send({ error: 'Profile not found' });
+        }
+
+        const [date] = await app.db
+          .insert(schema.dates)
+          .values({
+            userId: session.user.id,
+            profileId: body.profileId,
+            status: body.status as 'upcoming' | 'completed' | undefined,
+            type: body.type as 'casual' | 'formal' | 'activity' | 'dinner' | 'drinks' | 'coffee' | undefined,
+            dateTime: body.dateTime ? new Date(body.dateTime) : undefined,
+            locationName: body.locationName,
+            locationAddress: body.locationAddress,
+            locationCoordinates: body.locationCoordinates,
+            notes: body.notes,
+            rating: body.rating,
+            wouldGoAgain: body.wouldGoAgain,
+            reminderSettings: body.reminderSettings,
+          })
+          .returning();
+
+        app.logger.info({ dateId: date.id, userId: session.user.id, profileId: body.profileId }, 'Date record created successfully');
+        return date;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileId: body.profileId }, 'Failed to create date record');
+        return reply.status(500).send({ error: 'Failed to create date record. Please try again.' });
       }
-
-      const [date] = await app.db
-        .insert(schema.dates)
-        .values({
-          userId: session.user.id,
-          profileId: body.profileId,
-          status: body.status as 'upcoming' | 'completed' | undefined,
-          type: body.type as 'casual' | 'formal' | 'activity' | 'dinner' | 'drinks' | 'coffee' | undefined,
-          dateTime: body.dateTime ? new Date(body.dateTime) : undefined,
-          locationName: body.locationName,
-          locationAddress: body.locationAddress,
-          locationCoordinates: body.locationCoordinates,
-          notes: body.notes,
-          rating: body.rating,
-          wouldGoAgain: body.wouldGoAgain,
-          reminderSettings: body.reminderSettings,
-        })
-        .returning();
-
-      app.logger.info({ dateId: date.id, userId: session.user.id, profileId: body.profileId }, 'Date record created successfully');
-      return date;
     }
   );
 
@@ -137,31 +142,68 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id, status }, 'Fetching dates');
 
-      // Status filtering
-      if (status) {
-        const filteredDates = await app.db
+      try {
+        // First, update any upcoming dates that have passed their dateTime to completed status
+        const now = new Date();
+        const upcomingDatesToUpdate = await app.db
           .select()
           .from(schema.dates)
           .where(
             and(
               eq(schema.dates.userId, session.user.id),
-              eq(schema.dates.status, status)
+              eq(schema.dates.status, 'upcoming'),
+              lt(schema.dates.dateTime, now)
             )
           );
-        app.logger.info({ userId: session.user.id, status, count: filteredDates.length }, 'Filtered dates fetched successfully');
-        return filteredDates;
+
+        if (upcomingDatesToUpdate.length > 0) {
+          app.logger.info(
+            { userId: session.user.id, count: upcomingDatesToUpdate.length },
+            'Auto-updating passed upcoming dates to completed'
+          );
+
+          // Update all passed dates to completed
+          await app.db
+            .update(schema.dates)
+            .set({ status: 'completed' })
+            .where(
+              and(
+                eq(schema.dates.userId, session.user.id),
+                eq(schema.dates.status, 'upcoming'),
+                lt(schema.dates.dateTime, now)
+              )
+            );
+        }
+
+        // Status filtering
+        if (status) {
+          const filteredDates = await app.db
+            .select()
+            .from(schema.dates)
+            .where(
+              and(
+                eq(schema.dates.userId, session.user.id),
+                eq(schema.dates.status, status)
+              )
+            );
+          app.logger.info({ userId: session.user.id, status, count: filteredDates.length }, 'Filtered dates fetched successfully');
+          return filteredDates;
+        }
+
+        const allDates = await app.db
+          .query.dates.findMany({
+            where: eq(schema.dates.userId, session.user.id),
+            with: {
+              profile: true,
+            },
+          });
+
+        app.logger.info({ userId: session.user.id, count: allDates.length }, 'All dates fetched successfully');
+        return allDates;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, status }, 'Failed to fetch dates');
+        return reply.status(500).send({ error: 'Failed to fetch dates. Please try again.' });
       }
-
-      const allDates = await app.db
-        .query.dates.findMany({
-          where: eq(schema.dates.userId, session.user.id),
-          with: {
-            profile: true,
-          },
-        });
-
-      app.logger.info({ userId: session.user.id, count: allDates.length }, 'All dates fetched successfully');
-      return allDates;
     }
   );
 
@@ -184,27 +226,36 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };
 
-      // Verify ownership
-      const existing = await app.db.query.dates.findFirst({
-        where: and(eq(schema.dates.id, id), eq(schema.dates.userId, session.user.id)),
-      });
+      app.logger.info({ userId: session.user.id, dateId: id }, 'Updating date record');
 
-      if (!existing) {
-        return reply.status(404).send({ error: 'Date not found' });
+      try {
+        // Verify ownership
+        const existing = await app.db.query.dates.findFirst({
+          where: and(eq(schema.dates.id, id), eq(schema.dates.userId, session.user.id)),
+        });
+
+        if (!existing) {
+          app.logger.warn({ userId: session.user.id, dateId: id }, 'Date not found for update');
+          return reply.status(404).send({ error: 'Date not found' });
+        }
+
+        const updateData: Record<string, any> = { ...body };
+        if (body.dateTime) {
+          updateData.dateTime = new Date(body.dateTime);
+        }
+
+        const [updated] = await app.db
+          .update(schema.dates)
+          .set(updateData)
+          .where(eq(schema.dates.id, id))
+          .returning();
+
+        app.logger.info({ userId: session.user.id, dateId: id }, 'Date record updated successfully');
+        return updated;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, dateId: id }, 'Failed to update date record');
+        return reply.status(500).send({ error: 'Failed to update date record. Please try again.' });
       }
-
-      const updateData: Record<string, any> = { ...body };
-      if (body.dateTime) {
-        updateData.dateTime = new Date(body.dateTime);
-      }
-
-      const [updated] = await app.db
-        .update(schema.dates)
-        .set(updateData)
-        .where(eq(schema.dates.id, id))
-        .returning();
-
-      return updated;
     }
   );
 
@@ -225,21 +276,30 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
       const { id } = request.params as { id: string };
 
-      // Verify ownership
-      const existing = await app.db.query.dates.findFirst({
-        where: and(eq(schema.dates.id, id), eq(schema.dates.userId, session.user.id)),
-      });
+      app.logger.info({ userId: session.user.id, dateId: id }, 'Deleting date record');
 
-      if (!existing) {
-        return reply.status(404).send({ error: 'Date not found' });
+      try {
+        // Verify ownership
+        const existing = await app.db.query.dates.findFirst({
+          where: and(eq(schema.dates.id, id), eq(schema.dates.userId, session.user.id)),
+        });
+
+        if (!existing) {
+          app.logger.warn({ userId: session.user.id, dateId: id }, 'Date not found for deletion');
+          return reply.status(404).send({ error: 'Date not found' });
+        }
+
+        const [deleted] = await app.db
+          .delete(schema.dates)
+          .where(eq(schema.dates.id, id))
+          .returning();
+
+        app.logger.info({ userId: session.user.id, dateId: id }, 'Date record deleted successfully');
+        return deleted;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, dateId: id }, 'Failed to delete date record');
+        return reply.status(500).send({ error: 'Failed to delete date record. Please try again.' });
       }
-
-      const [deleted] = await app.db
-        .delete(schema.dates)
-        .where(eq(schema.dates.id, id))
-        .returning();
-
-      return deleted;
     }
   );
 }
