@@ -14,6 +14,8 @@ import {
   ScrollView,
   ActivityIndicator,
   FlatList,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -46,7 +48,7 @@ interface Analytics {
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, bench, loading: rosterLoading, dates, refreshDates } = useRoster();
+  const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showMyDates, setShowMyDates] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -55,6 +57,19 @@ export default function RosterScreen() {
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [selectedDate, setSelectedDate] = useState<any>(null);
   const [showDateDetails, setShowDateDetails] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  
+  // Edit state
+  const [editLocation, setEditLocation] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editDate, setEditDate] = useState('');
+  
+  // Rating state
+  const [rating, setRating] = useState(0);
+  const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
+  const [ratingNotes, setRatingNotes] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -115,6 +130,86 @@ export default function RosterScreen() {
       medium: (analytics.interestLevelBreakdown.medium / total) * 100,
       low: (analytics.interestLevelBreakdown.low / total) * 100,
     };
+  };
+
+  const handleEditDate = (date: any) => {
+    console.log('[Home] User tapped Edit Date button for:', date.id);
+    setEditLocation(date.location || '');
+    setEditNotes(date.notes || '');
+    setEditTime(date.time || '');
+    setEditDate(date.date || '');
+    setShowDateDetails(false);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedDate) return;
+    
+    try {
+      console.log('[Home] Saving date edits');
+      await updateDate({
+        ...selectedDate,
+        location: editLocation,
+        notes: editNotes,
+        time: editTime,
+        date: editDate,
+      });
+      
+      setShowEditModal(false);
+      setSelectedDate(null);
+      Alert.alert('Success', 'Date updated successfully!');
+      await refreshDates();
+    } catch (error) {
+      console.error('[Home] Error saving date edits:', error);
+      Alert.alert('Error', 'Failed to update date. Please try again.');
+    }
+  };
+
+  const handleRateDate = (date: any) => {
+    console.log('[Home] User tapped Rate Date button for:', date.id);
+    setRating(date.rating || 0);
+    setWouldGoAgain(date.wouldGoAgain ?? null);
+    setRatingNotes(date.notes || '');
+    setShowDateDetails(false);
+    setShowRatingModal(true);
+  };
+
+  const handleSaveRating = async () => {
+    if (!selectedDate) return;
+    
+    if (rating === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating before saving.');
+      return;
+    }
+    
+    if (wouldGoAgain === null) {
+      Alert.alert('Decision Required', 'Please indicate if you would go on this date again.');
+      return;
+    }
+
+    try {
+      console.log('[Home] Saving rating:', { rating, wouldGoAgain, notes: ratingNotes });
+      
+      await rateDate(selectedDate.id, rating, wouldGoAgain);
+      
+      if (ratingNotes !== selectedDate.notes) {
+        await updateDate({
+          ...selectedDate,
+          notes: ratingNotes,
+        });
+      }
+      
+      setShowRatingModal(false);
+      setSelectedDate(null);
+      setRating(0);
+      setWouldGoAgain(null);
+      setRatingNotes('');
+      Alert.alert('Success', 'Date rating saved successfully!');
+      await refreshDates();
+    } catch (error) {
+      console.error('[Home] Error saving rating:', error);
+      Alert.alert('Error', 'Failed to save rating. Please try again.');
+    }
   };
 
   const renderAnalyticsInfographic = () => {
@@ -763,30 +858,275 @@ export default function RosterScreen() {
                     )}
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.editDateButton}
-                    onPress={() => {
-                      console.log('[Home] User tapped Edit Date button');
-                      setShowDateDetails(false);
-                      setShowMyDates(false);
-                      router.push('/dating/history');
-                    }}
-                  >
-                    <LinearGradient
-                      colors={[colors.rosterGreen, '#1a7a4d']}
-                      style={styles.editDateButtonGradient}
+                  <View style={styles.dateActionButtons}>
+                    <TouchableOpacity
+                      style={styles.editDateButton}
+                      onPress={() => handleEditDate(selectedDate)}
                     >
-                      <IconSymbol
-                        ios_icon_name="pencil"
-                        android_material_icon_name="edit"
-                        size={18}
-                        color="#fff"
-                      />
-                      <Text style={styles.editDateButtonText}>Edit Date</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      <LinearGradient
+                        colors={[colors.rosterGreen, '#1a7a4d']}
+                        style={styles.editDateButtonGradient}
+                      >
+                        <IconSymbol
+                          ios_icon_name="pencil"
+                          android_material_icon_name="edit"
+                          size={18}
+                          color="#fff"
+                        />
+                        <Text style={styles.editDateButtonText}>Edit Date</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    {selectedDate.status === 'completed' && (
+                      <TouchableOpacity
+                        style={styles.rateDateButton}
+                        onPress={() => handleRateDate(selectedDate)}
+                      >
+                        <LinearGradient
+                          colors={['#FF6B9D', '#C44569']}
+                          style={styles.editDateButtonGradient}
+                        >
+                          <IconSymbol
+                            ios_icon_name="star.fill"
+                            android_material_icon_name="star"
+                            size={18}
+                            color="#fff"
+                          />
+                          <Text style={styles.editDateButtonText}>
+                            {selectedDate.rating ? 'Update Rating' : 'Rate Date'}
+                          </Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </ScrollView>
               )}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Edit Date Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+        presentationStyle="pageSheet"
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlayTop}>
+            <View style={styles.modalContentTop}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Date</Text>
+                <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                  <IconSymbol 
+                    ios_icon_name="xmark" 
+                    android_material_icon_name="close" 
+                    size={24} 
+                    color={colors.darkText} 
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.editModalContent}>
+                {selectedDate && (
+                  <Text style={styles.editDateName}>{selectedDate.profileName}</Text>
+                )}
+
+                <View style={styles.editSection}>
+                  <Text style={styles.editLabel}>Date</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editDate}
+                    onChangeText={setEditDate}
+                    placeholder="Enter date (e.g., Jan 15, 2024)"
+                    placeholderTextColor={colors.grey}
+                  />
+                </View>
+
+                <View style={styles.editSection}>
+                  <Text style={styles.editLabel}>Time</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editTime}
+                    onChangeText={setEditTime}
+                    placeholder="Enter time (e.g., 7:00 PM)"
+                    placeholderTextColor={colors.grey}
+                  />
+                </View>
+
+                <View style={styles.editSection}>
+                  <Text style={styles.editLabel}>Location</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editLocation}
+                    onChangeText={setEditLocation}
+                    placeholder="Enter location"
+                    placeholderTextColor={colors.grey}
+                  />
+                </View>
+
+                <View style={styles.editSection}>
+                  <Text style={styles.editLabel}>Notes</Text>
+                  <TextInput
+                    style={[styles.editInput, styles.notesInput]}
+                    value={editNotes}
+                    onChangeText={setEditNotes}
+                    placeholder="Add notes..."
+                    placeholderTextColor={colors.grey}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.saveEditButton}
+                  onPress={handleSaveEdit}
+                >
+                  <LinearGradient
+                    colors={[colors.rosterGreen, '#1a7a4d']}
+                    style={styles.saveEditButtonGradient}
+                  >
+                    <Text style={styles.saveEditButtonText}>Save Changes</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Rating Modal */}
+      <Modal
+        visible={showRatingModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowRatingModal(false)}
+        presentationStyle="pageSheet"
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlayTop}>
+            <View style={styles.modalContentTop}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Rate Your Date</Text>
+                <TouchableOpacity onPress={() => setShowRatingModal(false)}>
+                  <IconSymbol 
+                    ios_icon_name="xmark" 
+                    android_material_icon_name="close" 
+                    size={24} 
+                    color={colors.darkText} 
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.ratingModalContent}>
+                {selectedDate && (
+                  <Text style={styles.ratingDateName}>{selectedDate.profileName}</Text>
+                )}
+
+                <View style={styles.ratingSection}>
+                  <Text style={styles.ratingLabel}>How was the date?</Text>
+                  <View style={styles.starsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <TouchableOpacity
+                        key={star}
+                        onPress={() => {
+                          console.log('[Home] User selected rating:', star);
+                          setRating(star);
+                        }}
+                      >
+                        <IconSymbol
+                          ios_icon_name={star <= rating ? "star.fill" : "star"}
+                          android_material_icon_name={star <= rating ? "star" : "star-border"}
+                          size={40}
+                          color={star <= rating ? colors.warning : colors.grey}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.ratingSection}>
+                  <Text style={styles.ratingLabel}>Would you go on this date again?</Text>
+                  <View style={styles.wouldGoAgainButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.wouldGoAgainButton,
+                        wouldGoAgain === true && styles.wouldGoAgainButtonActive,
+                      ]}
+                      onPress={() => {
+                        console.log('[Home] User selected: Would go again');
+                        setWouldGoAgain(true);
+                      }}
+                    >
+                      <IconSymbol
+                        ios_icon_name="checkmark.circle.fill"
+                        android_material_icon_name="check-circle"
+                        size={24}
+                        color={wouldGoAgain === true ? '#fff' : colors.rosterGreen}
+                      />
+                      <Text style={[
+                        styles.wouldGoAgainButtonText,
+                        wouldGoAgain === true && styles.wouldGoAgainButtonTextActive
+                      ]}>
+                        Yes
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.wouldGoAgainButton,
+                        wouldGoAgain === false && styles.wouldGoAgainButtonActive,
+                      ]}
+                      onPress={() => {
+                        console.log('[Home] User selected: Would not go again');
+                        setWouldGoAgain(false);
+                      }}
+                    >
+                      <IconSymbol
+                        ios_icon_name="xmark.circle.fill"
+                        android_material_icon_name="cancel"
+                        size={24}
+                        color={wouldGoAgain === false ? '#fff' : colors.actionRed}
+                      />
+                      <Text style={[
+                        styles.wouldGoAgainButtonText,
+                        wouldGoAgain === false && styles.wouldGoAgainButtonTextActive
+                      ]}>
+                        No
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.ratingSection}>
+                  <Text style={styles.ratingLabel}>Notes (optional)</Text>
+                  <TextInput
+                    style={styles.ratingNotesInput}
+                    value={ratingNotes}
+                    onChangeText={setRatingNotes}
+                    placeholder="Add any notes about the date..."
+                    placeholderTextColor={colors.grey}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.saveRatingButton}
+                  onPress={handleSaveRating}
+                >
+                  <LinearGradient
+                    colors={['#FF6B9D', '#C44569']}
+                    style={styles.saveRatingButtonGradient}
+                  >
+                    <Text style={styles.saveRatingButtonText}>Save Rating</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -808,7 +1148,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 68,
     paddingBottom: 24,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -839,7 +1179,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 10,
     position: 'absolute',
-    top: 20,
+    top: 68,
     right: 20,
   },
   headerButton: {
@@ -1140,10 +1480,16 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 4,
   },
+  dateActionButtons: {
+    gap: 12,
+  },
   editDateButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    marginTop: 8,
+  },
+  rateDateButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   editDateButtonGradient: {
     flexDirection: 'row',
@@ -1321,5 +1667,128 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(255,255,255,0.8)',
     marginTop: 8,
+  },
+  // EDIT MODAL STYLES
+  editModalContent: {
+    padding: 20,
+  },
+  editDateName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  editSection: {
+    marginBottom: 20,
+  },
+  editLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.darkText,
+    marginBottom: 8,
+  },
+  editInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.darkText,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  notesInput: {
+    minHeight: 100,
+  },
+  saveEditButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  saveEditButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveEditButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // RATING MODAL STYLES
+  ratingModalContent: {
+    padding: 20,
+  },
+  ratingDateName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  ratingSection: {
+    marginBottom: 24,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.darkText,
+    marginBottom: 12,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  wouldGoAgainButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  wouldGoAgainButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  wouldGoAgainButtonActive: {
+    backgroundColor: colors.rosterGreen,
+    borderColor: colors.rosterGreen,
+  },
+  wouldGoAgainButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.darkText,
+  },
+  wouldGoAgainButtonTextActive: {
+    color: '#fff',
+  },
+  ratingNotesInput: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: colors.darkText,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 100,
+  },
+  saveRatingButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  saveRatingButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveRatingButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
