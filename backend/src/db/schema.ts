@@ -82,7 +82,7 @@ export const interactions = pgTable('interactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  type: text('type', { enum: ['date', 'morning_text', 'check_in', 'call', 'message'] }).notNull(),
+  type: text('type', { enum: ['date', 'morning_text', 'check_in', 'call', 'message', 'moved_to_bench', 'moved_to_roster'] }).notNull(),
   timestamp: timestamp('timestamp').defaultNow().notNull(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

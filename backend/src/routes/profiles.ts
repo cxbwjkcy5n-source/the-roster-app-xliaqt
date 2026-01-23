@@ -328,6 +328,22 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           .where(eq(schema.rosterProfiles.id, id))
           .returning();
 
+        // Create interaction record for bench status change
+        try {
+          await app.db
+            .insert(schema.interactions)
+            .values({
+              userId: session.user.id,
+              profileId: id,
+              type: 'moved_to_bench',
+              notes: body.reason,
+            })
+            .returning();
+          app.logger.info({ userId: session.user.id, profileId: id }, 'Interaction recorded for bench status change');
+        } catch (interactionError) {
+          app.logger.warn({ err: interactionError, userId: session.user.id, profileId: id }, 'Failed to record bench interaction, but profile update succeeded');
+        }
+
         app.logger.info({ userId: session.user.id, profileId: id }, 'Profile moved to bench successfully');
         return updated;
       } catch (error) {
@@ -379,6 +395,21 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           })
           .where(eq(schema.rosterProfiles.id, id))
           .returning();
+
+        // Create interaction record for roster status change
+        try {
+          await app.db
+            .insert(schema.interactions)
+            .values({
+              userId: session.user.id,
+              profileId: id,
+              type: 'moved_to_roster',
+            })
+            .returning();
+          app.logger.info({ userId: session.user.id, profileId: id }, 'Interaction recorded for roster status change');
+        } catch (interactionError) {
+          app.logger.warn({ err: interactionError, userId: session.user.id, profileId: id }, 'Failed to record roster interaction, but profile update succeeded');
+        }
 
         app.logger.info({ userId: session.user.id, profileId: id }, 'Profile moved to roster successfully');
         return updated;
