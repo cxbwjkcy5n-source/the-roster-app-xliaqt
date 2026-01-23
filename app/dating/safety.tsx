@@ -677,7 +677,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '60%',
+    maxHeight: '50%',
+    minHeight: 200,
   },
   dropdownHandle: {
     width: 40,

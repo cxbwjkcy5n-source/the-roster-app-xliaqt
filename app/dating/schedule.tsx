@@ -711,13 +711,14 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-start',
+    justifyContent: 'flex-end',
   },
   pickerModal: {
     backgroundColor: colors.backgroundAlt,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    maxHeight: '70%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '50%',
+    minHeight: 200,
   },
   pickerHeader: {
     flexDirection: 'row',

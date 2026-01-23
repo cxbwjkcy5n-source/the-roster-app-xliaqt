@@ -949,7 +949,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundAlt,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '60%',
+    maxHeight: '50%',
+    minHeight: 200,
     paddingTop: 20,
   },
   pickerTitle: {
