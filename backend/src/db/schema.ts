@@ -54,7 +54,7 @@ export const dates = pgTable('dates', {
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
   status: text('status', { enum: ['upcoming', 'completed'] }).default('upcoming'),
-  type: text('type', { enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee'] }).default('casual'),
+  type: text('type', { enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee', 'movie', 'outdoor', 'other'] }).default('casual'),
   dateTime: timestamp('date_time'),
   locationName: text('location_name'),
   locationAddress: text('location_address'),

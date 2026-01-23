@@ -32,7 +32,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           properties: {
             profileId: { type: 'string' },
             status: { type: 'string', enum: ['upcoming', 'completed'] },
-            type: { type: 'string', enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee'] },
+            type: { type: 'string', enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee', 'movie', 'outdoor', 'other'] },
             dateTime: { type: 'string' },
             locationName: { type: 'string' },
             locationAddress: { type: 'string' },
@@ -97,7 +97,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
             userId: session.user.id,
             profileId: body.profileId,
             status: body.status as 'upcoming' | 'completed' | undefined,
-            type: body.type as 'casual' | 'formal' | 'activity' | 'dinner' | 'drinks' | 'coffee' | undefined,
+            type: body.type as 'casual' | 'formal' | 'activity' | 'dinner' | 'drinks' | 'coffee' | 'movie' | 'outdoor' | 'other' | undefined,
             dateTime: body.dateTime ? new Date(body.dateTime) : undefined,
             locationName: body.locationName,
             locationAddress: body.locationAddress,
