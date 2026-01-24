@@ -486,7 +486,7 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Roster Header - Green Gradient - FIX: Proper spacing */}
+      {/* Roster Header - Green Gradient - FIXED: Consistent spacing */}
       <LinearGradient colors={gradients.rosterGreen} style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>THE ROSTER</Text>
@@ -1172,7 +1172,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 68,
+    paddingTop: 20,
     paddingBottom: 24,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -1203,7 +1203,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 10,
     position: 'absolute',
-    top: 68,
+    top: 20,
     right: 20,
   },
   headerButton: {
