@@ -50,10 +50,7 @@ export default function RosterScreen() {
   const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showMyDates, setShowMyDates] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [selectedDate, setSelectedDate] = useState<any>(null);
   const [showDateDetails, setShowDateDetails] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -77,26 +74,6 @@ export default function RosterScreen() {
     }
   }, [user, authLoading, router]);
 
-  const loadAnalytics = async () => {
-    try {
-      setLoadingAnalytics(true);
-      console.log('[Home iOS] Loading analytics...');
-      const data = await authenticatedGet<Analytics>('/api/analytics');
-      console.log('[Home iOS] Analytics loaded:', data);
-      setAnalytics(data);
-    } catch (error) {
-      console.error('[Home iOS] Error loading analytics:', error);
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  };
-
-  useEffect(() => {
-    if (showAnalytics && !analytics) {
-      loadAnalytics();
-    }
-  }, [showAnalytics]);
-
   if (authLoading || rosterLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -116,19 +93,6 @@ export default function RosterScreen() {
       default:
         return colors.grey;
     }
-  };
-
-  const getInterestPercentages = () => {
-    if (!analytics) return { high: 0, medium: 0, low: 0 };
-    const total = analytics.interestLevelBreakdown.high + 
-                  analytics.interestLevelBreakdown.medium + 
-                  analytics.interestLevelBreakdown.low;
-    if (total === 0) return { high: 0, medium: 0, low: 0 };
-    return {
-      high: (analytics.interestLevelBreakdown.high / total) * 100,
-      medium: (analytics.interestLevelBreakdown.medium / total) * 100,
-      low: (analytics.interestLevelBreakdown.low / total) * 100,
-    };
   };
 
   const handleEditDate = (date: any) => {
@@ -209,196 +173,6 @@ export default function RosterScreen() {
       console.error('[Home iOS] Error saving rating:', error);
       Alert.alert('Error', 'Failed to save rating. Please try again.');
     }
-  };
-
-  const renderAnalyticsInfographic = () => {
-    if (!analytics) {
-      console.log('[Home iOS] Analytics is null, cannot render infographic');
-      return null;
-    }
-    
-    console.log('[Home iOS] Rendering analytics infographic with data:', analytics);
-    
-    const interestPercentages = getInterestPercentages();
-    const totalProfiles = analytics.totalProfiles;
-    const rosterPercentage = totalProfiles > 0 ? (analytics.statusBreakdown.roster / totalProfiles) * 100 : 0;
-    const benchPercentage = totalProfiles > 0 ? (analytics.statusBreakdown.bench / totalProfiles) * 100 : 0;
-
-    return (
-      <ScrollView style={styles.analyticsScroll} contentContainerStyle={styles.analyticsContent}>
-        {/* Hero Stats */}
-        <View style={styles.heroStatsContainer}>
-          <LinearGradient
-            colors={['#667eea', '#764ba2']}
-            style={styles.heroStatCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <IconSymbol
-              ios_icon_name="person.3.fill"
-              android_material_icon_name="group"
-              size={32}
-              color="#fff"
-            />
-            <Text style={styles.heroStatValue}>{analytics.totalProfiles}</Text>
-            <Text style={styles.heroStatLabel}>Total Profiles</Text>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={['#FF6B9D', '#C44569']}
-            style={styles.heroStatCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <IconSymbol
-              ios_icon_name="calendar"
-              android_material_icon_name="calendar-today"
-              size={32}
-              color="#fff"
-            />
-            <Text style={styles.heroStatValue}>{analytics.totalDates}</Text>
-            <Text style={styles.heroStatLabel}>Total Dates</Text>
-          </LinearGradient>
-        </View>
-
-        {/* Dates Breakdown */}
-        <View style={styles.infographicSection}>
-          <Text style={styles.sectionTitle}>📅 Dates Overview</Text>
-          <View style={styles.datesBreakdownContainer}>
-            <View style={styles.dateBreakdownCard}>
-              <View style={[styles.dateIconCircle, { backgroundColor: '#4FACFE' }]}>
-                <IconSymbol
-                  ios_icon_name="clock.fill"
-                  android_material_icon_name="schedule"
-                  size={24}
-                  color="#fff"
-                />
-              </View>
-              <Text style={styles.dateBreakdownValue}>{analytics.upcomingDates}</Text>
-              <Text style={styles.dateBreakdownLabel}>Upcoming</Text>
-            </View>
-
-            <View style={styles.dateBreakdownCard}>
-              <View style={[styles.dateIconCircle, { backgroundColor: '#2E7D32' }]}>
-                <IconSymbol
-                  ios_icon_name="checkmark.circle.fill"
-                  android_material_icon_name="check-circle"
-                  size={24}
-                  color="#fff"
-                />
-              </View>
-              <Text style={styles.dateBreakdownValue}>{analytics.completedDates}</Text>
-              <Text style={styles.dateBreakdownLabel}>Completed</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Interest Level Breakdown */}
-        <View style={styles.infographicSection}>
-          <Text style={styles.sectionTitle}>💚 Interest Levels</Text>
-          
-          {/* High Interest */}
-          <View style={styles.interestRow}>
-            <View style={styles.interestLabelContainer}>
-              <View style={[styles.interestDot, { backgroundColor: '#2E7D32' }]} />
-              <Text style={styles.interestLabel}>High</Text>
-            </View>
-            <View style={styles.interestBarContainer}>
-              <View 
-                style={[
-                  styles.interestBar, 
-                  { 
-                    width: `${interestPercentages.high}%`,
-                    backgroundColor: '#2E7D32'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.high}</Text>
-          </View>
-
-          {/* Medium Interest */}
-          <View style={styles.interestRow}>
-            <View style={styles.interestLabelContainer}>
-              <View style={[styles.interestDot, { backgroundColor: '#FFC107' }]} />
-              <Text style={styles.interestLabel}>Medium</Text>
-            </View>
-            <View style={styles.interestBarContainer}>
-              <View 
-                style={[
-                  styles.interestBar, 
-                  { 
-                    width: `${interestPercentages.medium}%`,
-                    backgroundColor: '#FFC107'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.medium}</Text>
-          </View>
-
-          {/* Low Interest */}
-          <View style={styles.interestRow}>
-            <View style={styles.interestLabelContainer}>
-              <View style={[styles.interestDot, { backgroundColor: '#DC3545' }]} />
-              <Text style={styles.interestLabel}>Low</Text>
-            </View>
-            <View style={styles.interestBarContainer}>
-              <View 
-                style={[
-                  styles.interestBar, 
-                  { 
-                    width: `${interestPercentages.low}%`,
-                    backgroundColor: '#DC3545'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.low}</Text>
-          </View>
-        </View>
-
-        {/* Roster vs Bench */}
-        <View style={styles.infographicSection}>
-          <Text style={styles.sectionTitle}>⚡ Status Distribution</Text>
-          <View style={styles.statusContainer}>
-            <View style={styles.statusCard}>
-              <LinearGradient
-                colors={['#2E7D32', '#1a4d2e']}
-                style={styles.statusCardGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="star.fill"
-                  android_material_icon_name="star"
-                  size={28}
-                  color="#fff"
-                />
-                <Text style={styles.statusValue}>{analytics.statusBreakdown.roster}</Text>
-                <Text style={styles.statusLabel}>Roster</Text>
-                <Text style={styles.statusPercentage}>{rosterPercentage.toFixed(0)}%</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statusCard}>
-              <LinearGradient
-                colors={['#DC3545', '#a02834']}
-                style={styles.statusCardGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="pause.circle.fill"
-                  android_material_icon_name="pause-circle"
-                  size={28}
-                  color="#fff"
-                />
-                <Text style={styles.statusValue}>{analytics.statusBreakdown.bench}</Text>
-                <Text style={styles.statusLabel}>Bench</Text>
-                <Text style={styles.statusPercentage}>{benchPercentage.toFixed(0)}%</Text>
-              </LinearGradient>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    );
   };
 
   const renderPersonCard = ({ item }: { item: RosterPerson }) => {
@@ -486,7 +260,7 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Roster Header - Green Gradient - FIXED: Consistent spacing */}
+      {/* Roster Header - Green Gradient */}
       <LinearGradient colors={gradients.rosterGreen} style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>THE ROSTER</Text>
@@ -511,8 +285,8 @@ export default function RosterScreen() {
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              console.log('[Home iOS] User tapped analytics button');
-              setShowAnalytics(true);
+              console.log('[Home iOS] User tapped analytics button - navigating to full screen');
+              router.push('/dating/analytics');
             }}
             activeOpacity={0.7}
           >
@@ -610,9 +384,7 @@ export default function RosterScreen() {
                       const profileNameStr = date.profileName || 'Unknown';
                       const locationStr = date.location || 'No location';
                       const typeStr = date.type || 'casual';
-                      const notesStr = date.notes || '';
                       const ratingNum = date.rating || 0;
-                      const wouldGoAgainBool = date.wouldGoAgain;
                       
                       // Find the person's image
                       const allPeople = [...roster, ...bench];
@@ -682,46 +454,6 @@ export default function RosterScreen() {
                     })
                 )}
               </ScrollView>
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* Analytics Modal */}
-      <Modal
-        visible={showAnalytics}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowAnalytics(false)}
-        presentationStyle="pageSheet"
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlayTop}>
-            <View style={styles.modalContentTop}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Dating Analytics</Text>
-                <TouchableOpacity onPress={() => setShowAnalytics(false)}>
-                  <IconSymbol 
-                    ios_icon_name="xmark" 
-                    android_material_icon_name="close" 
-                    size={24} 
-                    color={colors.darkText} 
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {loadingAnalytics ? (
-                <View style={styles.loadingAnalyticsContainer}>
-                  <ActivityIndicator size="large" color={colors.rosterGreen} />
-                  <Text style={styles.loadingText}>Loading analytics...</Text>
-                </View>
-              ) : analytics ? (
-                renderAnalyticsInfographic()
-              ) : (
-                <View style={styles.loadingAnalyticsContainer}>
-                  <Text style={styles.emptyDatesText}>Failed to load analytics</Text>
-                </View>
-              )}
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -1053,7 +785,7 @@ export default function RosterScreen() {
                     <TouchableOpacity
                       style={[
                         styles.wouldGoAgainButton,
-                        wouldGoAgain === true && styles.wouldGoAgainButtonActive,
+                        wouldGoAgain === true && styles.wouldGoAgainButtonActiveYes,
                       ]}
                       onPress={() => {
                         console.log('[Home iOS] User selected: Would go again');
@@ -1077,7 +809,7 @@ export default function RosterScreen() {
                     <TouchableOpacity
                       style={[
                         styles.wouldGoAgainButton,
-                        wouldGoAgain === false && styles.wouldGoAgainButtonActive,
+                        wouldGoAgain === false && styles.wouldGoAgainButtonActiveNo,
                       ]}
                       onPress={() => {
                         console.log('[Home iOS] User selected: Would not go again');
@@ -1507,172 +1239,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  loadingAnalyticsContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: colors.grey,
-  },
-  // INFOGRAPHIC STYLES
-  analyticsScroll: {
-    flex: 1,
-  },
-  analyticsContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  heroStatsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  heroStatCard: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  heroStatValue: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#fff',
-    marginTop: 8,
-  },
-  heroStatLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  infographicSection: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.darkText,
-    marginBottom: 16,
-  },
-  datesBreakdownContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  dateBreakdownCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-  },
-  dateIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  dateBreakdownValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.darkText,
-    marginBottom: 4,
-  },
-  dateBreakdownLabel: {
-    fontSize: 12,
-    color: colors.grey,
-  },
-  interestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  interestLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 80,
-  },
-  interestDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  interestLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.darkText,
-  },
-  interestBarContainer: {
-    flex: 1,
-    height: 24,
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginHorizontal: 12,
-  },
-  interestBar: {
-    height: '100%',
-    borderRadius: 12,
-  },
-  interestValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.darkText,
-    width: 40,
-    textAlign: 'right',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statusCard: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  statusCardGradient: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  statusValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#fff',
-    marginTop: 12,
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-  },
-  statusPercentage: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 8,
-  },
-  // EDIT MODAL STYLES
   editModalContent: {
     padding: 20,
   },
@@ -1718,7 +1284,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // RATING MODAL STYLES
   ratingModalContent: {
     padding: 20,
   },
@@ -1759,9 +1324,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
-  wouldGoAgainButtonActive: {
+  wouldGoAgainButtonActiveYes: {
     backgroundColor: colors.rosterGreen,
     borderColor: colors.rosterGreen,
+  },
+  wouldGoAgainButtonActiveNo: {
+    backgroundColor: colors.actionRed,
+    borderColor: colors.actionRed,
   },
   wouldGoAgainButtonText: {
     fontSize: 16,
