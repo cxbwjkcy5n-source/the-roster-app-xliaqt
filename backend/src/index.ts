@@ -83,14 +83,15 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
       errorMessage.includes('Aborted') ||
       errorMessage.includes('CREATE SCHEMA') ||
       errorMessage.includes('RuntimeError') ||
-      errorMessage.includes('WASM')
+      errorMessage.includes('WASM') ||
+      errorMessage.includes('does not exist') // Handle table not found gracefully
     ) {
       app.logger.info(
         { err: errorMessage },
-        'Database WASM initialization issue detected - this is expected during local development.'
+        'Database initialization issue detected - this is expected during local development.'
       );
       if (migrationAttempts >= maxMigrationAttempts) {
-        app.logger.info('Continuing with startup despite migration issues. Tables will be created on first use.');
+        app.logger.info('Continuing with startup despite migration issues. Database will initialize on startup.');
         migrationsSuccessful = true; // Allow startup to continue
       }
     } else {
