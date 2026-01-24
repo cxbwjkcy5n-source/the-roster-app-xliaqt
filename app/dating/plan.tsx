@@ -48,9 +48,17 @@ export default function PlanDateScreen() {
   const [suggestions, setSuggestions] = useState<DateSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Request location on mount
+  // Request location on mount with timeout
   useEffect(() => {
-    requestLocationPermission();
+    const timeoutId = setTimeout(() => {
+      console.log('[PlanDate] Location request timed out');
+    }, 10000); // 10 second timeout
+    
+    requestLocationPermission().finally(() => {
+      clearTimeout(timeoutId);
+    });
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const requestLocationPermission = async () => {
@@ -59,6 +67,7 @@ export default function PlanDateScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
+        console.log('[PlanDate] Location permission denied');
         Alert.alert(
           'Location Permission',
           'We need your location to suggest nearby date ideas. You can also enter your location manually.',
@@ -68,36 +77,66 @@ export default function PlanDateScreen() {
       }
 
       console.log('[PlanDate] Getting current location...');
-      const location = await Location.getCurrentPositionAsync({});
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000,
+        distanceInterval: 0,
+      });
+      
+      if (!location || !location.coords) {
+        console.log('[PlanDate] No location data received');
+        Alert.alert('Location Error', 'Could not get your location. Please enter it manually.');
+        return;
+      }
+      
       const { latitude, longitude } = location.coords;
+      console.log('[PlanDate] Location coords:', latitude, longitude);
       
       // Reverse geocode to get city name
       const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (geocode.length > 0) {
+      if (geocode && geocode.length > 0) {
         const { city, region } = geocode[0];
-        const locationString = `${city}, ${region}`;
+        const locationString = city && region ? `${city}, ${region}` : city || region || 'Unknown location';
         setUserLocation(locationString);
         console.log('[PlanDate] Location set:', locationString);
+      } else {
+        console.log('[PlanDate] No geocode results');
+        Alert.alert('Location Error', 'Could not determine your city. Please enter it manually.');
       }
     } catch (error) {
       console.error('[PlanDate] Error getting location:', error);
+      Alert.alert(
+        'Location Error',
+        'Could not get your location. Please enter it manually.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const handleGenerateSuggestions = async () => {
+    console.log('[PlanDate] User tapped generate suggestions');
+    
     if (!selectedPerson) {
+      console.log('[PlanDate] No person selected');
       Alert.alert('Select Person', 'Please select someone from your roster');
       return;
     }
 
     if (!userLocation.trim()) {
+      console.log('[PlanDate] No location entered');
       Alert.alert('Location Required', 'Please enter your location to get personalized suggestions');
       return;
     }
 
     setLoading(true);
+    console.log('[PlanDate] Generating date suggestions...');
+    console.log('[PlanDate] Selected person:', selectedPerson.name);
+    console.log('[PlanDate] Location:', userLocation);
+    console.log('[PlanDate] Budget:', budget);
+    console.log('[PlanDate] Duration:', duration);
+    console.log('[PlanDate] Preferences:', preferences);
+    
     try {
-      console.log('[PlanDate] Generating date suggestions with location:', userLocation);
       // TODO: Backend Integration - POST /api/dates/suggestions with { profileId, budget, duration, preferences, location: userLocation }
       // For now, show mock data
       const mockSuggestions: DateSuggestion[] = [
@@ -119,14 +158,26 @@ export default function PlanDateScreen() {
           duration: duration,
           whyPerfect: 'Interactive and fun way to bond',
         },
+        {
+          id: '3',
+          name: 'Art Gallery Tour',
+          type: 'Cultural',
+          description: `Explore local art galleries in ${userLocation} followed by coffee`,
+          estimatedCost: budget,
+          duration: duration,
+          whyPerfect: 'Great conversation starter and cultural experience',
+        },
       ];
+      
+      console.log('[PlanDate] Generated', mockSuggestions.length, 'suggestions');
       setSuggestions(mockSuggestions);
       setShowSuggestions(true);
     } catch (error) {
       console.error('[PlanDate] Error generating suggestions:', error);
-      Alert.alert('Error', 'Failed to generate suggestions');
+      Alert.alert('Error', 'Failed to generate suggestions. Please try again.');
     } finally {
       setLoading(false);
+      console.log('[PlanDate] Finished generating suggestions');
     }
   };
 

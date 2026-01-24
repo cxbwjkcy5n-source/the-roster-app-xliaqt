@@ -72,8 +72,17 @@ export default function DatingAnalyticsScreen() {
     }
   };
 
-  const averageRatingDisplay = analytics?.averageRating?.toFixed(1) || '0.0';
-  const wouldGoAgainDisplay = analytics?.wouldGoAgainPercentage?.toFixed(0) || '0';
+  // Safely extract values with defaults
+  const averageRating = analytics?.averageRating ?? 0;
+  const wouldGoAgainPercentage = analytics?.wouldGoAgainPercentage ?? 0;
+  const totalRatings = analytics?.totalRatings ?? 0;
+  const totalDates = analytics?.totalDates ?? 0;
+  const completedDates = analytics?.completedDates ?? 0;
+  const upcomingDates = analytics?.upcomingDates ?? 0;
+  const thisMonthDates = analytics?.dateFrequency?.thisMonth ?? 0;
+  
+  const averageRatingDisplay = averageRating.toFixed(1);
+  const wouldGoAgainDisplay = wouldGoAgainPercentage.toFixed(0);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -118,19 +127,19 @@ export default function DatingAnalyticsScreen() {
           {/* Overview Stats */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{analytics.totalDates}</Text>
+              <Text style={styles.statValue}>{totalDates}</Text>
               <Text style={styles.statLabel}>Total Dates</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{analytics.completedDates}</Text>
+              <Text style={styles.statValue}>{completedDates}</Text>
               <Text style={styles.statLabel}>Completed</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{analytics.upcomingDates}</Text>
+              <Text style={styles.statValue}>{upcomingDates}</Text>
               <Text style={styles.statLabel}>Upcoming</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{analytics.dateFrequency.thisMonth}</Text>
+              <Text style={styles.statValue}>{thisMonthDates}</Text>
               <Text style={styles.statLabel}>This Month</Text>
             </View>
           </View>
@@ -151,7 +160,7 @@ export default function DatingAnalyticsScreen() {
                 </View>
                 <Text style={styles.ratingLabel}>Average Rating</Text>
                 <Text style={styles.ratingSubtext}>
-                  Based on {analytics.totalRatings} rating{analytics.totalRatings !== 1 ? 's' : ''}
+                  Based on {totalRatings} rating{totalRatings !== 1 ? 's' : ''}
                 </Text>
               </View>
               
@@ -167,7 +176,7 @@ export default function DatingAnalyticsScreen() {
                 </View>
                 <Text style={styles.ratingLabel}>Would Go Again</Text>
                 <Text style={styles.ratingSubtext}>
-                  {Math.round((analytics.wouldGoAgainPercentage / 100) * analytics.totalRatings)} of {analytics.totalRatings} dates
+                  {Math.round((wouldGoAgainPercentage / 100) * totalRatings)} of {totalRatings} dates
                 </Text>
               </View>
             </View>
@@ -282,17 +291,17 @@ export default function DatingAnalyticsScreen() {
               <View style={styles.interestRow}>
                 <View style={[styles.interestDot, { backgroundColor: colors.green }]} />
                 <Text style={styles.interestLabel}>High Interest</Text>
-                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.high}</Text>
+                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.high ?? 0}</Text>
               </View>
               <View style={styles.interestRow}>
                 <View style={[styles.interestDot, { backgroundColor: colors.yellow }]} />
                 <Text style={styles.interestLabel}>Medium Interest</Text>
-                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.medium}</Text>
+                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.medium ?? 0}</Text>
               </View>
               <View style={styles.interestRow}>
                 <View style={[styles.interestDot, { backgroundColor: colors.lowInterest }]} />
                 <Text style={styles.interestLabel}>Low Interest</Text>
-                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.low}</Text>
+                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.low ?? 0}</Text>
               </View>
             </View>
           </View>
@@ -309,7 +318,7 @@ export default function DatingAnalyticsScreen() {
                   color={colors.rosterGreen}
                 />
                 <Text style={styles.statusLabel}>Roster</Text>
-                <Text style={styles.statusValue}>{analytics.statusBreakdown.roster}</Text>
+                <Text style={styles.statusValue}>{analytics.statusBreakdown?.roster ?? 0}</Text>
               </View>
               <View style={styles.statusRow}>
                 <IconSymbol
@@ -319,7 +328,7 @@ export default function DatingAnalyticsScreen() {
                   color={colors.benchRed}
                 />
                 <Text style={styles.statusLabel}>Bench</Text>
-                <Text style={styles.statusValue}>{analytics.statusBreakdown.bench}</Text>
+                <Text style={styles.statusValue}>{analytics.statusBreakdown?.bench ?? 0}</Text>
               </View>
             </View>
           </View>

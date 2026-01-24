@@ -261,6 +261,18 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     if (user) {
       console.log('[RosterContext] User authenticated, loading data...');
       loadData();
+      
+      // Set up periodic refresh for dates (every 60 seconds)
+      // This ensures dates automatically move to completed when their time passes
+      const intervalId = setInterval(() => {
+        console.log('[RosterContext] Auto-refreshing dates to check for status updates...');
+        refreshDates();
+      }, 60000); // 60 seconds
+      
+      return () => {
+        console.log('[RosterContext] Cleaning up date refresh interval');
+        clearInterval(intervalId);
+      };
     } else {
       console.log('[RosterContext] No user authenticated, clearing data...');
       // Clear data when user logs out
@@ -272,7 +284,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setAnalytics(null);
       setNudges([]);
     }
-  }, [user, loadData]);
+  }, [user, loadData, refreshDates]);
 
   const addPerson = async (person: RosterPerson) => {
     try {
