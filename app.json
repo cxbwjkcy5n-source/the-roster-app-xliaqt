@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "The Roster",
@@ -15,6 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.theroster.app",
+      "buildNumber": "1.0.0",
+      "appleTeamId": "10002319229",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
