@@ -142,8 +142,8 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setBench(profiles.filter((p: RosterPerson) => p.status === 'bench'));
     } catch (err: any) {
       console.error('[RosterContext] Failed to refresh profiles:', err);
-      // Check if it's a database error
-      if (err.message && err.message.includes('Failed to fetch profiles')) {
+      // Check if it's a database error (HTTP 500 with specific error message)
+      if (err.message && (err.message.includes('HTTP 500') || err.message.includes('Failed to fetch'))) {
         throw new Error('The app is starting up. Please wait a moment and try again.');
       }
       throw err;
@@ -183,6 +183,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setDates(mappedDates);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh dates:', err);
+      // Silently fail for dates - not critical for initial load
     }
   }, []);
 
@@ -194,6 +195,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setReminders(response);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh reminders:', err);
+      // Silently fail for reminders - not critical for initial load
     }
   }, []);
 
@@ -206,6 +208,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setInteractions([]);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh interactions:', err);
+      // Silently fail for interactions - not critical for initial load
     }
   }, []);
 
@@ -217,6 +220,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setAnalytics(response);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh analytics:', err);
+      // Silently fail for analytics - not critical for initial load
     }
   }, []);
 
@@ -228,6 +232,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setNudges(response);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh nudges:', err);
+      // Silently fail for nudges - not critical for initial load
     }
   }, []);
 
@@ -235,8 +240,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      await Promise.all([
-        refreshProfiles(),
+      // Try to load profiles first (critical)
+      await refreshProfiles();
+      // Then load other data (non-critical, can fail silently)
+      await Promise.allSettled([
         refreshDates(),
         refreshReminders(),
         refreshInteractions(),
