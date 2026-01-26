@@ -33,6 +33,10 @@ process.on('uncaughtException', (error) => {
 // Combine schemas for Better Auth
 const schema = { ...appSchema, ...authSchema };
 
+// Log the number of tables being registered
+const tableCount = Object.keys(schema).length;
+console.log(`[STARTUP] Registering database schema with ${tableCount} tables/entities`);
+
 // Create application with schema for full database type support
 export const app = await createApplication(schema);
 
@@ -40,7 +44,7 @@ export const app = await createApplication(schema);
 export type App = typeof app;
 
 // Run database migrations on startup
-app.logger.info('Running database migrations on startup');
+app.logger.info('Starting database migration process');
 let migrationAttempts = 0;
 const maxMigrationAttempts = 3;
 let migrationsSuccessful = false;
@@ -51,21 +55,23 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
 
     // Add delay between attempts
     if (migrationAttempts > 1) {
-      app.logger.info({ attempt: migrationAttempts }, 'Waiting before retry...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      app.logger.info({ attempt: migrationAttempts }, 'Waiting 2 seconds before retry...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    app.logger.info({ attempt: migrationAttempts }, 'Attempting to run migrations');
+    app.logger.info({ attempt: migrationAttempts, maxAttempts: maxMigrationAttempts }, 'Executing database migrations');
     await runMigrations({ logger: app.logger });
-    app.logger.info('Database migrations completed successfully');
+    app.logger.info('✓ Database migrations completed successfully');
     migrationsSuccessful = true;
   } catch (error) {
     // Log but don't fail startup - the framework may have already initialized the schema
     // and this error might be about the drizzle schema which is optional
     let errorMessage = "";
+    let errorStack = "";
 
     if (error instanceof Error) {
       errorMessage = error.message;
+      errorStack = error.stack || "";
     } else if (typeof error === "string") {
       errorMessage = error;
     } else {
@@ -78,26 +84,30 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
     );
 
     // Check for known WASM/initialization issues that shouldn't block startup
-    if (
+    const isKnownError =
       errorMessage.includes('already exists') ||
       errorMessage.includes('Aborted') ||
       errorMessage.includes('CREATE SCHEMA') ||
       errorMessage.includes('RuntimeError') ||
       errorMessage.includes('WASM') ||
-      errorMessage.includes('does not exist') // Handle table not found gracefully
-    ) {
+      errorMessage.includes('does not exist') ||
+      errorMessage.includes('ENOENT') ||
+      errorMessage.includes('No such file');
+
+    if (isKnownError) {
       app.logger.info(
         { err: errorMessage },
         'Database initialization issue detected - this is expected during local development.'
       );
       if (migrationAttempts >= maxMigrationAttempts) {
-        app.logger.info('Continuing with startup despite migration issues. Database will initialize on startup.');
+        app.logger.info('Continuing with startup after expected migration issues.');
         migrationsSuccessful = true; // Allow startup to continue
       }
     } else {
-      // For other errors, allow startup to continue
+      // For other errors, still allow startup to continue
+      app.logger.error({ err: errorMessage, stack: errorStack }, 'Migration error details');
       if (migrationAttempts >= maxMigrationAttempts) {
-        app.logger.warn({ err: error }, 'Migration failed after all attempts. Continuing with startup.');
+        app.logger.warn('Migration failed after all attempts. Continuing with startup.');
         migrationsSuccessful = true;
       }
     }
