@@ -1,3 +1,4 @@
+
 {
   "build": {
     "development": {
@@ -5,20 +6,23 @@
       "distribution": "internal",
       "autoIncrement": true,
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "resourceClass": "m-medium"
       }
     },
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "resourceClass": "m-medium"
       }
     },
     "production": {
       "autoIncrement": true,
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "resourceClass": "m-medium"
       }
     }
   },
@@ -27,7 +31,7 @@
       "ios": {
         "appleId": "your-apple-id@example.com",
         "ascAppId": "placeholder",
-        "appleTeamId": "10002319229"
+        "appleTeamId": "YOUR_CORRECT_TEAM_ID_HERE"
       }
     }
   }
