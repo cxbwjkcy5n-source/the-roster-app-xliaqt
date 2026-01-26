@@ -17,6 +17,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const isFirstLogin = user?.firstLoginCompleted === false;
   const [isEditing, setIsEditing] = useState(isFirstLogin);
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [profileImageKey, setProfileImageKey] = useState<string | null>(null);
   const [name, setName] = useState(user?.name || '');
@@ -94,19 +96,23 @@ export default function ProfileScreen() {
   }, [isFirstLogin]);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      setProfileImage(uri);
+    try {
+      setUploadingImage(true);
+      console.log('[Profile iOS] Opening image picker...');
       
-      try {
-        console.log('[Profile iOS] Uploading profile image...');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.5, // OPTIMIZED: Reduced from 0.8 to 0.5 for faster uploads
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        console.log('[Profile iOS] Image selected, uploading...');
+        
+        // Show image immediately for better UX
+        setProfileImage(uri);
         
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'profile-image.jpg';
@@ -143,10 +149,14 @@ export default function ProfileScreen() {
         console.log('[Profile iOS] Image uploaded successfully:', uploadData.url);
         
         setProfileImageKey(uploadData.key);
-      } catch (error) {
-        console.error('[Profile iOS] Image upload failed:', error);
-        Alert.alert('Error', 'Failed to upload image. Please try again.');
+        setProfileImage(uploadData.url); // Update with server URL
       }
+    } catch (error) {
+      console.error('[Profile iOS] Image upload failed:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      setProfileImage(null); // Reset on error
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -255,17 +265,17 @@ export default function ProfileScreen() {
 
   const getColorDisplay = (colorName: string) => {
     const colorMap: { [key: string]: string } = {
-      'Red': '#FF0000',
+      'Red': '#C41E3A',
       'Blue': '#0000FF',
-      'Green': '#00FF00',
-      'Yellow': '#FFFF00',
+      'Green': '#2D8B4E',
+      'Yellow': '#D4AF37',
       'Purple': '#800080',
       'Orange': '#FFA500',
       'Pink': '#FFC0CB',
-      'Black': '#000000',
+      'Black': '#1A1A1A',
       'White': '#FFFFFF',
       'Brown': '#8B4513',
-      'Gray': '#808080',
+      'Gray': '#7A7A7A',
     };
     return colorMap[colorName] || colors.primary;
   };
@@ -273,7 +283,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={[colors.rosterRed, colors.darkRed]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -291,10 +301,15 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => isEditing ? handleSave() : setIsEditing(true)}
+          disabled={loading || uploadingImage}
         >
-          <Text style={styles.editButtonText}>
-            {isFirstLogin ? 'Complete' : (isEditing ? 'Save' : 'Edit')}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.editButtonText}>
+              {isFirstLogin ? 'Complete' : (isEditing ? 'Save' : 'Edit')}
+            </Text>
+          )}
         </TouchableOpacity>
       </LinearGradient>
 
@@ -308,7 +323,7 @@ export default function ProfileScreen() {
               ios_icon_name="hand.wave.fill"
               android_material_icon_name="waving-hand"
               size={32}
-              color={colors.primary}
+              color={colors.rosterRed}
             />
             <Text style={styles.welcomeTitle}>
               Welcome to THE ROSTER!
@@ -322,7 +337,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={isEditing ? pickImage : undefined}
-          disabled={!isEditing}
+          disabled={!isEditing || uploadingImage}
         >
           {profileImage || user?.image ? (
             <Image
@@ -335,7 +350,7 @@ export default function ProfileScreen() {
                 ios_icon_name="person.circle.fill"
                 android_material_icon_name="account-circle"
                 size={100}
-                color={colors.primary}
+                color={colors.rosterRed}
               />
               {isFirstLogin && (
                 <Text style={styles.requiredBadge}>REQUIRED</Text>
@@ -344,15 +359,24 @@ export default function ProfileScreen() {
           )}
           {isEditing && (
             <View style={styles.imageOverlay}>
-              <IconSymbol
-                ios_icon_name="camera.fill"
-                android_material_icon_name="camera"
-                size={32}
-                color="#fff"
-              />
-              <Text style={styles.imageOverlayText}>
-                {isFirstLogin ? 'Tap to add photo (Required)' : 'Tap to change'}
-              </Text>
+              {uploadingImage ? (
+                <>
+                  <ActivityIndicator color="#fff" size="large" />
+                  <Text style={styles.imageOverlayText}>Uploading...</Text>
+                </>
+              ) : (
+                <>
+                  <IconSymbol
+                    ios_icon_name="camera.fill"
+                    android_material_icon_name="camera"
+                    size={32}
+                    color="#fff"
+                  />
+                  <Text style={styles.imageOverlayText}>
+                    {isFirstLogin ? 'Tap to add photo (Required)' : 'Tap to change'}
+                  </Text>
+                </>
+              )}
             </View>
           )}
         </TouchableOpacity>
@@ -371,7 +395,7 @@ export default function ProfileScreen() {
                 onChangeText={setName}
                 editable={isEditing}
                 placeholder="Your name"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
               />
             ) : (
               <Text style={styles.valueText}>{name || 'Not set'}</Text>
@@ -389,7 +413,7 @@ export default function ProfileScreen() {
                   onChangeText={setAge}
                   editable={isEditing}
                   placeholder="Age"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.textTertiary}
                   keyboardType="number-pad"
                 />
               ) : (
@@ -409,7 +433,7 @@ export default function ProfileScreen() {
                   onChangeText={setLocation}
                   editable={isEditing}
                   placeholder="City, State"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.textTertiary}
                 />
               ) : (
                 <Text style={styles.valueText}>{location || 'Not set'}</Text>
@@ -427,7 +451,7 @@ export default function ProfileScreen() {
                 onChangeText={setPhoneNumber}
                 editable={isEditing}
                 placeholder="(555) 123-4567"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="phone-pad"
               />
             ) : (
@@ -454,7 +478,7 @@ export default function ProfileScreen() {
                         ]}
                       />
                     )}
-                    <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textSecondary }]} numberOfLines={1}>
+                    <Text style={[styles.pickerText, { color: favoriteColor ? colors.text : colors.textTertiary }]} numberOfLines={1}>
                       {favoriteColor || 'Color'}
                     </Text>
                   </View>
@@ -463,7 +487,7 @@ export default function ProfileScreen() {
                       ios_icon_name="chevron.down"
                       android_material_icon_name="arrow-drop-down"
                       size={20}
-                      color={colors.textSecondary}
+                      color={colors.textTertiary}
                     />
                   )}
                 </TouchableOpacity>
@@ -490,7 +514,7 @@ export default function ProfileScreen() {
                   onPress={() => isEditing && setShowFoodPicker(true)}
                   disabled={!isEditing}
                 >
-                  <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textSecondary }]} numberOfLines={1}>
+                  <Text style={[styles.pickerText, { color: favoriteFoodType ? colors.text : colors.textTertiary }]} numberOfLines={1}>
                     {favoriteFoodType || 'Food'}
                   </Text>
                   {isEditing && (
@@ -498,7 +522,7 @@ export default function ProfileScreen() {
                       ios_icon_name="chevron.down"
                       android_material_icon_name="arrow-drop-down"
                       size={20}
-                      color={colors.textSecondary}
+                      color={colors.textTertiary}
                     />
                   )}
                 </TouchableOpacity>
@@ -519,7 +543,7 @@ export default function ProfileScreen() {
                   onChangeText={setInstagram}
                   editable={isEditing}
                   placeholder="@username"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.textTertiary}
                   autoCapitalize="none"
                 />
               ) : (
@@ -536,7 +560,7 @@ export default function ProfileScreen() {
                   onChangeText={setTwitter}
                   editable={isEditing}
                   placeholder="@username"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.textTertiary}
                   autoCapitalize="none"
                 />
               ) : (
@@ -555,7 +579,7 @@ export default function ProfileScreen() {
                 onChangeText={setNotes}
                 editable={isEditing}
                 placeholder="Personal notes..."
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 numberOfLines={4}
               />
@@ -572,14 +596,14 @@ export default function ProfileScreen() {
               ios_icon_name="lock.shield.fill"
               android_material_icon_name="security"
               size={20}
-              color={colors.primary}
+              color={colors.rosterRed}
             />
             <Text style={styles.privacyButtonText}>Privacy Policy</Text>
             <IconSymbol
               ios_icon_name="chevron.right"
               android_material_icon_name="chevron-right"
               size={20}
-              color={colors.textSecondary}
+              color={colors.textTertiary}
             />
           </TouchableOpacity>
 
@@ -591,14 +615,14 @@ export default function ProfileScreen() {
               ios_icon_name="doc.text.fill"
               android_material_icon_name="description"
               size={20}
-              color={colors.primary}
+              color={colors.rosterRed}
             />
             <Text style={styles.eulaButtonText}>End User License Agreement</Text>
             <IconSymbol
               ios_icon_name="chevron.right"
               android_material_icon_name="chevron-right"
               size={20}
-              color={colors.textSecondary}
+              color={colors.textTertiary}
             />
           </TouchableOpacity>
 
@@ -652,7 +676,7 @@ export default function ProfileScreen() {
                           ios_icon_name="checkmark"
                           android_material_icon_name="check"
                           size={20}
-                          color={colors.primary}
+                          color={colors.rosterRed}
                         />
                       )}
                     </TouchableOpacity>
@@ -691,7 +715,7 @@ export default function ProfileScreen() {
                           ios_icon_name="checkmark"
                           android_material_icon_name="check"
                           size={20}
-                          color={colors.primary}
+                          color={colors.rosterRed}
                         />
                       )}
                     </TouchableOpacity>
@@ -738,6 +762,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
   },
   editButtonText: {
     color: '#fff',
@@ -760,7 +786,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: colors.rosterRed,
   },
   welcomeTitle: {
     fontSize: 20,
@@ -794,7 +820,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.rosterRed,
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
@@ -848,7 +874,7 @@ const styles = StyleSheet.create({
   requiredText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#dc3545',
+    color: colors.rosterRed,
   },
   input: {
     borderRadius: 8,
@@ -926,7 +952,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   logoutButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.rosterRed,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
