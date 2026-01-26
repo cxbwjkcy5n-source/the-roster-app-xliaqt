@@ -151,7 +151,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Centered Add Button - positioned to align with center of navigation bar */}
+        {/* Centered Add Button - SOLID COLOR (no gradient) */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -184,7 +184,7 @@ export default function FloatingTabBar({
               {tabs.slice(0, 2).map((tab, index) => {
                 const isActive = activeTabIndex === index;
                 const isPressed = pressedTab === index;
-                const iconColor = isActive ? colors.navActive : colors.navInactive;
+                const iconColor = isActive ? colors.rosterGreen : colors.grey;
 
                 return (
                   <TouchableOpacity
@@ -204,8 +204,8 @@ export default function FloatingTabBar({
                       <Text
                         style={[
                           styles.tabLabel,
-                          { color: colors.navInactive },
-                          isActive && { color: colors.navActive, fontWeight: '700' },
+                          { color: colors.grey },
+                          isActive && { color: colors.rosterGreen, fontWeight: '700' },
                         ]}
                       >
                         {tab.label}
@@ -225,7 +225,7 @@ export default function FloatingTabBar({
                 const actualIndex = index + 2;
                 const isActive = activeTabIndex === actualIndex;
                 const isPressed = pressedTab === actualIndex;
-                const iconColor = isActive ? colors.navActive : colors.navInactive;
+                const iconColor = isActive ? colors.rosterGreen : colors.grey;
 
                 return (
                   <TouchableOpacity
@@ -245,8 +245,8 @@ export default function FloatingTabBar({
                       <Text
                         style={[
                           styles.tabLabel,
-                          { color: colors.navInactive },
-                          isActive && { color: colors.navActive, fontWeight: '700' },
+                          { color: colors.grey },
+                          isActive && { color: colors.rosterGreen, fontWeight: '700' },
                         ]}
                       >
                         {tab.label}
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.navFAB,
+    backgroundColor: colors.rosterGreen,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   },
   pressOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.navActive,
+    backgroundColor: colors.rosterGreen,
     opacity: 0.15,
     borderRadius: 12,
   },

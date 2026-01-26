@@ -960,6 +960,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    paddingBottom: 100,
   },
   listContent: {
     paddingBottom: 120,

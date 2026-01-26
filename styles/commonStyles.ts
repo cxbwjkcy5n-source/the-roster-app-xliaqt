@@ -56,10 +56,16 @@ export const colors = {
   secondary: '#1A1A1A',           // Secondary action (black)
   accent: '#D4AF37',              // Accent (gold)
   
+  // NAVIGATION BAR COLORS
+  navActive: '#2D8B4E',           // Active tab color (green)
+  navInactive: '#7A7A7A',         // Inactive tab color (gray)
+  navFAB: '#2D8B4E',              // Floating action button (solid green)
+  
   // BORDERS & DIVIDERS
   border: '#D4D4D4',
   borderDark: '#4A4A4A',
   divider: '#E5E5E5',
+  benchCardOutline: '#E5E5E5',
   
   // LEGACY COMPATIBILITY (for existing code)
   rosterGreen: '#2D8B4E',
