@@ -1,5 +1,5 @@
 
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle, Platform } from 'react-native';
 
 // THE ROSTER - Sophisticated Red Rotary Phone Design System
 // Inspired by vintage rotary phones with modern, grown-up aesthetics
