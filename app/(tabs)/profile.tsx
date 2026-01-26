@@ -59,6 +59,7 @@ export default function ProfileScreen() {
   
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const loadProfileData = useCallback(async () => {
     if (!user) return;
@@ -104,14 +105,13 @@ export default function ProfileScreen() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.5, // OPTIMIZED: Reduced from 0.8 to 0.5 for faster uploads
+        quality: 0.5,
       });
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
         console.log('[Profile] Image selected, uploading...');
         
-        // Show image immediately for better UX
         setProfileImage(uri);
         
         const formData = new FormData();
@@ -149,12 +149,12 @@ export default function ProfileScreen() {
         console.log('[Profile] Image uploaded successfully:', uploadData.url);
         
         setProfileImageKey(uploadData.key);
-        setProfileImage(uploadData.url); // Update with server URL
+        setProfileImage(uploadData.url);
       }
     } catch (error) {
       console.error('[Profile] Image upload failed:', error);
       Alert.alert('Error', 'Failed to upload image. Please try again.');
-      setProfileImage(null); // Reset on error
+      setProfileImage(null);
     } finally {
       setUploadingImage(false);
     }
@@ -163,7 +163,6 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     console.log('[Profile] User tapped Save button');
     
-    // Validation for first login: name, location, and photo are required
     if (isFirstLogin) {
       const missingFields: string[] = [];
       
@@ -243,24 +242,21 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
-    Alert.alert(
-      "Sign Out",
-      "Are you sure you want to sign out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign Out",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error) {
-              Alert.alert("Error", "Failed to sign out");
-            }
-          },
-        },
-      ]
-    );
+    console.log('[Profile] User tapped Logout button');
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmSignOut = async () => {
+    try {
+      console.log('[Profile] User confirmed logout');
+      setShowLogoutConfirm(false);
+      await signOut();
+      console.log('[Profile] Logout successful, navigating to home');
+      router.replace('/(tabs)/(home)/');
+    } catch (error) {
+      console.error('[Profile] Logout error:', error);
+      Alert.alert("Error", "Failed to sign out");
+    }
   };
 
   const getColorDisplay = (colorName: string) => {
@@ -382,7 +378,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.fieldsContainer}>
-          {/* Name - Required for first login */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
               <Text style={styles.label}>Name</Text>
@@ -402,7 +397,6 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Age and Location on same row */}
           <View style={styles.rowContainer}>
             <View style={[styles.section, styles.halfWidth]}>
               <Text style={styles.label}>Age</Text>
@@ -441,7 +435,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Phone Number */}
           <View style={styles.section}>
             <Text style={styles.label}>Phone Number</Text>
             {isEditing ? (
@@ -459,7 +452,6 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Favorite Color and Food Type on same row */}
           <View style={styles.rowContainer}>
             <View style={[styles.section, styles.halfWidth]}>
               <Text style={styles.label}>Favorite Color</Text>
@@ -532,7 +524,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Instagram and Twitter on same row */}
           <View style={styles.rowContainer}>
             <View style={[styles.section, styles.halfWidth]}>
               <Text style={styles.label}>Instagram</Text>
@@ -569,7 +560,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Notes */}
           <View style={styles.section}>
             <Text style={styles.label}>Notes</Text>
             {isEditing ? (
@@ -721,6 +711,49 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowLogoutConfirm(false)}>
+          <View style={styles.logoutModalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.logoutModal}>
+                <IconSymbol
+                  ios_icon_name="arrow.right.square.fill"
+                  android_material_icon_name="logout"
+                  size={48}
+                  color={colors.rosterRed}
+                />
+                <Text style={styles.logoutModalTitle}>Sign Out</Text>
+                <Text style={styles.logoutModalMessage}>
+                  Are you sure you want to sign out?
+                </Text>
+                <View style={styles.logoutModalButtons}>
+                  <TouchableOpacity
+                    style={styles.logoutModalCancelButton}
+                    onPress={() => {
+                      console.log('[Profile] User cancelled logout');
+                      setShowLogoutConfirm(false);
+                    }}
+                  >
+                    <Text style={styles.logoutModalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.logoutModalConfirmButton}
+                    onPress={confirmSignOut}
+                  >
+                    <Text style={styles.logoutModalConfirmText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -998,5 +1031,69 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: colors.text,
+  },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  logoutModal: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  logoutModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  logoutModalMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  logoutModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  logoutModalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  logoutModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  logoutModalConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.rosterRed,
+    alignItems: 'center',
+  },
+  logoutModalConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
