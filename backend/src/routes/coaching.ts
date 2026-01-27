@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
+import { gateway } from '@specific-dev/framework';
+import { generateText } from 'ai';
 
 export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
 
@@ -146,6 +148,75 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
           },
         ],
       };
+    }
+  );
+
+  // AI-powered dating coach chat
+  fastify.post<{
+    Body: {
+      message: string;
+      conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    };
+  }>(
+    '/api/coaching/chat',
+    {
+      schema: {
+        description: 'Chat with an AI-powered dating coach',
+        tags: ['coaching'],
+        body: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            conversationHistory: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  role: { type: 'string', enum: ['user', 'assistant'] },
+                  content: { type: 'string' },
+                },
+                required: ['role', 'content'],
+              },
+            },
+          },
+          required: ['message'],
+        },
+        response: { 200: { type: 'object', properties: { response: { type: 'string' } } } },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const { message, conversationHistory = [] } = request.body as {
+        message: string;
+        conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+      };
+
+      app.logger.info({ userId: session.user.id, messageLength: message.length }, 'Dating coach chat request');
+
+      try {
+        // Build messages array with conversation history
+        const messages = [
+          ...conversationHistory,
+          { role: 'user' as const, content: message },
+        ];
+
+        // Call the AI model with coaching system prompt
+        const { text } = await generateText({
+          model: gateway('openai/gpt-5.2'),
+          system:
+            'You are a professional dating coach. Provide helpful, respectful, and practical dating advice. Help users with conversation starters, date ideas, relationship guidance, and building confidence. Be supportive, non-judgmental, and encouraging.',
+          messages,
+        });
+
+        app.logger.info({ userId: session.user.id, responseLength: text.length }, 'Dating coach response generated');
+
+        return { response: text };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to generate coaching response');
+        return reply.status(500).send({ error: 'Failed to generate coaching response. Please try again.' });
+      }
     }
   );
 }
