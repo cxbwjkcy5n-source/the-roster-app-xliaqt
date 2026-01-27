@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,15 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
+import { authenticatedGet } from '@/utils/api';
+import { useFocusEffect } from '@react-navigation/native';
 
 const MENU_COLORS = {
   'have-date': ['#11A36A', '#0d8555'],
@@ -23,18 +25,53 @@ const MENU_COLORS = {
   'my-dates': ['#E9243F', '#ff4757'],
 };
 
+interface Analytics {
+  totalProfiles: number;
+  totalDates: number;
+  upcomingDates: number;
+  completedDates: number;
+  interestLevelBreakdown: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  statusBreakdown: {
+    roster: number;
+    bench: number;
+  };
+  dateFrequency: {
+    thisWeek: number;
+    thisMonth: number;
+    lastMonth: number;
+  };
+}
+
 export default function DatingScreen() {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    console.log('[Dating] Screen focused - auto-opening submenu');
-    const timer = setTimeout(() => {
-      setShowMenu(true);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[Dating] Screen focused - loading analytics');
+      loadAnalytics();
+    }, [])
+  );
+
+  const loadAnalytics = async () => {
+    try {
+      console.log('[Dating] Loading analytics...');
+      setLoading(true);
+      const data = await authenticatedGet('/api/analytics');
+      console.log('[Dating] Analytics loaded:', data);
+      setAnalytics(data);
+    } catch (error) {
+      console.error('[Dating] Error loading analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const menuItems = [
     {
@@ -104,6 +141,11 @@ export default function DatingScreen() {
     },
   ];
 
+  const totalDates = analytics?.totalDates ?? 0;
+  const completedDates = analytics?.completedDates ?? 0;
+  const upcomingDates = analytics?.upcomingDates ?? 0;
+  const thisMonthDates = analytics?.dateFrequency?.thisMonth ?? 0;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Dating Header */}
@@ -116,36 +158,124 @@ export default function DatingScreen() {
             <Text style={styles.headerTitle}>DATING</Text>
             <Text style={styles.headerSubtitle}>Manage your dating life</Text>
           </View>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => {
+              console.log('[Dating] User tapped menu button');
+              setShowMenu(true);
+            }}
+          >
+            <IconSymbol
+              ios_icon_name="line.3.horizontal"
+              android_material_icon_name="menu"
+              size={28}
+              color={colors.white}
+            />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={() => {
-            console.log('[Dating] User tapped main dating button');
-            setShowMenu(true);
-          }}
-          activeOpacity={0.85}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading analytics...</Text>
+        </View>
+      ) : (
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
         >
-          <LinearGradient
-            colors={gradients.actionRed}
-            style={styles.mainButtonGradient}
-          >
-            <IconSymbol
-              ios_icon_name="heart.fill"
-              android_material_icon_name="favorite"
-              size={48}
-              color={colors.white}
-            />
-            <Text style={styles.mainButtonText}>Dating Menu</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          {/* Quick Stats */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{totalDates}</Text>
+              <Text style={styles.statLabel}>Total Dates</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{completedDates}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{upcomingDates}</Text>
+              <Text style={styles.statLabel}>Upcoming</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{thisMonthDates}</Text>
+              <Text style={styles.statLabel}>This Month</Text>
+            </View>
+          </View>
 
-        <Text style={styles.infoText}>
-          Tap to access dating features, schedule dates, and get coaching
-        </Text>
-      </View>
+          {/* Interest Level Breakdown */}
+          {analytics && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Interest Level Breakdown</Text>
+              <View style={styles.interestBreakdown}>
+                <View style={styles.interestRow}>
+                  <View style={[styles.interestDot, { backgroundColor: colors.green }]} />
+                  <Text style={styles.interestLabel}>High Interest</Text>
+                  <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.high ?? 0}</Text>
+                </View>
+                <View style={styles.interestRow}>
+                  <View style={[styles.interestDot, { backgroundColor: colors.yellow }]} />
+                  <Text style={styles.interestLabel}>Medium Interest</Text>
+                  <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.medium ?? 0}</Text>
+                </View>
+                <View style={styles.interestRow}>
+                  <View style={[styles.interestDot, { backgroundColor: colors.lowInterest }]} />
+                  <Text style={styles.interestLabel}>Low Interest</Text>
+                  <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.low ?? 0}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Status Breakdown */}
+          {analytics && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Status Breakdown</Text>
+              <View style={styles.statusBreakdown}>
+                <View style={styles.statusRow}>
+                  <IconSymbol
+                    ios_icon_name="star.fill"
+                    android_material_icon_name="star"
+                    size={20}
+                    color={colors.rosterGreen}
+                  />
+                  <Text style={styles.statusLabel}>Roster</Text>
+                  <Text style={styles.statusValue}>{analytics.statusBreakdown?.roster ?? 0}</Text>
+                </View>
+                <View style={styles.statusRow}>
+                  <IconSymbol
+                    ios_icon_name="pause.fill"
+                    android_material_icon_name="pause"
+                    size={20}
+                    color={colors.benchRed}
+                  />
+                  <Text style={styles.statusLabel}>Bench</Text>
+                  <Text style={styles.statusValue}>{analytics.statusBreakdown?.bench ?? 0}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* View Full Analytics Button */}
+          <TouchableOpacity
+            style={styles.fullAnalyticsButton}
+            onPress={() => {
+              console.log('[Dating] User tapped "View Full Analytics"');
+              router.push('/dating/analytics' as any);
+            }}
+          >
+            <Text style={styles.fullAnalyticsText}>View Full Analytics</Text>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={20}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+        </ScrollView>
+      )}
 
       {/* Dating Submenu Modal - Opens from BOTTOM */}
       <Modal
@@ -248,44 +378,132 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 4,
   },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+  },
+  contentContainer: {
+    padding: 16,
     paddingBottom: 120,
   },
-  mainButton: {
-    width: '100%',
-    maxWidth: 280,
-    aspectRatio: 1,
-    borderRadius: 28,
-    overflow: 'hidden',
-    shadowColor: '#E9243F',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
   },
-  mainButtonGradient: {
+  statCard: {
     flex: 1,
-    justifyContent: 'center',
+    minWidth: '45%',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    gap: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  mainButtonText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.white,
-    letterSpacing: -0.5,
+  statValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.primary,
   },
-  infoText: {
-    marginTop: 28,
-    fontSize: 15,
-    color: colors.charcoal,
-    textAlign: 'center',
-    fontWeight: '500',
-    lineHeight: 22,
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginBottom: 12,
+  },
+  interestBreakdown: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  interestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  interestDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  interestLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.darkText,
+  },
+  interestValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.darkText,
+  },
+  statusBreakdown: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.darkText,
+    marginLeft: 12,
+  },
+  statusValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.darkText,
+  },
+  fullAnalyticsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 8,
+  },
+  fullAnalyticsText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
   },
   modalOverlay: {
     flex: 1,

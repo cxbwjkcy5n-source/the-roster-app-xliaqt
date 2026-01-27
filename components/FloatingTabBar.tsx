@@ -151,7 +151,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Centered Add Button - Vertically centered on nav bar */}
+        {/* Centered Add Button - Perfectly centered using percentage positioning */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 3,
     left: '50%',
-    marginLeft: -32,
+    transform: [{ translateX: -32 }],
     zIndex: 1001,
     alignItems: 'center',
     justifyContent: 'center',

@@ -41,14 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
   const isNavigatingRef = useRef(false);
+  const profileCacheRef = useRef<{ [key: string]: any }>({});
 
-  // Convert Supabase user to our User type
+  // Convert Supabase user to our User type with caching
   const mapSupabaseUser = useCallback(async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
 
     console.log('[AuthContext] Mapping Supabase user:', supabaseUser.email);
 
-    // Try to fetch user profile from backend
+    // Check cache first
+    const cacheKey = supabaseUser.id;
+    if (profileCacheRef.current[cacheKey]) {
+      console.log('[AuthContext] Using cached profile data');
+      return profileCacheRef.current[cacheKey];
+    }
+
+    // Try to fetch user profile from backend (non-blocking)
     let profileData: any = {};
     let firstLoginCompleted = true;
 
@@ -63,50 +71,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Authorization': `Bearer ${session.access_token}`,
         };
 
-        // Fetch profile status
-        try {
-          const statusResponse = await fetch(`${BACKEND_URL}/api/user/profile-status`, {
-            headers,
-          });
+        // Fetch profile status and full profile in parallel
+        const [statusResponse, profileResponse] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/user/profile-status`, { headers }).catch(() => null),
+          fetch(`${BACKEND_URL}/api/user/profile`, { headers }).catch(() => null),
+        ]);
 
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            console.log('[AuthContext] Profile status:', statusData);
-            firstLoginCompleted = statusData.profileCompleted !== false;
-          } else {
-            console.log('[AuthContext] Profile status check returned:', statusResponse.status);
-          }
-        } catch (statusError) {
-          console.log('[AuthContext] Could not fetch profile status:', statusError);
+        if (statusResponse?.ok) {
+          const statusData = await statusResponse.json();
+          console.log('[AuthContext] Profile status:', statusData);
+          firstLoginCompleted = statusData.profileCompleted !== false;
         }
 
-        // Fetch full profile
-        try {
-          const profileResponse = await fetch(`${BACKEND_URL}/api/user/profile`, {
-            headers,
-          });
-
-          if (profileResponse.ok) {
-            profileData = await profileResponse.json();
-            console.log('[AuthContext] Profile data fetched successfully');
-          } else {
-            console.log('[AuthContext] Profile fetch returned:', profileResponse.status);
-          }
-        } catch (profileError) {
-          console.log('[AuthContext] Could not fetch profile:', profileError);
+        if (profileResponse?.ok) {
+          profileData = await profileResponse.json();
+          console.log('[AuthContext] Profile data fetched successfully');
         }
       }
     } catch (error) {
       console.log('[AuthContext] Error fetching profile (non-critical):', error);
     }
 
-    return {
+    const mappedUser = {
       id: supabaseUser.id,
       email: supabaseUser.email || '',
       name: profileData.name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0],
       image: profileData.image || supabaseUser.user_metadata?.avatar_url,
       firstLoginCompleted,
     };
+
+    // Cache the result
+    profileCacheRef.current[cacheKey] = mappedUser;
+
+    return mappedUser;
   }, []);
 
   const fetchUser = useCallback(async () => {
@@ -153,12 +150,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         const mappedUser = await mapSupabaseUser(session?.user || null);
         setUser(mappedUser);
-        // CRITICAL FIX: Set loading to false after token refresh
         setLoading(false);
         console.log('[AuthContext] User updated and loading set to false');
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setLoading(false);
+        profileCacheRef.current = {};
         console.log('[AuthContext] User signed out and loading set to false');
       }
     });
@@ -217,6 +214,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         console.log('[AuthContext] First login marked as complete');
         setUser(prev => prev ? { ...prev, firstLoginCompleted: true } : null);
+        
+        // Clear cache
+        if (user?.id) {
+          delete profileCacheRef.current[user.id];
+        }
         
         isNavigatingRef.current = true;
         router.replace('/(tabs)/(home)/');
@@ -362,7 +364,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('[AuthContext] Google sign in initiated');
-      // The auth state listener will handle the rest
       setTimeout(() => { isNavigatingRef.current = false; }, 1000);
     } catch (error) {
       console.error('[AuthContext] Google sign in error:', error);
@@ -397,7 +398,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('[AuthContext] Apple sign in initiated');
-      // The auth state listener will handle the rest
       setTimeout(() => { isNavigatingRef.current = false; }, 1000);
     } catch (error) {
       console.error('[AuthContext] Apple sign in error:', error);
@@ -418,6 +418,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(null);
+      profileCacheRef.current = {};
       router.replace('/auth/login');
       console.log('[AuthContext] Sign out successful');
     } catch (error) {
