@@ -151,7 +151,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Centered Add Button - Darker, sleeker design */}
+        {/* Centered Add Button - Vertically centered on nav bar */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -184,7 +184,7 @@ export default function FloatingTabBar({
               {tabs.slice(0, 2).map((tab, index) => {
                 const isActive = activeTabIndex === index;
                 const isPressed = pressedTab === index;
-                const iconColor = isActive ? colors.rosterGreen : '#4A4A4A';
+                const iconColor = isActive ? colors.rosterGreen : '#2D2D2D';
 
                 return (
                   <TouchableOpacity
@@ -204,7 +204,7 @@ export default function FloatingTabBar({
                       <Text
                         style={[
                           styles.tabLabel,
-                          { color: '#4A4A4A' },
+                          { color: '#2D2D2D' },
                           isActive && { color: colors.rosterGreen, fontWeight: '700' },
                         ]}
                       >
@@ -225,7 +225,7 @@ export default function FloatingTabBar({
                 const actualIndex = index + 2;
                 const isActive = activeTabIndex === actualIndex;
                 const isPressed = pressedTab === actualIndex;
-                const iconColor = isActive ? colors.rosterGreen : '#4A4A4A';
+                const iconColor = isActive ? colors.rosterGreen : '#2D2D2D';
 
                 return (
                   <TouchableOpacity
@@ -245,7 +245,7 @@ export default function FloatingTabBar({
                       <Text
                         style={[
                           styles.tabLabel,
-                          { color: '#4A4A4A' },
+                          { color: '#2D2D2D' },
                           isActive && { color: colors.rosterGreen, fontWeight: '700' },
                         ]}
                       >
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   addButtonContainer: {
     position: 'absolute',
-    top: -8,
+    top: 3,
     left: '50%',
     marginLeft: -32,
     zIndex: 1001,

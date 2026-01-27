@@ -74,6 +74,14 @@ export default function RosterScreen() {
     }
   }, [user, authLoading, router]);
 
+  // Check if user needs to complete profile
+  useEffect(() => {
+    if (user && user.firstLoginCompleted === false) {
+      console.log('[Home] First login detected - redirecting to profile completion');
+      router.push('/profile');
+    }
+  }, [user, router]);
+
   if (authLoading || rosterLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -306,7 +314,7 @@ export default function RosterScreen() {
       </LinearGradient>
 
       <View style={styles.content}>
-        {/* Add transparent logo here */}
+        {/* Transparent Logo */}
         <View style={styles.logoContainer}>
           <Image 
             source={require('@/assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png')} 
