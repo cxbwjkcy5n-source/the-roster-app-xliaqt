@@ -6,7 +6,8 @@
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1"
+        "RCT_NEW_ARCH_ENABLED": "1",
+        "APPLE_TEAM_ID": "YOUR_CORRECT_TEAM_ID_HERE"
       },
       "ios": {
         "simulator": false,
@@ -20,7 +21,8 @@
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1"
+        "RCT_NEW_ARCH_ENABLED": "1",
+        "APPLE_TEAM_ID": "YOUR_CORRECT_TEAM_ID_HERE"
       },
       "ios": {
         "simulator": false,
@@ -33,7 +35,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1"
+        "RCT_NEW_ARCH_ENABLED": "1",
+        "APPLE_TEAM_ID": "YOUR_CORRECT_TEAM_ID_HERE"
       },
       "ios": {
         "simulator": false,
