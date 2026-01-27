@@ -151,7 +151,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Centered Add Button - SOLID COLOR (no gradient) */}
+        {/* Centered Add Button - MOVED DOWN to sit on the tab bar */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -184,7 +184,7 @@ export default function FloatingTabBar({
               {tabs.slice(0, 2).map((tab, index) => {
                 const isActive = activeTabIndex === index;
                 const isPressed = pressedTab === index;
-                const iconColor = isActive ? colors.rosterGreen : colors.grey;
+                const iconColor = isActive ? colors.rosterGreen : '#4A4A4A';
 
                 return (
                   <TouchableOpacity
@@ -204,7 +204,7 @@ export default function FloatingTabBar({
                       <Text
                         style={[
                           styles.tabLabel,
-                          { color: colors.grey },
+                          { color: '#4A4A4A' },
                           isActive && { color: colors.rosterGreen, fontWeight: '700' },
                         ]}
                       >
@@ -225,7 +225,7 @@ export default function FloatingTabBar({
                 const actualIndex = index + 2;
                 const isActive = activeTabIndex === actualIndex;
                 const isPressed = pressedTab === actualIndex;
-                const iconColor = isActive ? colors.rosterGreen : colors.grey;
+                const iconColor = isActive ? colors.rosterGreen : '#4A4A4A';
 
                 return (
                   <TouchableOpacity
@@ -245,7 +245,7 @@ export default function FloatingTabBar({
                       <Text
                         style={[
                           styles.tabLabel,
-                          { color: colors.grey },
+                          { color: '#4A4A4A' },
                           isActive && { color: colors.rosterGreen, fontWeight: '700' },
                         ]}
                       >
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   addButtonContainer: {
     position: 'absolute',
-    top: -28,
+    top: -16,
     left: '50%',
     marginLeft: -32,
     zIndex: 1001,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.rosterGreen,
+    backgroundColor: '#1F6B3A',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

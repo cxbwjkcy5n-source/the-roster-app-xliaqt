@@ -141,7 +141,7 @@ export default function LoginScreen() {
             style={styles.header}
           >
             <Text style={styles.title}>THE ROSTER</Text>
-            <Text style={styles.subtitle}>Where You&apos;re The Coach and MVP</Text>
+            <Text style={styles.subtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
           </LinearGradient>
 
           <View style={styles.formContainer}>
@@ -275,9 +275,13 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#fff',
     opacity: 0.9,
+    textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   formContainer: {
     flex: 1,

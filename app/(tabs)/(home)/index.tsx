@@ -1,5 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
+import { RosterPerson } from '@/types/roster';
+import { authenticatedGet } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRoster } from '@/contexts/RosterContext';
 import { colors, gradients } from '@/styles/commonStyles';
 import {
   View,
@@ -17,15 +21,11 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { IconSymbol } from '@/components/IconSymbol';
-import { useRoster } from '@/contexts/RosterContext';
-import { useRouter } from 'expo-router';
-import { RosterPerson } from '@/types/roster';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/contexts/AuthContext';
-import { authenticatedGet } from '@/utils/api';
 import { DateEvent } from '@/types/roster';
+import { IconSymbol } from '@/components/IconSymbol';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -260,8 +260,8 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Roster Header - Green Gradient */}
-      <LinearGradient colors={gradients.rosterGreen} style={styles.header}>
+      {/* Roster Header - BLACK with WHITE font */}
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>THE ROSTER</Text>
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
@@ -298,9 +298,18 @@ export default function RosterScreen() {
             />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
       <View style={styles.content}>
+        {/* Add transparent logo here */}
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('@/assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+
         {roster.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             {renderEmptyState()}
@@ -906,6 +915,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 24,
+    backgroundColor: colors.black,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -954,6 +964,16 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingTop: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    opacity: 0.15,
   },
   emptyStateContainer: {
     flex: 1,
