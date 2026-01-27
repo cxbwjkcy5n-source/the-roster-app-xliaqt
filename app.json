@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "The Roster",
@@ -7,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
       "resizeMode": "contain",
@@ -95,5 +94,6 @@
       "supabaseUrl": "https://bbtvdhdfzkyhrodgclkd.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJidHZkaGRmemt5aHJvZGdjbGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NjMyNTgsImV4cCI6MjA4NDQzOTI1OH0.XE0VFZN7XlLDyh9vu9mt9nfGaq4iUQblNQCphSJ5OB4"
     }
-  }
+  },
+  "scheme": "The Roster"
 }
