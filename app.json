@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "The Roster",
@@ -16,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.theroster.app",
       "buildNumber": "1.0.0",
+      "appleTeamId": "YOUR_ACTUAL_TEAM_ID_HERE",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "The Roster needs your location to help you find nearby date spots and track safety during dates.",
