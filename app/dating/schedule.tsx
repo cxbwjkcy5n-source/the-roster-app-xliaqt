@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { DateEvent, RosterPerson } from '@/types/roster';
+import { authenticatedGet } from '@/utils/api';
 
 let DateTimePicker: any = null;
 if (Platform.OS !== 'web') {
@@ -39,17 +41,15 @@ const REMINDER_OPTIONS = [
   { label: '1 week before', value: '1w' },
 ];
 
-// Mock location suggestions - in a real app, this would use Google Places API
-const MOCK_LOCATIONS = [
-  { id: '1', name: 'Starbucks Coffee', address: '123 Main St, Downtown' },
-  { id: '2', name: 'The Italian Restaurant', address: '456 Oak Ave, City Center' },
-  { id: '3', name: 'Central Park', address: 'Park Ave, North Side' },
-  { id: '4', name: 'Movie Theater', address: '789 Cinema Blvd' },
-  { id: '5', name: 'Art Gallery', address: '321 Culture St' },
-  { id: '6', name: 'Beach Boardwalk', address: 'Oceanfront Dr' },
-  { id: '7', name: 'Downtown Bar & Grill', address: '555 Nightlife Ave' },
-  { id: '8', name: 'Botanical Gardens', address: '888 Garden Way' },
-];
+interface LocationResult {
+  id: string;
+  name: string;
+  address: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+}
 
 export default function ScheduleDateScreen() {
   const router = useRouter();
@@ -73,26 +73,48 @@ export default function ScheduleDateScreen() {
   
   // Location autocomplete state
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-  const [locationSuggestions, setLocationSuggestions] = useState(MOCK_LOCATIONS);
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationResult[]>([]);
+  const [searchingLocations, setSearchingLocations] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const handleLocationChange = (text: string) => {
     setLocation(text);
     
-    if (text.length > 0) {
-      // Filter suggestions based on input
-      const filtered = MOCK_LOCATIONS.filter(loc =>
-        loc.name.toLowerCase().includes(text.toLowerCase()) ||
-        loc.address.toLowerCase().includes(text.toLowerCase())
-      );
-      setLocationSuggestions(filtered);
-      setShowLocationSuggestions(true);
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    if (text.length > 2) {
+      // Debounce the search - wait 500ms after user stops typing
+      const timeout = setTimeout(async () => {
+        try {
+          setSearchingLocations(true);
+          console.log('[ScheduleDate] Searching locations for:', text);
+          
+          const results = await authenticatedGet(`/api/locations/search?query=${encodeURIComponent(text)}`);
+          
+          console.log('[ScheduleDate] Found locations:', results.length);
+          setLocationSuggestions(results);
+          setShowLocationSuggestions(true);
+        } catch (error) {
+          console.error('[ScheduleDate] Error searching locations:', error);
+          // Fallback to showing no suggestions
+          setLocationSuggestions([]);
+          setShowLocationSuggestions(false);
+        } finally {
+          setSearchingLocations(false);
+        }
+      }, 500);
+      
+      setSearchTimeout(timeout);
     } else {
-      setLocationSuggestions(MOCK_LOCATIONS);
+      setLocationSuggestions([]);
       setShowLocationSuggestions(false);
     }
   };
 
-  const handleSelectLocation = (locationItem: typeof MOCK_LOCATIONS[0]) => {
+  const handleSelectLocation = (locationItem: LocationResult) => {
     console.log('[ScheduleDate] User selected location:', locationItem.name);
     setLocation(`${locationItem.name}, ${locationItem.address}`);
     setShowLocationSuggestions(false);
@@ -288,7 +310,16 @@ export default function ScheduleDateScreen() {
                 />
               </View>
               
-              {showLocationSuggestions && locationSuggestions.length > 0 && (
+              {searchingLocations && (
+                <View style={styles.suggestionsContainer}>
+                  <View style={styles.suggestionItem}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.suggestionName}>Searching locations...</Text>
+                  </View>
+                </View>
+              )}
+              
+              {!searchingLocations && showLocationSuggestions && locationSuggestions.length > 0 && (
                 <View style={styles.suggestionsContainer}>
                   {locationSuggestions.map((item) => (
                     <TouchableOpacity
@@ -310,9 +341,23 @@ export default function ScheduleDateScreen() {
                   ))}
                 </View>
               )}
+              
+              {!searchingLocations && showLocationSuggestions && locationSuggestions.length === 0 && location.length > 2 && (
+                <View style={styles.suggestionsContainer}>
+                  <View style={styles.suggestionItem}>
+                    <IconSymbol
+                      ios_icon_name="magnifyingglass"
+                      android_material_icon_name="search"
+                      size={24}
+                      color={colors.textSecondary}
+                    />
+                    <Text style={styles.suggestionName}>No locations found</Text>
+                  </View>
+                </View>
+              )}
             </View>
             <Text style={styles.helperText}>
-              💡 Tip: Start typing to see location suggestions
+              💡 Tip: Type at least 3 characters to search for locations
             </Text>
           </View>
 

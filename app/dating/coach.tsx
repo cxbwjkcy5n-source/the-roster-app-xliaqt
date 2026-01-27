@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
+import { authenticatedPost } from '@/utils/api';
 
 interface Message {
   id: string;
@@ -49,31 +50,46 @@ export default function DatingCoachScreen() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageToSend = inputText.trim();
     setInputText('');
     setIsLoading(true);
 
     try {
-      console.log('[DatingCoach] Sending message to AI:', userMessage.content);
+      console.log('[DatingCoach] Sending message to AI:', messageToSend);
       
-      // TODO: Backend Integration - POST /api/coaching/chat
-      // Accepts: { message: string, conversationHistory: [{role, content}] }
-      // Sends to OpenAI GPT-5.2 with conversation history
-      // Returns: { response: string }
+      // Prepare conversation history for API
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
       
-      // Temporary mock response
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Add the new user message to history
+      conversationHistory.push({
+        role: 'user',
+        content: messageToSend,
+      });
+
+      const response = await authenticatedPost('/api/coaching/chat', {
+        message: messageToSend,
+        conversationHistory,
+      });
+
+      console.log('[DatingCoach] Received AI response');
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm here to help! This feature will be fully functional soon. In the meantime, feel free to explore other dating features in the app.",
+        content: response.response,
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('[DatingCoach] Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message. Please try again.');
+      Alert.alert('Error', 'Failed to get response from dating coach. Please try again.');
+      
+      // Remove the user message if the request failed
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
     }
