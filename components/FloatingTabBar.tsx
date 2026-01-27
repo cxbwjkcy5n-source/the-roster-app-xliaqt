@@ -151,7 +151,7 @@ export default function FloatingTabBar({
           marginBottom: bottomMargin ?? 16
         }
       ]}>
-        {/* Centered Add Button - MOVED DOWN to sit on the tab bar */}
+        {/* Centered Add Button - Darker, sleeker design */}
         <View style={styles.addButtonContainer}>
           <TouchableOpacity
             style={styles.addButton}
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   addButtonContainer: {
     position: 'absolute',
-    top: -16,
+    top: -8,
     left: '50%',
     marginLeft: -32,
     zIndex: 1001,
@@ -297,12 +297,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#1F6B3A',
+    backgroundColor: '#1A5A32',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 12,
     borderWidth: 4,

@@ -260,8 +260,13 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Roster Header - BLACK with WHITE font */}
-      <View style={styles.header}>
+      {/* GREEN Header with "WHERE EVERYONE PLAYS THEIR POSITION" */}
+      <LinearGradient
+        colors={['#2D8B4E', '#1F6B3A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>THE ROSTER</Text>
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
@@ -298,7 +303,7 @@ export default function RosterScreen() {
             />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={styles.content}>
         {/* Add transparent logo here */}
@@ -915,7 +920,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 24,
-    backgroundColor: colors.black,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
