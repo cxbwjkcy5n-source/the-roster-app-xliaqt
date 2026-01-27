@@ -103,9 +103,15 @@ export default function FloatingTabBar({
   const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
   const tabWidth = (containerWidth - 8) / tabs.length;
 
+  // FIX: Calculate proper indicator position accounting for left/right groups
   const indicatorTranslateX = animatedValue.interpolate({
-    inputRange: [0, tabs.length - 1],
-    outputRange: [0, tabWidth * (tabs.length - 1)],
+    inputRange: [0, 1, 2, 3],
+    outputRange: [
+      4, // Roster (left group, first position)
+      tabWidth + 4, // Bench (left group, second position)
+      tabWidth * 2 + 84, // Dating (right group, first position - accounting for center spacer)
+      tabWidth * 3 + 84, // Profile (right group, second position)
+    ],
   });
 
   const dynamicStyles = {

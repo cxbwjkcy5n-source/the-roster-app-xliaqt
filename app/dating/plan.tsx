@@ -13,6 +13,7 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { authenticatedPost, BACKEND_URL } from '@/utils/api';
@@ -30,6 +31,9 @@ interface DateSuggestion {
   estimatedCost: string;
   duration: string;
   whyPerfect: string;
+  address?: string;
+  websiteUrl?: string;
+  googleMapsUrl?: string;
 }
 
 const BUDGET_OPTIONS = ['$', '$$', '$$$', '$$$$'];
@@ -137,40 +141,20 @@ export default function PlanDateScreen() {
     console.log('[PlanDate] Preferences:', preferences);
     
     try {
-      // TODO: Backend Integration - POST /api/dates/suggestions with { profileId, budget, duration, preferences, location: userLocation }
-      // For now, show mock data
-      const mockSuggestions: DateSuggestion[] = [
-        {
-          id: '1',
-          name: 'Sunset Picnic',
-          type: 'Outdoor',
-          description: `A romantic picnic at a park in ${userLocation} with wine and cheese`,
-          estimatedCost: budget,
-          duration: duration,
-          whyPerfect: `Perfect for ${selectedPerson.name} based on their interests`,
-        },
-        {
-          id: '2',
-          name: 'Cooking Class',
-          type: 'Activity',
-          description: `Learn to make pasta together at a local cooking school in ${userLocation}`,
-          estimatedCost: budget,
-          duration: duration,
-          whyPerfect: 'Interactive and fun way to bond',
-        },
-        {
-          id: '3',
-          name: 'Art Gallery Tour',
-          type: 'Cultural',
-          description: `Explore local art galleries in ${userLocation} followed by coffee`,
-          estimatedCost: budget,
-          duration: duration,
-          whyPerfect: 'Great conversation starter and cultural experience',
-        },
-      ];
+      console.log('[PlanDate] Calling backend to generate AI-powered date suggestions');
+      const response = await authenticatedPost('/api/dates/plan', {
+        profileId: selectedPerson.id,
+        budget,
+        duration,
+        preferences,
+        location: userLocation,
+      });
       
-      console.log('[PlanDate] Generated', mockSuggestions.length, 'suggestions');
-      setSuggestions(mockSuggestions);
+      console.log('[PlanDate] Generated', response.suggestions.length, 'AI suggestions');
+      setSuggestions(response.suggestions.map((s: any, index: number) => ({
+        ...s,
+        id: `${index + 1}`,
+      })));
       setShowSuggestions(true);
     } catch (error) {
       console.error('[PlanDate] Error generating suggestions:', error);
@@ -467,20 +451,67 @@ export default function PlanDateScreen() {
             </View>
             <ScrollView>
               {suggestions.map((suggestion) => (
-                <TouchableOpacity
-                  key={suggestion.id}
-                  style={styles.suggestionCard}
-                  onPress={() => handleSelectSuggestion(suggestion)}
-                >
-                  <Text style={styles.suggestionName}>{suggestion.name}</Text>
-                  <Text style={styles.suggestionType}>{suggestion.type}</Text>
-                  <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
-                  <View style={styles.suggestionDetails}>
-                    <Text style={styles.suggestionDetail}>💰 {suggestion.estimatedCost}</Text>
-                    <Text style={styles.suggestionDetail}>⏱️ {suggestion.duration}</Text>
+                <View key={suggestion.id} style={styles.suggestionCard}>
+                  <TouchableOpacity onPress={() => handleSelectSuggestion(suggestion)}>
+                    <Text style={styles.suggestionName}>{suggestion.name}</Text>
+                    <Text style={styles.suggestionType}>{suggestion.type}</Text>
+                    <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
+                    {suggestion.address && (
+                      <View style={styles.suggestionAddressRow}>
+                        <IconSymbol
+                          ios_icon_name="location.fill"
+                          android_material_icon_name="location-on"
+                          size={14}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.suggestionAddress}>{suggestion.address}</Text>
+                      </View>
+                    )}
+                    <View style={styles.suggestionDetails}>
+                      <Text style={styles.suggestionDetail}>💰 {suggestion.estimatedCost}</Text>
+                      <Text style={styles.suggestionDetail}>⏱️ {suggestion.duration}</Text>
+                    </View>
+                    <Text style={styles.suggestionWhy}>{suggestion.whyPerfect}</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Links to website and Google Maps */}
+                  <View style={styles.suggestionLinks}>
+                    {suggestion.websiteUrl && (
+                      <TouchableOpacity
+                        style={styles.suggestionLinkButton}
+                        onPress={() => {
+                          console.log('[PlanDate] Opening website:', suggestion.websiteUrl);
+                          Linking.openURL(suggestion.websiteUrl!);
+                        }}
+                      >
+                        <IconSymbol
+                          ios_icon_name="globe"
+                          android_material_icon_name="language"
+                          size={16}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.suggestionLinkText}>Website</Text>
+                      </TouchableOpacity>
+                    )}
+                    {suggestion.googleMapsUrl && (
+                      <TouchableOpacity
+                        style={styles.suggestionLinkButton}
+                        onPress={() => {
+                          console.log('[PlanDate] Opening Google Maps:', suggestion.googleMapsUrl);
+                          Linking.openURL(suggestion.googleMapsUrl!);
+                        }}
+                      >
+                        <IconSymbol
+                          ios_icon_name="map.fill"
+                          android_material_icon_name="map"
+                          size={16}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.suggestionLinkText}>Google Maps</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <Text style={styles.suggestionWhy}>{suggestion.whyPerfect}</Text>
-                </TouchableOpacity>
+                </View>
               ))}
             </ScrollView>
           </View>
@@ -797,5 +828,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  suggestionAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  suggestionAddress: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  suggestionLinks: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  suggestionLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.primary + '10',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  suggestionLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

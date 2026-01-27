@@ -121,9 +121,9 @@ export default function PersonDetailScreen() {
 
   const getInterestColor = (level: string) => {
     switch (level) {
-      case 'high': return colors.green;
-      case 'medium': return colors.yellow;
-      case 'low': return colors.lowInterest;
+      case 'high': return colors.green; // Green for high
+      case 'medium': return '#FFC107'; // Yellow for medium
+      case 'low': return '#FF0000'; // Red for low
       default: return colors.grey;
     }
   };
@@ -355,6 +355,23 @@ export default function PersonDetailScreen() {
           headerStyle: { backgroundColor: colors.primary },
           headerTintColor: '#fff',
           headerBackTitle: 'Back',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('[PersonDetail] User tapped Back button');
+                router.back();
+              }}
+              style={styles.backButtonContainer}
+            >
+              <IconSymbol
+                ios_icon_name="chevron.left"
+                android_material_icon_name="arrow-back"
+                size={24}
+                color="#fff"
+              />
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity 
               onPress={() => {
@@ -822,6 +839,18 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     marginTop: 40,
+  },
+  backButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
   },
   editButtonContainer: {
     paddingHorizontal: 16,

@@ -54,9 +54,9 @@ export default function RosterScreen() {
 
   const getInterestColor = (level: string) => {
     switch (level) {
-      case 'high': return colors.green;
-      case 'medium': return colors.yellow;
-      case 'low': return colors.lowInterest;
+      case 'high': return colors.green; // Green for high
+      case 'medium': return '#FFC107'; // Yellow for medium
+      case 'low': return '#FF0000'; // Red for low
       default: return colors.grey;
     }
   };
@@ -173,11 +173,11 @@ export default function RosterScreen() {
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              console.log('[RosterScreen] User tapped Analytics button');
-              setShowAnalyticsModal(true);
+              console.log('[RosterScreen] User tapped Dating Menu button');
+              router.push('/dating' as any);
             }}
           >
-            <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar-chart" size={24} color="#fff" />
+            <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
