@@ -3,6 +3,27 @@ import { eq, and, lt } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
+import { gateway } from '@specific-dev/framework';
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+const DateSuggestionSchema = z.object({
+  suggestions: z.array(
+    z.object({
+      name: z.string(),
+      type: z.string(),
+      description: z.string(),
+      estimatedCost: z.string(),
+      duration: z.string(),
+      whyPerfect: z.string(),
+      address: z.string(),
+      websiteUrl: z.string().optional(),
+      googleMapsUrl: z.string(),
+    })
+  ),
+});
+
+type DateSuggestion = z.infer<typeof DateSuggestionSchema>;
 
 export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
@@ -299,6 +320,143 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id, dateId: id }, 'Failed to delete date record');
         return reply.status(500).send({ error: 'Failed to delete date record. Please try again.' });
+      }
+    }
+  );
+
+  // Generate date suggestions using AI
+  fastify.post<{
+    Body: {
+      profileId: string;
+      budget: string;
+      duration: string;
+      preferences?: string;
+      location: string;
+    };
+  }>(
+    '/api/dates/plan',
+    {
+      schema: {
+        description: 'Generate AI-powered date suggestions with real places',
+        tags: ['dates'],
+        body: {
+          type: 'object',
+          properties: {
+            profileId: { type: 'string' },
+            budget: { type: 'string' },
+            duration: { type: 'string' },
+            preferences: { type: 'string' },
+            location: { type: 'string' },
+          },
+          required: ['profileId', 'budget', 'duration', 'location'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              suggestions: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    type: { type: 'string' },
+                    description: { type: 'string' },
+                    estimatedCost: { type: 'string' },
+                    duration: { type: 'string' },
+                    whyPerfect: { type: 'string' },
+                    address: { type: 'string' },
+                    websiteUrl: { type: 'string' },
+                    googleMapsUrl: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const body = request.body as {
+        profileId: string;
+        budget: string;
+        duration: string;
+        preferences?: string;
+        location: string;
+      };
+
+      app.logger.info(
+        {
+          userId: session.user.id,
+          profileId: body.profileId,
+          location: body.location,
+          budget: body.budget,
+        },
+        'Generating date suggestions'
+      );
+
+      try {
+        // Verify that the profile belongs to the user
+        const profile = await app.db.query.rosterProfiles.findFirst({
+          where: and(
+            eq(schema.rosterProfiles.id, body.profileId),
+            eq(schema.rosterProfiles.userId, session.user.id)
+          ),
+        });
+
+        if (!profile) {
+          app.logger.warn({ userId: session.user.id, profileId: body.profileId }, 'Profile not found for date planning');
+          return reply.status(404).send({ error: 'Profile not found' });
+        }
+
+        // Build the prompt for AI to generate real date suggestions
+        const prompt = `Find 3-5 real, existing date ideas in ${body.location} with the following criteria:
+- Budget: ${body.budget}
+- Duration: ${body.duration}
+${body.preferences ? `- Preferences: ${body.preferences}` : ''}
+
+For each suggestion, provide:
+1. The actual name of a real place/venue that exists
+2. The type of activity (e.g., Restaurant, Bar, Activity, Museum, Park, etc.)
+3. A brief description of what you'll do there
+4. Why it's perfect for a date with this person
+5. The actual, correct address of the place
+6. The website URL if available
+7. A Google Maps link to the place
+
+Return results as JSON only with fields: name, type, description, estimatedCost, duration, whyPerfect, address, websiteUrl, googleMapsUrl`;
+
+        app.logger.info(
+          { userId: session.user.id, location: body.location },
+          'Calling AI model for date suggestions'
+        );
+
+        // Call GPT-5.2 with structured output
+        const result = await generateObject({
+          model: gateway('openai/gpt-5.2'),
+          schema: DateSuggestionSchema,
+          prompt,
+        });
+
+        app.logger.info(
+          {
+            userId: session.user.id,
+            profileId: body.profileId,
+            count: result.object.suggestions.length,
+          },
+          'Date suggestions generated successfully'
+        );
+
+        return result.object;
+      } catch (error) {
+        app.logger.error(
+          { err: error, userId: session.user.id, profileId: body.profileId, location: body.location },
+          'Failed to generate date suggestions'
+        );
+        return reply.status(500).send({ error: 'Failed to generate date suggestions. Please try again.' });
       }
     }
   );
