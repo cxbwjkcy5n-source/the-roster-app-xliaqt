@@ -30,8 +30,7 @@
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "placeholder",
-        "appleTeamId": "YOUR_CORRECT_TEAM_ID_HERE"
+        "ascAppId": "placeholder"
       }
     }
   }

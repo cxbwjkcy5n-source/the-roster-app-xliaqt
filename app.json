@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "The Roster",
@@ -16,9 +17,18 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.theroster.app",
       "buildNumber": "1.0.0",
-      "appleTeamId": "10002319229",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "The Roster needs your location to help you find nearby date spots and track safety during dates.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "The Roster needs your location to help you find nearby date spots and track safety during dates.",
+        "NSCameraUsageDescription": "The Roster needs camera access to let you add photos to your roster profiles.",
+        "NSPhotoLibraryUsageDescription": "The Roster needs photo library access to let you add photos to your roster profiles."
+      },
+      "entitlements": {
+        "com.apple.developer.applesignin": [
+          "Default"
+        ],
+        "aps-environment": "production"
       }
     },
     "android": {
@@ -27,7 +37,14 @@
         "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.theroster.app"
+      "package": "com.theroster.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
@@ -38,6 +55,27 @@
     "plugins": [
       "expo-font",
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "The Roster needs your location to help you find nearby date spots and track safety during dates."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The Roster needs photo library access to let you add photos to your roster profiles.",
+          "cameraPermission": "The Roster needs camera access to let you add photos to your roster profiles."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png",
+          "color": "#4CAF50",
+          "sounds": []
+        }
+      ],
       [
         "expo-web-browser",
         {
@@ -57,6 +95,5 @@
       "supabaseUrl": "https://bbtvdhdfzkyhrodgclkd.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJidHZkaGRmemt5aHJvZGdjbGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NjMyNTgsImV4cCI6MjA4NDQzOTI1OH0.XE0VFZN7XlLDyh9vu9mt9nfGaq4iUQblNQCphSJ5OB4"
     }
-  },
-  "scheme": "The Roster"
+  }
 }
