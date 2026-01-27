@@ -19,7 +19,6 @@ module.exports = ({ config }) => {
     ios: {
       ...(config.ios ?? {}),
       supportsTablet: true,
-      bundleIdentifier: "com.whywiley.theroster1",
       buildNumber: "6",
       appleTeamId: "JB7SST7P2U",
       infoPlist: {
