@@ -667,7 +667,7 @@ export default function BenchScreen() {
         </View>
       </Modal>
 
-      {/* Date Details Modal */}
+      {/* Date Details Modal - FIX: Increased maxHeight to 85% */}
       <Modal
         visible={showDateDetails}
         animationType="slide"
@@ -677,7 +677,7 @@ export default function BenchScreen() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlayTop}>
-            <View style={styles.modalContentTop}>
+            <View style={styles.modalContentTopLarge}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Date Details</Text>
                 <TouchableOpacity onPress={() => setShowDateDetails(false)}>
@@ -1245,6 +1245,15 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
     maxHeight: '70%',
     minHeight: 300,
+    paddingBottom: 40,
+    marginTop: 0,
+  },
+  modalContentTopLarge: {
+    backgroundColor: colors.white,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    maxHeight: '85%',
+    minHeight: 400,
     paddingBottom: 40,
     marginTop: 0,
   },
