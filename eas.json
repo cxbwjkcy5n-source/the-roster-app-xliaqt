@@ -1,3 +1,4 @@
+
 {
   "build": {
     "development": {
@@ -47,7 +48,7 @@
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "placeholder"
+        "ascAppId": "6758260932"
       }
     }
   }
