@@ -369,7 +369,7 @@ export default function RosterScreen() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>THE ROSTER</Text>
-            <Text style={styles.headerSubtitle}>Where You&apos;re The Coach and MVP</Text>
+            <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
           </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity

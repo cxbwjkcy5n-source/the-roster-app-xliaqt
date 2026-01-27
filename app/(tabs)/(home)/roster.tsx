@@ -141,7 +141,7 @@ export default function RosterScreen() {
         end={{ x: 1, y: 1 }}
       >
         <Text style={styles.headerTitle}>THE ROSTER</Text>
-        <Text style={styles.headerSubtitle}>Where You&apos;re The Coach and MVP</Text>
+        <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -230,7 +230,7 @@ export default function RosterScreen() {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* My Dates Modal - FIX: Opens at top now */}
+      {/* My Dates Modal */}
       <Modal
         visible={showDatesModal}
         animationType="slide"
@@ -287,7 +287,7 @@ export default function RosterScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Analytics Modal - FIX: Opens at top now */}
+      {/* Analytics Modal */}
       <Modal
         visible={showAnalyticsModal}
         animationType="slide"
