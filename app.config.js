@@ -1,4 +1,5 @@
 
+
 module.exports = ({ config }) => {
   return {
     ...config,
@@ -21,7 +22,8 @@ module.exports = ({ config }) => {
       supportsTablet: true,
       buildNumber: "7",
       bundleIdentifier: "com.whywiley.theroster1",
-      appleTeamId: "JB7SST7P2U",
+      // ✅ FIXED: Now uses environment variable instead of hardcoded team ID
+      appleTeamId: process.env.APPLE_TEAM_ID,
       infoPlist: {
         ...(config.ios?.infoPlist ?? {}),
         ITSAppUsesNonExemptEncryption: false,
@@ -144,3 +146,4 @@ module.exports = ({ config }) => {
     }
   };
 };
+
