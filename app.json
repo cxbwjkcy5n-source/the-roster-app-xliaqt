@@ -1,4 +1,7 @@
-
 {
-  "expo": {}
+  "expo": {
+    "name": "The Roster",
+    "slug": "The Roster",
+    "scheme": "The Roster"
+  }
 }

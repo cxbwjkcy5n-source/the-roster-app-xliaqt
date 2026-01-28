@@ -17,8 +17,7 @@
         "resourceClass": "m-medium",
         "cache": {
           "disabled": false
-        },
-        "credentialsSource": "local"
+        }
       },
       "android": {
         "buildType": "apk",
@@ -36,8 +35,7 @@
         "resourceClass": "m-medium",
         "cache": {
           "disabled": false
-        },
-        "credentialsSource": "local"
+        }
       },
       "android": {
         "buildType": "apk"
@@ -54,8 +52,7 @@
         "cache": {
           "disabled": false
         },
-        "buildConfiguration": "Release",
-        "credentialsSource": "local"
+        "buildConfiguration": "Release"
       },
       "android": {
         "buildType": "aab"
