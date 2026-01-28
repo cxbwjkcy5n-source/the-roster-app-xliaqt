@@ -1,3 +1,4 @@
+
 {
   "cli": {
     "version": ">= 13.2.0",
@@ -17,7 +18,8 @@
         "resourceClass": "m-medium",
         "cache": {
           "disabled": false
-        }
+        },
+        "credentialsSource": "local"
       },
       "android": {
         "buildType": "apk",
@@ -36,7 +38,8 @@
         "resourceClass": "m-medium",
         "cache": {
           "disabled": false
-        }
+        },
+        "credentialsSource": "local"
       },
       "android": {
         "buildType": "apk"
@@ -54,7 +57,8 @@
         "cache": {
           "disabled": false
         },
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "credentialsSource": "local"
       },
       "android": {
         "buildType": "aab"

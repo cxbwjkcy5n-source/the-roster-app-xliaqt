@@ -1,5 +1,8 @@
 
 module.exports = ({ config }) => {
+  // Ensure APPLE_TEAM_ID is set consistently
+  const appleTeamId = process.env.APPLE_TEAM_ID || "JB7SST7P2U";
+  
   return {
     ...config,
     name: "The Roster",
@@ -21,7 +24,7 @@ module.exports = ({ config }) => {
       supportsTablet: true,
       buildNumber: "7",
       bundleIdentifier: "com.whywiley.theroster1",
-      appleTeamId: process.env.APPLE_TEAM_ID || "JB7SST7P2U",
+      appleTeamId: appleTeamId,
       infoPlist: {
         ...(config.ios?.infoPlist ?? {}),
         ITSAppUsesNonExemptEncryption: false,
