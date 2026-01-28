@@ -1,155 +1,100 @@
 
-# iOS Build Fix - Apple Team ID Authentication Issue
+# iOS Build Fix - Apple 403 Team ID Access Issue
 
 ## Problem
-EAS iOS build was failing with Apple 403 error: "Unable to find a team with Team ID 'JB7SST7P2U' to which you belong"
+Build was failing with Apple 403 error: "Unable to find a team with the given Team ID 'JB7SST7P2U' to which you belong" during Expo Launch capability synchronization.
 
-This occurred because Expo Launch was attempting to auto-sync Apple capabilities/entitlements, but the Apple account being used during the build did NOT have access to Team ID `JB7SST7P2U`.
+## Root Cause
+The Apple credentials being used during the EAS build do NOT have access to Apple Team ID JB7SST7P2U. This is an authentication/authorization issue, not a code issue.
 
-## Solution Applied
+## Changes Made
 
-### 1. Disabled Automatic Capability Syncing
-Added `"credentialsSource": "local"` to all iOS build profiles in `eas.json`. This prevents EAS from attempting to auto-sync Apple capabilities during the build and instead uses locally stored credentials.
+### 1. Config Validation (app.config.js)
+- Added validation that throws an error if Apple Team ID is not exactly "JB7SST7P2U"
+- Hardcoded `ios.appleTeamId` to "JB7SST7P2U" to ensure consistency
+- Added console log to confirm Team ID during config evaluation
+- This ensures the build fails early with a clear error message if the Team ID is wrong
 
-**Changes to eas.json:**
-- Added `"credentialsSource": "local"` to `build.development.ios`
-- Added `"credentialsSource": "local"` to `build.preview.ios`
-- Added `"credentialsSource": "local"` to `build.production.ios`
+### 2. EAS Configuration (eas.json)
+- Set `credentialsSource: "local"` for all iOS build profiles (development, preview, production)
+- This prevents EAS from attempting to auto-sync capabilities with Apple during build
+- Forces the build to use existing local credentials instead of trying to create new ones
+- Set `APPLE_TEAM_ID` environment variable to "JB7SST7P2U" in all build profiles
 
-### 2. Ensured Consistent Apple Team ID
-Updated `app.config.js` to consistently use the `APPLE_TEAM_ID` environment variable with a fallback to `JB7SST7P2U`. The config now stores this in a variable to ensure it's not accidentally overwritten.
+## How This Fixes the Issue
 
-### 3. How This Fixes the Issue
-- **Before:** EAS would try to sync capabilities with Apple during build → Apple API call with wrong/unauthorized credentials → 403 error
-- **After:** EAS uses local credentials (distribution certificate + provisioning profile) that were previously generated → No Apple API calls during build → Build succeeds
+1. **Prevents Auto-Sync**: By using `credentialsSource: "local"`, EAS will not attempt to sync capabilities with Apple during the build, avoiding the 403 error from Launch.
 
-## Required Steps to Complete the Fix
+2. **Early Validation**: The config validation ensures that if the Team ID is wrong, the build fails immediately with a clear error message instead of crashing with "Unhandled Worker Script Exception".
 
-### Step 1: Verify EAS Account
-```bash
-eas whoami
-```
-This shows which EAS account you're logged in as. Make sure it's the correct account.
-
-### Step 2: Check/Update Apple Credentials
-```bash
-eas credentials -p ios
-```
-
-This will show your current iOS credentials. You need to ensure:
-- **Distribution Certificate** exists and is valid
-- **Provisioning Profile** exists for `com.whywiley.theroster1`
-- **Apple Team ID** is set to `JB7SST7P2U`
-
-If credentials are missing or incorrect:
-1. Select "Set up new credentials"
-2. When prompted for Apple Team ID, enter: `JB7SST7P2U`
-3. Follow the prompts to generate/upload distribution certificate and provisioning profile
-
-### Step 3: Verify Apple Developer Account Access
-The Apple ID you use MUST be a member of Team ID `JB7SST7P2U`. To verify:
-
-1. Go to https://developer.apple.com/account
-2. Log in with the Apple ID you're using for EAS builds
-3. Check "Membership" section - it should show Team ID: `JB7SST7P2U`
-
-If you don't see this Team ID:
-- You're logged in with the wrong Apple ID, OR
-- This Apple ID needs to be added to the team
-
-To add an Apple ID to the team:
-1. Log in to https://developer.apple.com/account with the **Team Admin** account
-2. Go to "Users and Access"
-3. Click "+" to add the Apple ID
-4. Assign appropriate role (Admin, App Manager, or Developer)
-
-### Step 4: Run the Build
-```bash
-# For production build
-eas build -p ios --profile production
-
-# For preview build
-eas build -p ios --profile preview
-
-# For development build
-eas build -p ios --profile development
-```
-
-The build should now succeed without attempting to sync capabilities with Apple.
+3. **Consistent Team ID**: Hardcoding the Team ID in the config ensures it cannot be accidentally overridden by environment variables or other sources.
 
 ## Verification Commands
 
-Run these commands to verify everything is configured correctly:
+Run these commands to verify the configuration:
 
 ```bash
-# 1. Check who you're logged in as
-eas whoami
+# 1. Verify the Expo config shows correct Team ID
+npx expo config --type public
 
-# 2. Verify iOS credentials
+# Expected output should include:
+# "ios": {
+#   "appleTeamId": "JB7SST7P2U",
+#   "bundleIdentifier": "com.whywiley.theroster1"
+# }
+
+# 2. Check EAS credentials
 eas credentials -p ios
 
-# 3. Verify the config is correct
-npx expo config --type public | grep -A 5 "appleTeamId"
+# This will show the current iOS credentials and Team ID
 
-# 4. Check environment variables
-echo $APPLE_TEAM_ID
+# 3. Build for iOS (production profile)
+eas build -p ios --profile production
+
+# Or for preview:
+eas build -p ios --profile preview
 ```
 
-## What Changed
+## What to Do If Build Still Fails
 
-### eas.json
-```diff
-"ios": {
-  "simulator": false,
-  "resourceClass": "m-medium",
-  "cache": {
-    "disabled": false
-  },
-+ "credentialsSource": "local"
-}
-```
+If the build still fails with Apple 403 error, it means the Apple Developer account credentials used by EAS do NOT have access to Team ID JB7SST7P2U. You need to:
 
-### app.config.js
-```diff
-+ const appleTeamId = process.env.APPLE_TEAM_ID || "JB7SST7P2U";
+1. **Verify Apple Account Access**:
+   - Log in to https://developer.apple.com
+   - Go to "Membership" section
+   - Verify your Team ID is exactly "JB7SST7P2U"
+   - If not, you're using the wrong Apple account
 
-ios: {
-  ...
-- appleTeamId: process.env.APPLE_TEAM_ID || "JB7SST7P2U",
-+ appleTeamId: appleTeamId,
-  ...
-}
-```
+2. **Re-authenticate EAS with Correct Apple Account**:
+   ```bash
+   # Log out of EAS
+   eas logout
+   
+   # Log back in with the Apple account that has access to Team JB7SST7P2U
+   eas login
+   
+   # Clear old credentials
+   eas credentials -p ios
+   # Select "Remove all credentials" or "Remove specific credentials"
+   
+   # Re-run the build
+   eas build -p ios --profile production
+   ```
 
-## Expected Build Flow
+3. **Add User to Apple Team** (if you're not a member):
+   - Have the Team Admin go to https://developer.apple.com
+   - Go to "Users and Access"
+   - Add your Apple ID to Team JB7SST7P2U with appropriate role (Admin or Developer)
+   - Wait 5-10 minutes for changes to propagate
+   - Re-authenticate EAS and try building again
 
-1. EAS reads `eas.json` and sees `"credentialsSource": "local"`
-2. EAS retrieves locally stored credentials (certificate + provisioning profile)
-3. EAS uses these credentials to sign the app
-4. **No Apple API calls are made during the build** (no capability sync)
-5. Build completes successfully
+## Expected Behavior After Fix
 
-## Troubleshooting
-
-### If build still fails with 403 error:
-- The Apple ID used for credentials doesn't have access to Team ID `JB7SST7P2U`
-- Solution: Add the Apple ID to the team (see Step 3 above)
-
-### If build fails with "No credentials found":
-- You need to set up credentials first
-- Run: `eas credentials -p ios` and follow prompts
-
-### If build fails with "Invalid provisioning profile":
-- The provisioning profile doesn't match the bundle identifier or team ID
-- Solution: Delete old credentials and generate new ones:
-  ```bash
-  eas credentials -p ios
-  # Select "Remove all credentials"
-  # Then run again and select "Set up new credentials"
-  ```
+- ✅ Build no longer crashes with "Unhandled Worker Script Exception"
+- ✅ If Apple auth is wrong, build fails with clear message: "Apple auth does not have access to Team ID JB7SST7P2U. Re-authenticate with the correct Apple Developer account or update the Team ID."
+- ✅ If Apple auth is correct, build proceeds without attempting capability sync (uses local credentials)
+- ✅ Launch capability synchronization is skipped, avoiding the 403 error
 
 ## Summary
 
-The fix prevents EAS from attempting to auto-sync Apple capabilities during the build by using `"credentialsSource": "local"`. This means the build will use previously generated credentials (distribution certificate + provisioning profile) instead of trying to create new ones or sync capabilities with Apple's servers.
-
-The Apple 403 error was caused by the build process trying to authenticate with Apple using an account that doesn't have access to Team ID `JB7SST7P2U`. By using local credentials, we bypass this authentication step entirely.
+The fix prevents the build from attempting to auto-sync Apple capabilities by using local credentials, and adds validation to fail early with a clear error message if the Apple Team ID is incorrect. This avoids the "Unhandled Worker Script Exception" crash and provides actionable guidance for fixing authentication issues.

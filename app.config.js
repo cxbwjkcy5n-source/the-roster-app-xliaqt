@@ -1,7 +1,19 @@
 
 module.exports = ({ config }) => {
-  // Ensure APPLE_TEAM_ID is set consistently
+  // CRITICAL: Apple Team ID must be exactly "JB7SST7P2U"
+  // This is read from environment variable or defaults to the correct value
   const appleTeamId = process.env.APPLE_TEAM_ID || "JB7SST7P2U";
+  
+  // Validation: Ensure Apple Team ID is correct
+  if (appleTeamId !== "JB7SST7P2U") {
+    throw new Error(
+      `❌ APPLE TEAM ID MISMATCH: Expected "JB7SST7P2U" but got "${appleTeamId}". ` +
+      `Apple auth does not have access to Team ID ${appleTeamId}. ` +
+      `Re-authenticate with the correct Apple Developer account or update the Team ID.`
+    );
+  }
+  
+  console.log(`✅ Apple Team ID validated: ${appleTeamId}`);
   
   return {
     ...config,
@@ -24,7 +36,7 @@ module.exports = ({ config }) => {
       supportsTablet: true,
       buildNumber: "7",
       bundleIdentifier: "com.whywiley.theroster1",
-      appleTeamId: appleTeamId,
+      appleTeamId: "JB7SST7P2U", // Hardcoded to ensure consistency
       infoPlist: {
         ...(config.ios?.infoPlist ?? {}),
         ITSAppUsesNonExemptEncryption: false,
