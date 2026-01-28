@@ -171,9 +171,9 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* GREEN Header with "WHERE EVERYONE PLAYS THEIR POSITION" */}
+      {/* BLACK Header with "WHERE EVERYONE PLAYS THEIR POSITION" */}
       <LinearGradient
-        colors={['#2D8B4E', '#1F6B3A']}
+        colors={['#000000', '#1a1a1a']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}

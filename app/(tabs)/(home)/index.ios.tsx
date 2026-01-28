@@ -163,8 +163,8 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Roster Header - Green Gradient */}
-      <LinearGradient colors={gradients.rosterGreen} style={styles.header}>
+      {/* Roster Header - Black Gradient */}
+      <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>THE ROSTER</Text>
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>

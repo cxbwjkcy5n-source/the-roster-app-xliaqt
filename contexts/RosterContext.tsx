@@ -435,7 +435,8 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       };
       await authenticatedPut(`/api/dates/${date.id}`, dateData);
       console.log('[RosterContext] Date updated successfully');
-      await refreshDates();
+      // Refresh both dates and analytics when status changes (e.g., upcoming -> completed)
+      await Promise.all([refreshDates(), refreshAnalytics()]);
     } catch (err) {
       console.error('[RosterContext] Failed to update date:', err);
       Alert.alert('Error', 'Failed to update date');
@@ -462,8 +463,8 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       // Update the date with rating and wouldGoAgain
       await authenticatedPut(`/api/dates/${dateId}`, { rating, wouldGoAgain });
       console.log('[RosterContext] Date rated successfully');
-      await refreshDates();
-      await refreshAnalytics();
+      // Refresh both dates and analytics to show updated stats
+      await Promise.all([refreshDates(), refreshAnalytics()]);
     } catch (err) {
       console.error('[RosterContext] Failed to rate date:', err);
       Alert.alert('Error', 'Failed to rate date');

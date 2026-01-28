@@ -182,7 +182,7 @@ export default function DatingAnalyticsScreen() {
             </View>
           </View>
 
-          {/* Top Rated Dates */}
+          {/* Top Rated Dates - CLICKABLE */}
           {analytics.topRatedDates && analytics.topRatedDates.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Top Rated Dates</Text>
@@ -193,7 +193,15 @@ export default function DatingAnalyticsScreen() {
                 const ratingNum = date.rating;
                 
                 return (
-                  <View key={date.id || index} style={styles.topDateCard}>
+                  <TouchableOpacity 
+                    key={date.id || index} 
+                    style={styles.topDateCard}
+                    onPress={() => {
+                      console.log('[DatingAnalytics] User tapped top rated date - navigating to date history');
+                      router.push('/dating/history');
+                    }}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.topDateHeader}>
                       <Text style={styles.topDateName}>{profileNameStr}</Text>
                       <View style={styles.topDateRating}>
@@ -210,7 +218,15 @@ export default function DatingAnalyticsScreen() {
                     </View>
                     <Text style={styles.topDateType}>{typeStr}</Text>
                     <Text style={styles.topDateDate}>{dateStr}</Text>
-                  </View>
+                    <View style={styles.clickIndicator}>
+                      <IconSymbol
+                        ios_icon_name="chevron.right"
+                        android_material_icon_name="chevron-right"
+                        size={16}
+                        color={colors.grey}
+                      />
+                    </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -284,9 +300,24 @@ export default function DatingAnalyticsScreen() {
             </View>
           )}
 
-          {/* Interest Level Breakdown */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interest Level Breakdown</Text>
+          {/* Interest Level Breakdown - CLICKABLE */}
+          <TouchableOpacity 
+            style={styles.section}
+            onPress={() => {
+              console.log('[DatingAnalytics] User tapped interest breakdown - navigating to roster');
+              router.push('/(tabs)/(home)');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Interest Level Breakdown</Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="chevron-right"
+                size={20}
+                color={colors.grey}
+              />
+            </View>
             <View style={styles.interestBreakdown}>
               <View style={styles.interestRow}>
                 <View style={[styles.interestDot, { backgroundColor: colors.green }]} />
@@ -304,13 +335,20 @@ export default function DatingAnalyticsScreen() {
                 <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.low ?? 0}</Text>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          {/* Status Breakdown */}
+          {/* Status Breakdown - CLICKABLE */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Status Breakdown</Text>
             <View style={styles.statusBreakdown}>
-              <View style={styles.statusRow}>
+              <TouchableOpacity 
+                style={styles.statusRow}
+                onPress={() => {
+                  console.log('[DatingAnalytics] User tapped Roster - navigating to roster');
+                  router.push('/(tabs)/(home)');
+                }}
+                activeOpacity={0.7}
+              >
                 <IconSymbol
                   ios_icon_name="star.fill"
                   android_material_icon_name="star"
@@ -319,8 +357,21 @@ export default function DatingAnalyticsScreen() {
                 />
                 <Text style={styles.statusLabel}>Roster</Text>
                 <Text style={styles.statusValue}>{analytics.statusBreakdown?.roster ?? 0}</Text>
-              </View>
-              <View style={styles.statusRow}>
+                <IconSymbol
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={16}
+                  color={colors.grey}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.statusRow}
+                onPress={() => {
+                  console.log('[DatingAnalytics] User tapped Bench - navigating to bench');
+                  router.push('/(tabs)/bench');
+                }}
+                activeOpacity={0.7}
+              >
                 <IconSymbol
                   ios_icon_name="pause.fill"
                   android_material_icon_name="pause"
@@ -329,7 +380,13 @@ export default function DatingAnalyticsScreen() {
                 />
                 <Text style={styles.statusLabel}>Bench</Text>
                 <Text style={styles.statusValue}>{analytics.statusBreakdown?.bench ?? 0}</Text>
-              </View>
+                <IconSymbol
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={16}
+                  color={colors.grey}
+                />
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -464,6 +521,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    position: 'relative',
+  },
+  clickIndicator: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    transform: [{ translateY: -8 }],
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   topDateHeader: {
     flexDirection: 'row',
