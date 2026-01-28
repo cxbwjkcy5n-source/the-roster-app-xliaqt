@@ -31,7 +31,8 @@ if (Platform.OS !== 'web') {
   DateTimePicker = require('@react-native-community/datetimepicker').default;
 }
 
-const DATE_TYPES = ['casual', 'formal', 'activity', 'coffee', 'dinner', 'drinks', 'movie', 'outdoor', 'other'];
+// FIX: Capitalize date types
+const DATE_TYPES = ['Casual', 'Formal', 'Activity', 'Coffee', 'Dinner', 'Drinks', 'Movie', 'Outdoor', 'Other'];
 
 const REMINDER_OPTIONS = [
   { label: '1 hour before', value: '1h' },
@@ -58,7 +59,7 @@ export default function ScheduleDateScreen() {
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedPersonName, setSelectedPersonName] = useState('');
   const [selectedPersonData, setSelectedPersonData] = useState<RosterPerson | null>(null);
-  const [dateType, setDateType] = useState('casual');
+  const [dateType, setDateType] = useState('Casual');
   const [dateDate, setDateDate] = useState(new Date());
   const [dateTime, setDateTime] = useState(new Date());
   const [location, setLocation] = useState('');
@@ -146,7 +147,7 @@ export default function ScheduleDateScreen() {
         location,
         notes,
         status: 'upcoming',
-        type: dateType as any,
+        type: dateType.toLowerCase() as any,
         reminders: selectedReminders,
       };
 
@@ -418,17 +419,18 @@ export default function ScheduleDateScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Person Picker Modal */}
+        {/* FIX: Person Picker Modal - Opens from TOP */}
         <Modal
           visible={showPersonPicker}
           transparent
           animationType="slide"
           onRequestClose={() => setShowPersonPicker(false)}
+          presentationStyle="pageSheet"
         >
           <TouchableWithoutFeedback onPress={() => setShowPersonPicker(false)}>
-            <View style={styles.modalOverlay}>
+            <View style={styles.modalOverlayTop}>
               <TouchableWithoutFeedback>
-                <View style={styles.pickerModal}>
+                <View style={styles.pickerModalTop}>
                   <View style={styles.pickerHeader}>
                     <Text style={styles.pickerTitle}>Select Person</Text>
                     <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
@@ -524,17 +526,18 @@ export default function ScheduleDateScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* Type Picker Modal */}
+        {/* FIX: Type Picker Modal - Opens from TOP */}
         <Modal
           visible={showTypePicker}
           transparent
           animationType="slide"
           onRequestClose={() => setShowTypePicker(false)}
+          presentationStyle="pageSheet"
         >
           <TouchableWithoutFeedback onPress={() => setShowTypePicker(false)}>
-            <View style={styles.modalOverlay}>
+            <View style={styles.modalOverlayTop}>
               <TouchableWithoutFeedback>
-                <View style={styles.pickerModal}>
+                <View style={styles.pickerModalTop}>
                   <View style={styles.pickerHeader}>
                     <Text style={styles.pickerTitle}>Select Date Type</Text>
                     <TouchableOpacity onPress={() => setShowTypePicker(false)}>
@@ -753,23 +756,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  modalOverlay: {
+  // FIX: Modal opens from TOP
+  modalOverlayTop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
-  pickerModal: {
+  pickerModalTop: {
     backgroundColor: colors.backgroundAlt,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '50%',
-    minHeight: 200,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    maxHeight: '70%',
+    minHeight: 300,
+    marginTop: 0,
   },
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 60,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },

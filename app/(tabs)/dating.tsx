@@ -17,12 +17,13 @@ import { useRouter } from 'expo-router';
 import { authenticatedGet } from '@/utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 
+// FIX: Update menu colors to be sophisticated and sleek
 const MENU_COLORS = {
-  'have-date': ['#11A36A', '#0d8555'],
-  'plan-date': ['#2FB8A8', '#26a69a'],
-  'on-date': ['#E9243F', '#c41e35'],
-  'dating-coach': ['#C8A04F', '#b8903f'],
-  'my-dates': ['#E9243F', '#ff4757'],
+  'have-date': [colors.rosterGreen, '#1F6B3A'],
+  'plan-date': ['#4A90E2', '#3A7BC8'],
+  'on-date': [colors.rosterRed, colors.darkRed],
+  'dating-coach': [colors.gold, colors.bronze],
+  'my-dates': ['#8B5CF6', '#7C3AED'],
 };
 
 interface Analytics {

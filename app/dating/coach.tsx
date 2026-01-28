@@ -110,8 +110,9 @@ export default function DatingCoachScreen() {
         }} 
       />
       
+      {/* FIX: Update header colors to match app aesthetic */}
       <LinearGradient
-        colors={['#C8A04F', '#b8903f']}
+        colors={[colors.rosterGreen, '#1F6B3A']}
         style={styles.header}
       >
         <TouchableOpacity

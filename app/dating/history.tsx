@@ -139,8 +139,9 @@ export default function DateHistoryScreen() {
         }} 
       />
       
+      {/* FIX: Update header colors to match app aesthetic */}
       <LinearGradient
-        colors={['#FF6B9D', '#C44569']}
+        colors={[colors.rosterGreen, '#1F6B3A']}
         style={styles.header}
       >
         <TouchableOpacity
@@ -276,7 +277,7 @@ export default function DateHistoryScreen() {
         )}
       </ScrollView>
 
-      {/* Date Details Modal */}
+      {/* FIX: Date Details Modal - Increased height to 85% */}
       <Modal
         visible={showDateDetails}
         animationType="slide"
@@ -819,12 +820,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-start',
   },
+  // FIX: Increased modal height to 85%
   modalContentTop: {
     backgroundColor: colors.white,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    maxHeight: '70%',
-    minHeight: 300,
+    maxHeight: '85%',
+    minHeight: 400,
     paddingBottom: 40,
     marginTop: 0,
   },
