@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, count, sql, desc, and } from 'drizzle-orm';
+import { eq, count, sql, desc, and, gt, isNotNull, avg } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
@@ -36,6 +36,60 @@ export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
                   bench: { type: 'integer' },
                 },
               },
+              dateFrequency: {
+                type: 'object',
+                properties: {
+                  thisWeek: { type: 'integer' },
+                  thisMonth: { type: 'integer' },
+                  lastMonth: { type: 'integer' },
+                },
+              },
+              datesPerMonth: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    month: { type: 'string' },
+                    count: { type: 'integer' },
+                  },
+                },
+              },
+              averageRating: { type: 'number' },
+              totalRatings: { type: 'integer' },
+              wouldGoAgainPercentage: { type: 'number' },
+              commonRedFlags: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    flag: { type: 'string' },
+                    count: { type: 'integer' },
+                  },
+                },
+              },
+              commonGreenFlags: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    flag: { type: 'string' },
+                    count: { type: 'integer' },
+                  },
+                },
+              },
+              topRatedDates: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    profileName: { type: 'string' },
+                    type: { type: 'string' },
+                    rating: { type: 'integer' },
+                    date: { type: 'string' },
+                  },
+                },
+              },
             },
           },
         },
@@ -45,180 +99,268 @@ export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      // Total profiles
-      const [totalProfilesResult] = await app.db
-        .select({ value: count() })
-        .from(schema.rosterProfiles)
-        .where(eq(schema.rosterProfiles.userId, session.user.id));
+      app.logger.info({ userId: session.user.id }, 'Fetching analytics');
 
-      const totalProfiles = totalProfilesResult?.value || 0;
+      try {
+        // Total profiles
+        const [totalProfilesResult] = await app.db
+          .select({ value: count() })
+          .from(schema.rosterProfiles)
+          .where(eq(schema.rosterProfiles.userId, session.user.id));
 
-      // Total dates
-      const [totalDatesResult] = await app.db
-        .select({ value: count() })
-        .from(schema.dates)
-        .where(eq(schema.dates.userId, session.user.id));
+        const totalProfiles = totalProfilesResult?.value || 0;
 
-      const totalDates = totalDatesResult?.value || 0;
+        // Total dates
+        const [totalDatesResult] = await app.db
+          .select({ value: count() })
+          .from(schema.dates)
+          .where(eq(schema.dates.userId, session.user.id));
 
-      // Upcoming dates
-      const [upcomingDatesResult] = await app.db
-        .select({ value: count() })
-        .from(schema.dates)
-        .where(
-          eq(schema.dates.status, 'upcoming') && eq(schema.dates.userId, session.user.id)
-        );
+        const totalDates = totalDatesResult?.value || 0;
 
-      const upcomingDates = upcomingDatesResult?.value || 0;
+        // Upcoming dates
+        const [upcomingDatesResult] = await app.db
+          .select({ value: count() })
+          .from(schema.dates)
+          .where(
+            and(
+              eq(schema.dates.status, 'upcoming'),
+              eq(schema.dates.userId, session.user.id)
+            )
+          );
 
-      // Completed dates
-      const [completedDatesResult] = await app.db
-        .select({ value: count() })
-        .from(schema.dates)
-        .where(
-          eq(schema.dates.status, 'completed') && eq(schema.dates.userId, session.user.id)
-        );
+        const upcomingDates = upcomingDatesResult?.value || 0;
 
-      const completedDates = completedDatesResult?.value || 0;
+        // Completed dates
+        const [completedDatesResult] = await app.db
+          .select({ value: count() })
+          .from(schema.dates)
+          .where(
+            and(
+              eq(schema.dates.status, 'completed'),
+              eq(schema.dates.userId, session.user.id)
+            )
+          );
 
-      // Interest level breakdown
-      const profiles = await app.db
-        .select()
-        .from(schema.rosterProfiles)
-        .where(eq(schema.rosterProfiles.userId, session.user.id));
+        const completedDates = completedDatesResult?.value || 0;
 
-      const interestLevelBreakdown = {
-        low: 0,
-        medium: 0,
-        high: 0,
-      };
+        // Interest level breakdown
+        const profiles = await app.db
+          .select()
+          .from(schema.rosterProfiles)
+          .where(eq(schema.rosterProfiles.userId, session.user.id));
 
-      profiles.forEach((profile) => {
-        const level = (profile.interestLevel as 'low' | 'medium' | 'high') || 'medium';
-        interestLevelBreakdown[level] = (interestLevelBreakdown[level] || 0) + 1;
-      });
+        const interestLevelBreakdown = {
+          low: 0,
+          medium: 0,
+          high: 0,
+        };
 
-      // Status breakdown
-      const statusBreakdown = {
-        roster: 0,
-        bench: 0,
-      };
+        profiles.forEach((profile) => {
+          const level = (profile.interestLevel as 'low' | 'medium' | 'high') || 'medium';
+          interestLevelBreakdown[level] = (interestLevelBreakdown[level] || 0) + 1;
+        });
 
-      profiles.forEach((profile) => {
-        const status = (profile.status as 'roster' | 'bench') || 'roster';
-        statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
-      });
+        // Status breakdown
+        const statusBreakdown = {
+          roster: 0,
+          bench: 0,
+        };
 
-      // Dates per month (last 12 months)
-      const datesPerMonth: Array<{ month: number; year: number; count: number }> = [];
-      for (let i = 11; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
+        profiles.forEach((profile) => {
+          const status = (profile.status as 'roster' | 'bench') || 'roster';
+          statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+        });
 
-        const [monthResult] = await app.db
+        // Date frequency (this week, this month, last month)
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+        const [thisWeekResult] = await app.db
           .select({ value: count() })
           .from(schema.dates)
           .where(
             and(
               eq(schema.dates.userId, session.user.id),
-              sql`EXTRACT(YEAR FROM ${schema.dates.createdAt}) = ${year}`,
-              sql`EXTRACT(MONTH FROM ${schema.dates.createdAt}) = ${month}`
+              eq(schema.dates.status, 'completed'),
+              sql`${schema.dates.createdAt} >= ${oneWeekAgo}`
             )
           );
 
-        datesPerMonth.push({
-          month,
-          year,
-          count: monthResult?.value || 0,
-        });
-      }
-
-      // Common red flags
-      const redFlagsData = await app.db
-        .select({
-          text: schema.redFlags.flagText,
-          count: count(),
-        })
-        .from(schema.redFlags)
-        .innerJoin(schema.rosterProfiles, eq(schema.redFlags.profileId, schema.rosterProfiles.id))
-        .where(eq(schema.rosterProfiles.userId, session.user.id))
-        .groupBy(schema.redFlags.flagText)
-        .orderBy(desc(count()))
-        .limit(10);
-
-      // Common green flags
-      const greenFlagsData = await app.db
-        .select({
-          text: schema.greenFlags.flagText,
-          count: count(),
-        })
-        .from(schema.greenFlags)
-        .innerJoin(schema.rosterProfiles, eq(schema.greenFlags.profileId, schema.rosterProfiles.id))
-        .where(eq(schema.rosterProfiles.userId, session.user.id))
-        .groupBy(schema.greenFlags.flagText)
-        .orderBy(desc(count()))
-        .limit(10);
-
-      // Most active profiles (by interaction count)
-      const mostActiveData = await app.db
-        .select({
-          profileId: schema.interactions.profileId,
-          profileName: schema.rosterProfiles.name,
-          interactionCount: count().as('interactionCount'),
-        })
-        .from(schema.interactions)
-        .innerJoin(schema.rosterProfiles, eq(schema.interactions.profileId, schema.rosterProfiles.id))
-        .where(eq(schema.interactions.userId, session.user.id))
-        .groupBy(schema.interactions.profileId, schema.rosterProfiles.name)
-        .orderBy(desc(count()))
-        .limit(5);
-
-      // Calculate average days between dates
-      let dateFrequency = 0;
-      if (completedDates > 1) {
-        const datesList = await app.db
-          .select({ createdAt: schema.dates.createdAt })
+        const [thisMonthResult] = await app.db
+          .select({ value: count() })
           .from(schema.dates)
-          .where(and(eq(schema.dates.userId, session.user.id), eq(schema.dates.status, 'completed')))
-          .orderBy(schema.dates.createdAt);
+          .where(
+            and(
+              eq(schema.dates.userId, session.user.id),
+              eq(schema.dates.status, 'completed'),
+              sql`${schema.dates.createdAt} >= ${oneMonthAgo}`
+            )
+          );
 
-        if (datesList.length > 1) {
-          let totalDays = 0;
-          for (let i = 1; i < datesList.length; i++) {
-            const daysDiff =
-              (datesList[i].createdAt.getTime() - datesList[i - 1].createdAt.getTime()) /
-              (1000 * 60 * 60 * 24);
-            totalDays += daysDiff;
-          }
-          dateFrequency = Math.round(totalDays / (datesList.length - 1));
+        const [lastMonthResult] = await app.db
+          .select({ value: count() })
+          .from(schema.dates)
+          .where(
+            and(
+              eq(schema.dates.userId, session.user.id),
+              eq(schema.dates.status, 'completed'),
+              sql`${schema.dates.createdAt} >= ${twoMonthsAgo} AND ${schema.dates.createdAt} < ${oneMonthAgo}`
+            )
+          );
+
+        // Dates per month (last 6 months)
+        const datesPerMonth: Array<{ month: string; count: number }> = [];
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date();
+          date.setMonth(date.getMonth() - i);
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const monthName = date.toLocaleString('default', { month: 'short', year: '2-digit' });
+
+          const [monthResult] = await app.db
+            .select({ value: count() })
+            .from(schema.dates)
+            .where(
+              and(
+                eq(schema.dates.userId, session.user.id),
+                sql`EXTRACT(YEAR FROM ${schema.dates.createdAt}) = ${year}`,
+                sql`EXTRACT(MONTH FROM ${schema.dates.createdAt}) = ${month}`
+              )
+            );
+
+          datesPerMonth.push({
+            month: monthName,
+            count: monthResult?.value || 0,
+          });
         }
-      }
 
-      return {
-        totalProfiles,
-        totalDates,
-        upcomingDates,
-        completedDates,
-        interestLevelBreakdown,
-        statusBreakdown,
-        datesPerMonth,
-        commonRedFlags: redFlagsData.map((r: any) => ({
-          text: r.text,
-          count: r.count,
-        })),
-        commonGreenFlags: greenFlagsData.map((g: any) => ({
-          text: g.text,
-          count: g.count,
-        })),
-        dateFrequency,
-        mostActiveProfiles: mostActiveData.map((m: any) => ({
-          profileId: m.profileId,
-          profileName: m.profileName,
-          interactionCount: m.interactionCount,
-        })),
-      };
+        // Average rating and total ratings
+        const [ratingResult] = await app.db
+          .select({
+            averageRating: avg(schema.dates.rating),
+            totalRatings: count(),
+          })
+          .from(schema.dates)
+          .where(
+            and(
+              eq(schema.dates.userId, session.user.id),
+              isNotNull(schema.dates.rating)
+            )
+          );
+
+        const averageRating = ratingResult?.averageRating ? Math.round(parseFloat(ratingResult.averageRating.toString()) * 10) / 10 : 0;
+        const totalRatings = ratingResult?.totalRatings || 0;
+
+        // Would go again percentage
+        const [wouldGoAgainResult] = await app.db
+          .select({ value: count() })
+          .from(schema.dates)
+          .where(
+            and(
+              eq(schema.dates.userId, session.user.id),
+              eq(schema.dates.wouldGoAgain, true)
+            )
+          );
+
+        const wouldGoAgainCount = wouldGoAgainResult?.value || 0;
+        const wouldGoAgainPercentage = totalRatings > 0 ? Math.round((wouldGoAgainCount / totalRatings) * 100) : 0;
+
+        // Common red flags (top 5)
+        const redFlagsData = await app.db
+          .select({
+            text: schema.redFlags.flagText,
+            count: count(),
+          })
+          .from(schema.redFlags)
+          .innerJoin(schema.rosterProfiles, eq(schema.redFlags.profileId, schema.rosterProfiles.id))
+          .where(eq(schema.rosterProfiles.userId, session.user.id))
+          .groupBy(schema.redFlags.flagText)
+          .orderBy(desc(count()))
+          .limit(5);
+
+        // Common green flags (top 5)
+        const greenFlagsData = await app.db
+          .select({
+            text: schema.greenFlags.flagText,
+            count: count(),
+          })
+          .from(schema.greenFlags)
+          .innerJoin(schema.rosterProfiles, eq(schema.greenFlags.profileId, schema.rosterProfiles.id))
+          .where(eq(schema.rosterProfiles.userId, session.user.id))
+          .groupBy(schema.greenFlags.flagText)
+          .orderBy(desc(count()))
+          .limit(5);
+
+        // Top rated dates
+        const topRatedDates = await app.db
+          .select({
+            id: schema.dates.id,
+            profileName: schema.rosterProfiles.name,
+            type: schema.dates.type,
+            rating: schema.dates.rating,
+            createdAt: schema.dates.createdAt,
+          })
+          .from(schema.dates)
+          .innerJoin(schema.rosterProfiles, eq(schema.dates.profileId, schema.rosterProfiles.id))
+          .where(
+            and(
+              eq(schema.dates.userId, session.user.id),
+              isNotNull(schema.dates.rating),
+              gt(schema.dates.rating, 0)
+            )
+          )
+          .orderBy(desc(schema.dates.rating), desc(schema.dates.createdAt))
+          .limit(5);
+
+        app.logger.info(
+          {
+            userId: session.user.id,
+            totalProfiles,
+            totalDates,
+            completedDates,
+          },
+          'Analytics fetched successfully'
+        );
+
+        return {
+          totalProfiles,
+          totalDates,
+          upcomingDates,
+          completedDates,
+          interestLevelBreakdown,
+          statusBreakdown,
+          dateFrequency: {
+            thisWeek: thisWeekResult?.value || 0,
+            thisMonth: thisMonthResult?.value || 0,
+            lastMonth: lastMonthResult?.value || 0,
+          },
+          datesPerMonth,
+          averageRating,
+          totalRatings,
+          wouldGoAgainPercentage,
+          commonRedFlags: redFlagsData.map((r: any) => ({
+            flag: r.text,
+            count: r.count,
+          })),
+          commonGreenFlags: greenFlagsData.map((g: any) => ({
+            flag: g.text,
+            count: g.count,
+          })),
+          topRatedDates: topRatedDates.map((d: any) => ({
+            id: d.id,
+            profileName: d.profileName,
+            type: d.type,
+            rating: d.rating,
+            date: d.createdAt ? new Date(d.createdAt).toISOString().split('T')[0] : '',
+          })),
+        };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch analytics');
+        return reply.status(500).send({ error: 'Failed to fetch analytics. Please try again.' });
+      }
     }
   );
 }

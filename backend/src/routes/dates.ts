@@ -247,7 +247,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };
 
-      app.logger.info({ userId: session.user.id, dateId: id }, 'Updating date record');
+      app.logger.info({ userId: session.user.id, dateId: id, updates: Object.keys(body) }, 'Updating date record');
 
       try {
         // Verify ownership
@@ -270,6 +270,21 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           .set(updateData)
           .where(eq(schema.dates.id, id))
           .returning();
+
+        // Log analytics-affecting changes
+        const analyticsFields = ['status', 'rating', 'wouldGoAgain'];
+        const changedAnalyticsFields = analyticsFields.filter(field => field in body);
+        if (changedAnalyticsFields.length > 0) {
+          app.logger.info(
+            {
+              userId: session.user.id,
+              dateId: id,
+              analyticsChanges: changedAnalyticsFields,
+              newValues: changedAnalyticsFields.reduce((acc, field) => ({ ...acc, [field]: body[field] }), {}),
+            },
+            'Analytics-affecting date fields updated - analytics will recalculate on next fetch'
+          );
+        }
 
         app.logger.info({ userId: session.user.id, dateId: id }, 'Date record updated successfully');
         return updated;
