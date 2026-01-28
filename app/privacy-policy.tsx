@@ -22,7 +22,7 @@ export default function PrivacyPolicyScreen() {
         options={{
           headerShown: true,
           title: 'Privacy Policy',
-          headerBackTitle: '', // FIX: Hide the "(tabs)" text
+          headerBackTitle: 'Back',
           headerStyle: {
             backgroundColor: colors.primary,
           },
