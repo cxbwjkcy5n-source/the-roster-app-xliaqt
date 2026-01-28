@@ -20,7 +20,8 @@ module.exports = ({ config }) => {
       ...(config.ios ?? {}),
       supportsTablet: true,
       buildNumber: "6",
-      appleTeamId: process.env.APPLE_TEAM_ID || undefined,
+      bundleIdentifier: "com.whywiley.theroster1",
+      appleTeamId: "JB7SST7P2U",
       infoPlist: {
         ...(config.ios?.infoPlist ?? {}),
         ITSAppUsesNonExemptEncryption: false,
