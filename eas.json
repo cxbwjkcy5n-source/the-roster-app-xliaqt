@@ -51,7 +51,8 @@
         "resourceClass": "m-medium",
         "cache": {
           "disabled": false
-        }
+        },
+        "buildConfiguration": "Release"
       },
       "android": {
         "buildType": "aab"

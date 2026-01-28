@@ -5,7 +5,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
-import { useColorScheme, Alert, Platform, View } from "react-native";
+import { useColorScheme, Alert, Platform } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -16,15 +16,8 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RosterProvider } from "@/contexts/RosterContext";
-
-// Conditionally import GestureHandlerRootView only on native platforms
-let GestureHandlerRootView: any = View;
-if (Platform.OS !== 'web') {
-  // Use dynamic import instead of require
-  import('react-native-gesture-handler').then((module) => {
-    GestureHandlerRootView = module.GestureHandlerRootView;
-  });
-}
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,7 +25,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
   const [loaded] = useFonts({
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
@@ -43,7 +35,6 @@ export default function RootLayout() {
   }, [loaded]);
 
   React.useEffect(() => {
-    // Only show network alerts on native platforms
     if (Platform.OS !== 'web' && !networkState.isConnected && networkState.isInternetReachable === false) {
       Alert.alert(
         "🔌 You are offline",
@@ -82,7 +73,7 @@ export default function RootLayout() {
   };
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="auto" animated />
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
@@ -102,12 +93,18 @@ export default function RootLayout() {
                 <Stack.Screen name="person/[id]" />
                 <Stack.Screen name="privacy-policy" />
                 <Stack.Screen name="eula" />
+                <Stack.Screen name="dating/history" />
+                <Stack.Screen name="dating/plan" />
+                <Stack.Screen name="dating/schedule" />
+                <Stack.Screen name="dating/safety" />
+                <Stack.Screen name="dating/analytics" />
+                <Stack.Screen name="dating/coach" />
               </Stack>
               {Platform.OS !== 'web' && <SystemBars style="auto" />}
             </GestureHandlerRootView>
           </RosterProvider>
         </AuthProvider>
       </ThemeProvider>
-    </>
+    </ErrorBoundary>
   );
 }

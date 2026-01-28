@@ -19,7 +19,7 @@ module.exports = ({ config }) => {
     ios: {
       ...(config.ios ?? {}),
       supportsTablet: true,
-      buildNumber: "6",
+      buildNumber: "7",
       bundleIdentifier: "com.whywiley.theroster1",
       appleTeamId: "JB7SST7P2U",
       infoPlist: {
@@ -32,7 +32,13 @@ module.exports = ({ config }) => {
         NSPhotoLibraryAddUsageDescription: "The Roster needs permission to save photos to your library.",
         NSCalendarsUsageDescription: "The Roster needs calendar access to help you schedule and manage your dates.",
         NSRemindersUsageDescription: "The Roster needs reminders access to send you date notifications.",
-        NSContactsUsageDescription: "The Roster needs contacts access to help you quickly add people to your roster."
+        NSContactsUsageDescription: "The Roster needs contacts access to help you quickly add people to your roster.",
+        CFBundleURLTypes: [
+          {
+            CFBundleURLSchemes: ["theroster"]
+          }
+        ],
+        LSApplicationQueriesSchemes: ["mailto", "tel", "sms", "https", "http"]
       },
       entitlements: {
         "com.apple.developer.applesignin": [
@@ -42,11 +48,15 @@ module.exports = ({ config }) => {
       },
       config: {
         usesNonExemptEncryption: false
-      }
+      },
+      associatedDomains: [
+        "applinks:theroster.app",
+        "webcredentials:theroster.app"
+      ]
     },
     android: {
       ...(config.android ?? {}),
-      versionCode: 6,
+      versionCode: 7,
       adaptiveIcon: {
         foregroundImage: "./assets/images/d136fc08-2fbc-4902-972a-c9d16c00fa3b.png",
         backgroundColor: "#FFFFFF"
@@ -63,7 +73,21 @@ module.exports = ({ config }) => {
         "WRITE_CALENDAR",
         "READ_CONTACTS"
       ],
-      googleServicesFile: "./google-services.json"
+      googleServicesFile: "./google-services.json",
+      intentFilters: [
+        {
+          action: "VIEW",
+          autoVerify: true,
+          data: [
+            {
+              scheme: "https",
+              host: "theroster.app",
+              pathPrefix: "/"
+            }
+          ],
+          category: ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     web: {
       ...(config.web ?? {}),

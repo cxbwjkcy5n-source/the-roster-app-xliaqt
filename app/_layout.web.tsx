@@ -15,7 +15,6 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RosterProvider } from "@/contexts/RosterContext";
 
-// Prevent auto-hide of splash screen
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -80,6 +79,12 @@ export default function RootLayout() {
                 <Stack.Screen name="person/[id]" />
                 <Stack.Screen name="privacy-policy" />
                 <Stack.Screen name="eula" />
+                <Stack.Screen name="dating/history" />
+                <Stack.Screen name="dating/plan" />
+                <Stack.Screen name="dating/schedule" />
+                <Stack.Screen name="dating/safety" />
+                <Stack.Screen name="dating/analytics" />
+                <Stack.Screen name="dating/coach" />
               </Stack>
             </View>
           </RosterProvider>
