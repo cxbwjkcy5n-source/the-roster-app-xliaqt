@@ -49,23 +49,6 @@ export default function RosterScreen() {
   const router = useRouter();
   const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate } = useRoster();
   const { user, loading: authLoading } = useAuth();
-  const [showMyDates, setShowMyDates] = useState(false);
-  const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
-  const [selectedDate, setSelectedDate] = useState<any>(null);
-  const [showDateDetails, setShowDateDetails] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  
-  // Edit state
-  const [editLocation, setEditLocation] = useState('');
-  const [editNotes, setEditNotes] = useState('');
-  const [editTime, setEditTime] = useState('');
-  const [editDate, setEditDate] = useState('');
-  
-  // Rating state
-  const [rating, setRating] = useState(0);
-  const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
-  const [ratingNotes, setRatingNotes] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -92,86 +75,6 @@ export default function RosterScreen() {
         return colors.actionRed;
       default:
         return colors.grey;
-    }
-  };
-
-  const handleEditDate = (date: any) => {
-    console.log('[Home] User tapped Edit Date button for:', date.id);
-    setEditLocation(date.location || '');
-    setEditNotes(date.notes || '');
-    setEditTime(date.time || '');
-    setEditDate(date.date || '');
-    setShowDateDetails(false);
-    setShowEditModal(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!selectedDate) return;
-    
-    try {
-      console.log('[Home] Saving date edits');
-      await updateDate({
-        ...selectedDate,
-        location: editLocation,
-        notes: editNotes,
-        time: editTime,
-        date: editDate,
-      });
-      
-      setShowEditModal(false);
-      setSelectedDate(null);
-      Alert.alert('Success', 'Date updated successfully!');
-      await refreshDates();
-    } catch (error) {
-      console.error('[Home] Error saving date edits:', error);
-      Alert.alert('Error', 'Failed to update date. Please try again.');
-    }
-  };
-
-  const handleRateDate = (date: any) => {
-    console.log('[Home] User tapped Rate Date button for:', date.id);
-    setRating(date.rating || 0);
-    setWouldGoAgain(date.wouldGoAgain ?? null);
-    setRatingNotes(date.notes || '');
-    setShowDateDetails(false);
-    setShowRatingModal(true);
-  };
-
-  const handleSaveRating = async () => {
-    if (!selectedDate) return;
-    
-    if (rating === 0) {
-      Alert.alert('Rating Required', 'Please select a star rating before saving.');
-      return;
-    }
-    
-    if (wouldGoAgain === null) {
-      Alert.alert('Decision Required', 'Please indicate if you would go on this date again.');
-      return;
-    }
-
-    try {
-      console.log('[Home] Saving rating:', { rating, wouldGoAgain, notes: ratingNotes });
-      
-      await rateDate(selectedDate.id, rating, wouldGoAgain);
-      
-      if (ratingNotes !== selectedDate.notes) {
-        await updateDate({
-          ...selectedDate,
-          notes: ratingNotes,
-        });
-      }
-      
-      setShowRatingModal(false);
-      setSelectedDate(null);
-      setRating(0);
-      setWouldGoAgain(null);
-      setRatingNotes('');
-      Alert.alert('Success', 'Date rating saved successfully!');
-      await refreshDates();
-    } catch (error) {
-      console.error('[Home] Error saving rating:', error);
-      Alert.alert('Error', 'Failed to save rating. Please try again.');
     }
   };
 
@@ -267,11 +170,12 @@ export default function RosterScreen() {
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         </View>
         <View style={styles.headerButtons}>
+          {/* FIX: Calendar button now navigates to /dating/history instead of showing modal */}
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              console.log('[Home] User tapped calendar button');
-              setShowMyDates(true);
+              console.log('[Home] User tapped calendar button - navigating to My Dates screen');
+              router.push('/dating/history');
             }}
             activeOpacity={0.7}
           >
@@ -317,8 +221,6 @@ export default function RosterScreen() {
           />
         )}
       </View>
-
-      {/* Modals omitted for brevity - same as base file */}
     </SafeAreaView>
   );
 }
@@ -502,5 +404,4 @@ const styles = StyleSheet.create({
     color: colors.grey,
     marginTop: 6,
   },
-  // Additional styles omitted for brevity - same as base file
 });

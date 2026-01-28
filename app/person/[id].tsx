@@ -51,6 +51,9 @@ export default function PersonDetailScreen() {
   
   const [redFlagInput, setRedFlagInput] = useState('');
   const [greenFlagInput, setGreenFlagInput] = useState('');
+  
+  // FIX: Add custom delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     const allPeople = [...roster, ...bench];
@@ -121,9 +124,9 @@ export default function PersonDetailScreen() {
 
   const getInterestColor = (level: string) => {
     switch (level) {
-      case 'high': return colors.green; // Green for high
-      case 'medium': return '#FFC107'; // Yellow for medium
-      case 'low': return '#FF0000'; // Red for low
+      case 'high': return colors.green;
+      case 'medium': return '#FFC107';
+      case 'low': return '#FF0000';
       default: return colors.grey;
     }
   };
@@ -200,26 +203,23 @@ export default function PersonDetailScreen() {
     }
   };
 
+  // FIX: Use custom modal instead of Alert.alert for cross-platform compatibility
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Person',
-      `Are you sure you want to delete ${person.name}? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePerson(person.id);
-              router.back();
-            } catch (error) {
-              console.error('[PersonDetail] Error deleting person:', error);
-            }
-          },
-        },
-      ]
-    );
+    console.log('[PersonDetail] User tapped Delete button');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      console.log('[PersonDetail] Confirming delete for person:', person.id);
+      await deletePerson(person.id);
+      setShowDeleteModal(false);
+      router.back();
+    } catch (error) {
+      console.error('[PersonDetail] Error deleting person:', error);
+      setShowDeleteModal(false);
+      Alert.alert('Error', 'Failed to delete person. Please try again.');
+    }
   };
 
   const handleMoveToBench = () => {
@@ -330,14 +330,12 @@ export default function PersonDetailScreen() {
 
   const personCreatedDate = person.createdAt || new Date().toISOString();
 
-  // FIX: Build timeline with bench status changes
   const timelineEvents = [
     { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
     ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
     ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type })),
   ];
 
-  // Add bench status changes to timeline
   if (person.benchedAt) {
     timelineEvents.push({
       type: 'moved_to_bench',
@@ -391,12 +389,6 @@ export default function PersonDetailScreen() {
             style={styles.scrollView} 
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={5}
-            updateCellsBatchingPeriod={30}
-            initialNumToRender={5}
-            windowSize={5}
-            decelerationRate="fast"
             showsVerticalScrollIndicator={true}
           >
             {/* Profile Header */}
@@ -429,7 +421,7 @@ export default function PersonDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* FIX: Info Section - Only show fields that are set */}
+            {/* Info Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Information</Text>
               {person.age && (
@@ -476,7 +468,7 @@ export default function PersonDetailScreen() {
               )}
             </View>
 
-            {/* Contact Information - Only show if any contact info exists */}
+            {/* Contact Information */}
             {(person.phoneNumber || person.instagram || person.twitter || person.facebook || person.snapchat) && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Contact</Text>
@@ -523,7 +515,7 @@ export default function PersonDetailScreen() {
               </View>
             )}
 
-            {/* FIX: Chemistry Timeline - Include bench status */}
+            {/* Chemistry Timeline */}
             <View style={styles.section}>
               <TouchableOpacity
                 style={styles.sectionHeader}
@@ -763,6 +755,41 @@ export default function PersonDetailScreen() {
                         onPress={confirmMoveToBench}
                       >
                         <Text style={styles.confirmButtonText}>Confirm</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+
+          {/* FIX: Custom Delete Confirmation Modal (cross-platform compatible) */}
+          <Modal
+            visible={showDeleteModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowDeleteModal(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setShowDeleteModal(false)}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback>
+                  <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Delete Person</Text>
+                    <Text style={styles.modalSubtitle}>
+                      Are you sure you want to delete {person.name}? This action cannot be undone.
+                    </Text>
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.cancelButton]}
+                        onPress={() => setShowDeleteModal(false)}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.deleteConfirmButton]}
+                        onPress={confirmDelete}
+                      >
+                        <Text style={styles.confirmButtonText}>Delete</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1193,6 +1220,9 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: colors.primary,
+  },
+  deleteConfirmButton: {
+    backgroundColor: '#dc3545',
   },
   confirmButtonText: {
     fontSize: 16,
