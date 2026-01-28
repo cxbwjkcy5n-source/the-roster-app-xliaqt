@@ -20,7 +20,6 @@ module.exports = ({ config }) => {
       ...(config.ios ?? {}),
       supportsTablet: true,
       buildNumber: "6",
-      // ✅ FIXED: Use environment variable instead of hardcoded Team ID
       appleTeamId: process.env.APPLE_TEAM_ID || undefined,
       infoPlist: {
         ...(config.ios?.infoPlist ?? {}),
