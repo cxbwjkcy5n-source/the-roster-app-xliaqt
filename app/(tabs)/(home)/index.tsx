@@ -266,20 +266,20 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
   },
   headerContent: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: '800',
     color: colors.white,
-    textAlign: 'center',
+    textAlign: 'left',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 13,
     color: colors.white,
-    textAlign: 'center',
+    textAlign: 'left',
     marginTop: 6,
     opacity: 0.95,
     fontWeight: '600',
