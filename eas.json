@@ -1,12 +1,16 @@
+
 {
+  "cli": {
+    "version": ">= 13.2.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1",
-        "APPLE_TEAM_ID": "YOUR_CORRECT_TEAM_ID_HERE"
+        "RCT_NEW_ARCH_ENABLED": "1"
       },
       "ios": {
         "simulator": false,
@@ -14,14 +18,17 @@
         "cache": {
           "disabled": false
         }
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
       }
     },
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1",
-        "APPLE_TEAM_ID": "YOUR_CORRECT_TEAM_ID_HERE"
+        "RCT_NEW_ARCH_ENABLED": "1"
       },
       "ios": {
         "simulator": false,
@@ -29,13 +36,15 @@
         "cache": {
           "disabled": false
         }
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1",
-        "APPLE_TEAM_ID": "YOUR_CORRECT_TEAM_ID_HERE"
+        "RCT_NEW_ARCH_ENABLED": "1"
       },
       "ios": {
         "simulator": false,
@@ -43,6 +52,9 @@
         "cache": {
           "disabled": false
         }
+      },
+      "android": {
+        "buildType": "aab"
       }
     }
   },
@@ -50,7 +62,12 @@
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "6758260932"
+        "ascAppId": "6758260932",
+        "appleTeamId": "JB7SST7P2U"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

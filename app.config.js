@@ -28,30 +28,42 @@ module.exports = ({ config }) => {
         NSLocationWhenInUseUsageDescription: "The Roster needs your location to help you find nearby date spots and track safety during dates.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "The Roster needs your location to help you find nearby date spots and track safety during dates.",
         NSCameraUsageDescription: "The Roster needs camera access to let you add photos to your roster profiles.",
-        NSPhotoLibraryUsageDescription: "The Roster needs photo library access to let you add photos to your roster profiles."
+        NSPhotoLibraryUsageDescription: "The Roster needs photo library access to let you add photos to your roster profiles.",
+        NSPhotoLibraryAddUsageDescription: "The Roster needs permission to save photos to your library.",
+        NSCalendarsUsageDescription: "The Roster needs calendar access to help you schedule and manage your dates.",
+        NSRemindersUsageDescription: "The Roster needs reminders access to send you date notifications.",
+        NSContactsUsageDescription: "The Roster needs contacts access to help you quickly add people to your roster."
       },
       entitlements: {
         "com.apple.developer.applesignin": [
           "Default"
         ],
         "aps-environment": "production"
+      },
+      config: {
+        usesNonExemptEncryption: false
       }
     },
     android: {
       ...(config.android ?? {}),
+      versionCode: 6,
       adaptiveIcon: {
         foregroundImage: "./assets/images/d136fc08-2fbc-4902-972a-c9d16c00fa3b.png",
         backgroundColor: "#FFFFFF"
       },
       edgeToEdgeEnabled: true,
-      package: "com.theroster.app",
+      package: "com.whywiley.theroster1",
       permissions: [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "READ_CONTACTS"
+      ],
+      googleServicesFile: "./google-services.json"
     },
     web: {
       ...(config.web ?? {}),
