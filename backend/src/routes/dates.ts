@@ -16,10 +16,10 @@ const DateSuggestionSchema = z.object({
       estimatedCost: z.string(),
       duration: z.string(),
       whyPerfect: z.string(),
-      address: z.string(),
+      address: z.string().optional(),
       websiteUrl: z.string().optional(),
-      googleMapsUrl: z.string(),
-    })
+      googleMapsUrl: z.string().optional(),
+    }).required({ name: true, type: true, description: true, estimatedCost: true, duration: true, whyPerfect: true })
   ),
 });
 

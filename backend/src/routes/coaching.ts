@@ -206,7 +206,7 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
         const { text } = await generateText({
           model: gateway('openai/gpt-5.2'),
           system:
-            'You are a professional dating coach. Provide helpful, respectful, and practical dating advice. Help users with conversation starters, date ideas, relationship guidance, and building confidence. Be supportive, non-judgmental, and encouraging.',
+            'You are a professional dating coach. Provide helpful, respectful, and practical dating advice. Help users with conversation starters, date ideas, relationship guidance, and building confidence. Be supportive, non-judgmental, and encouraging. Keep your responses concise and helpful. Limit each response to 3-4 sentences maximum.',
           messages,
         });
 
