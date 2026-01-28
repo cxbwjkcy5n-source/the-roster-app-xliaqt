@@ -1,7 +1,4 @@
+
 {
-  "expo": {
-    "extra": {
-      "backendUrl": "https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev"
-    }
-  }
+  "expo": {}
 }
