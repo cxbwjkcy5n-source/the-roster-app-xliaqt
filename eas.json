@@ -10,8 +10,7 @@
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1",
-        "APPLE_TEAM_ID": "JB7SST7P2U"
+        "RCT_NEW_ARCH_ENABLED": "1"
       },
       "ios": {
         "simulator": false,
@@ -30,8 +29,7 @@
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1",
-        "APPLE_TEAM_ID": "JB7SST7P2U"
+        "RCT_NEW_ARCH_ENABLED": "1"
       },
       "ios": {
         "simulator": false,
@@ -48,8 +46,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1",
-        "APPLE_TEAM_ID": "JB7SST7P2U"
+        "RCT_NEW_ARCH_ENABLED": "1"
       },
       "ios": {
         "simulator": false,
@@ -69,8 +66,7 @@
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "6758260932",
-        "appleTeamId": "JB7SST7P2U"
+        "ascAppId": "6758260932"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",

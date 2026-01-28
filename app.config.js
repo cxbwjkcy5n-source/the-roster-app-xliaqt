@@ -1,19 +1,22 @@
 
 module.exports = ({ config }) => {
-  // CRITICAL: Apple Team ID must be exactly "JB7SST7P2U"
-  // This is read from environment variable or defaults to the correct value
-  const appleTeamId = process.env.APPLE_TEAM_ID || "JB7SST7P2U";
+  // CRITICAL: Apple Team ID MUST come from environment variables provided by Expo Launch
+  // DO NOT hardcode the Team ID - it will be provided by Expo Launch authentication
+  const appleTeamId = process.env.EXPO_APPLE_TEAM_ID || process.env.APPLE_TEAM_ID;
   
-  // Validation: Ensure Apple Team ID is correct
-  if (appleTeamId !== "JB7SST7P2U") {
-    throw new Error(
-      `❌ APPLE TEAM ID MISMATCH: Expected "JB7SST7P2U" but got "${appleTeamId}". ` +
-      `Apple auth does not have access to Team ID ${appleTeamId}. ` +
-      `Re-authenticate with the correct Apple Developer account or update the Team ID.`
-    );
+  // Diagnostic: Print which Team ID environment variables are present (names only, not values)
+  console.log('🔍 Checking for Apple Team ID environment variables:');
+  console.log(`  - EXPO_APPLE_TEAM_ID: ${process.env.EXPO_APPLE_TEAM_ID ? '✅ Present' : '❌ Not set'}`);
+  console.log(`  - APPLE_TEAM_ID: ${process.env.APPLE_TEAM_ID ? '✅ Present' : '❌ Not set'}`);
+  
+  if (appleTeamId) {
+    console.log(`✅ Apple Team ID resolved from environment (not hardcoded): OK`);
+    console.log(`   Team ID length: ${appleTeamId.length} characters`);
+  } else {
+    console.warn('⚠️  Apple Team ID not found in environment variables.');
+    console.warn('   This is expected during local development.');
+    console.warn('   During EAS build, Expo Launch will provide the Team ID via environment variables.');
   }
-  
-  console.log(`✅ Apple Team ID validated: ${appleTeamId}`);
   
   return {
     ...config,
@@ -36,7 +39,8 @@ module.exports = ({ config }) => {
       supportsTablet: true,
       buildNumber: "7",
       bundleIdentifier: "com.whywiley.theroster1",
-      appleTeamId: "JB7SST7P2U", // Hardcoded to ensure consistency
+      // Apple Team ID resolved from environment variables (provided by Expo Launch)
+      appleTeamId: appleTeamId || undefined,
       infoPlist: {
         ...(config.ios?.infoPlist ?? {}),
         ITSAppUsesNonExemptEncryption: false,

@@ -34,19 +34,19 @@ interface Analytics {
     thisMonth: number;
     lastMonth: number;
   };
-  datesPerMonth: Array<{ month: string; count: number }>;
+  datesPerMonth: { month: string; count: number }[];
   averageRating: number;
   totalRatings: number;
   wouldGoAgainPercentage: number;
-  commonRedFlags: Array<{ flag: string; count: number }>;
-  commonGreenFlags: Array<{ flag: string; count: number }>;
-  topRatedDates: Array<{
+  commonRedFlags: { flag: string; count: number }[];
+  commonGreenFlags: { flag: string; count: number }[];
+  topRatedDates: {
     id: string;
     profileName: string;
     type: string;
     rating: number;
     date: string;
-  }>;
+  }[];
 }
 
 export default function DatingAnalyticsScreen() {
