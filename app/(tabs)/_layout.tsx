@@ -14,7 +14,7 @@ export default function TabLayout() {
   const tabs: TabBarItem[] = [
     {
       name: 'roster',
-      route: '/(tabs)/roster' as Href,
+      route: '/(tabs)/(home)/' as Href,
       icon: 'home',
       label: 'Roster',
     },
