@@ -46,42 +46,44 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = React.useRef(new Animated.Value(0)).current;
 
-  // FIXED: Simplified active tab detection
+  // FIXED: Improved active tab detection for nested routes
   const activeTabIndex = React.useMemo(() => {
     console.log('[FloatingTabBar] Current pathname:', pathname);
     
-    // Direct route matching
-    const exactMatch = tabs.findIndex(tab => pathname === tab.route);
-    if (exactMatch !== -1) {
-      console.log('[FloatingTabBar] Exact match found:', tabs[exactMatch].name);
-      return exactMatch;
-    }
-
-    // Check if pathname starts with any tab route
-    const prefixMatch = tabs.findIndex(tab => {
-      const tabRoute = tab.route as string;
-      const matches = pathname.startsWith(tabRoute);
-      if (matches) {
-        console.log('[FloatingTabBar] Prefix match found:', tab.name, 'for pathname:', pathname);
-      }
-      return matches;
-    });
+    // Normalize pathname for comparison (remove trailing slashes)
+    const normalizedPathname = pathname.replace(/\/$/, '');
     
-    if (prefixMatch !== -1) {
-      return prefixMatch;
-    }
-
-    // Special handling for nested (home) route
-    if (pathname.includes('/(home)') || pathname === '/(tabs)') {
-      console.log('[FloatingTabBar] Home route detected, selecting roster');
+    // Special handling for roster/home route
+    if (normalizedPathname === '/(tabs)/(home)' || 
+        normalizedPathname === '/(tabs)' || 
+        normalizedPathname === '' ||
+        pathname.includes('/(home)')) {
+      console.log('[FloatingTabBar] Home/Roster route detected');
       return 0; // Roster tab
     }
 
-    // Check by tab name in pathname
-    const nameMatch = tabs.findIndex(tab => pathname.includes(`/${tab.name}`));
-    if (nameMatch !== -1) {
-      console.log('[FloatingTabBar] Name match found:', tabs[nameMatch].name);
-      return nameMatch;
+    // Check each tab
+    for (let i = 0; i < tabs.length; i++) {
+      const tab = tabs[i];
+      const tabRoute = (tab.route as string).replace(/\/$/, '');
+      
+      // Exact match
+      if (normalizedPathname === tabRoute) {
+        console.log('[FloatingTabBar] Exact match found:', tab.name);
+        return i;
+      }
+      
+      // Check if pathname contains the tab name
+      if (pathname.includes(`/${tab.name}`)) {
+        console.log('[FloatingTabBar] Name match found:', tab.name);
+        return i;
+      }
+      
+      // For nested routes, check if pathname starts with tab route
+      if (pathname.startsWith(tabRoute) && tabRoute !== '/(tabs)/(home)/') {
+        console.log('[FloatingTabBar] Prefix match found:', tab.name);
+        return i;
+      }
     }
 
     console.log('[FloatingTabBar] No match found, defaulting to roster (index 0)');
