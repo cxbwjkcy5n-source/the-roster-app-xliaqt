@@ -15,13 +15,6 @@ export default function HomeLayout() {
           title: 'Roster'
         }} 
       />
-      <Stack.Screen 
-        name="roster" 
-        options={{ 
-          headerShown: false,
-          title: 'Roster'
-        }} 
-      />
     </Stack>
   );
 }
