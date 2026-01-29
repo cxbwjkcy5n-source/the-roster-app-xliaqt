@@ -46,27 +46,46 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = React.useRef(new Animated.Value(0)).current;
 
+  // FIXED: Simplified active tab detection
   const activeTabIndex = React.useMemo(() => {
-    let bestMatch = -1;
-    let bestMatchScore = 0;
+    console.log('[FloatingTabBar] Current pathname:', pathname);
+    
+    // Direct route matching
+    const exactMatch = tabs.findIndex(tab => pathname === tab.route);
+    if (exactMatch !== -1) {
+      console.log('[FloatingTabBar] Exact match found:', tabs[exactMatch].name);
+      return exactMatch;
+    }
 
-    tabs.forEach((tab, index) => {
-      let score = 0;
-      if (pathname === tab.route) {
-        score = 100;
-      } else if (pathname.startsWith(tab.route as string)) {
-        score = 80;
-      } else if (pathname.includes(tab.name)) {
-        score = 60;
+    // Check if pathname starts with any tab route
+    const prefixMatch = tabs.findIndex(tab => {
+      const tabRoute = tab.route as string;
+      const matches = pathname.startsWith(tabRoute);
+      if (matches) {
+        console.log('[FloatingTabBar] Prefix match found:', tab.name, 'for pathname:', pathname);
       }
-
-      if (score > bestMatchScore) {
-        bestMatchScore = score;
-        bestMatch = index;
-      }
+      return matches;
     });
+    
+    if (prefixMatch !== -1) {
+      return prefixMatch;
+    }
 
-    return bestMatch >= 0 ? bestMatch : 0;
+    // Special handling for nested (home) route
+    if (pathname.includes('/(home)') || pathname === '/(tabs)') {
+      console.log('[FloatingTabBar] Home route detected, selecting roster');
+      return 0; // Roster tab
+    }
+
+    // Check by tab name in pathname
+    const nameMatch = tabs.findIndex(tab => pathname.includes(`/${tab.name}`));
+    if (nameMatch !== -1) {
+      console.log('[FloatingTabBar] Name match found:', tabs[nameMatch].name);
+      return nameMatch;
+    }
+
+    console.log('[FloatingTabBar] No match found, defaulting to roster (index 0)');
+    return 0; // Default to roster
   }, [pathname, tabs]);
 
   React.useEffect(() => {
@@ -103,7 +122,7 @@ export default function FloatingTabBar({
   const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
   const tabWidth = (containerWidth - 8) / tabs.length;
 
-  // FIX: Calculate proper indicator position accounting for left/right groups
+  // Calculate proper indicator position accounting for left/right groups
   const indicatorTranslateX = animatedValue.interpolate({
     inputRange: [0, 1, 2, 3],
     outputRange: [
