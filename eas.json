@@ -1,3 +1,4 @@
+
 {
   "cli": {
     "version": ">= 13.2.0",
@@ -62,7 +63,8 @@
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "6758260932"
+        "ascAppId": "6758260932",
+        "usesExistingBuild": false
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
