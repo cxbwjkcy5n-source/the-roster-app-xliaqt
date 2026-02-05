@@ -53,7 +53,7 @@ export const authClient = createAuthClient({
   baseURL: API_URL,
   plugins: [
     expoClient({
-      scheme: "theroster",
+      scheme: "theroster1",
       storagePrefix: "roster-app",
       storage,
     }),
