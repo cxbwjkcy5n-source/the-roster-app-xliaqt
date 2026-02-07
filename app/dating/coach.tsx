@@ -110,7 +110,6 @@ export default function DatingCoachScreen() {
         }} 
       />
       
-      {/* FIX: Update header colors to match app aesthetic */}
       <LinearGradient
         colors={[colors.rosterGreen, '#1F6B3A']}
         style={styles.header}
@@ -208,6 +207,7 @@ export default function DatingCoachScreen() {
           )}
         </ScrollView>
 
+        {/* FIX: Reduced input container size */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -226,7 +226,7 @@ export default function DatingCoachScreen() {
             <IconSymbol
               ios_icon_name="arrow.up.circle.fill"
               android_material_icon_name="send"
-              size={32}
+              size={28}
               color={inputText.trim() ? colors.primary : colors.textSecondary}
             />
           </TouchableOpacity>
@@ -343,10 +343,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+  // FIX: Reduced input container padding and size
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 12,
+    padding: 8,
+    paddingBottom: 12,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -355,18 +357,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.card,
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     fontSize: 15,
     color: colors.text,
-    maxHeight: 100,
+    maxHeight: 80,
     borderWidth: 1,
     borderColor: colors.border,
   },
   sendButton: {
-    marginLeft: 8,
+    marginLeft: 6,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 4,
   },
   sendButtonDisabled: {
     opacity: 0.5,

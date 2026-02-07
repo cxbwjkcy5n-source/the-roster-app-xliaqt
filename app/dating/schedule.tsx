@@ -31,7 +31,6 @@ if (Platform.OS !== 'web') {
   DateTimePicker = require('@react-native-community/datetimepicker').default;
 }
 
-// FIX: Capitalize date types
 const DATE_TYPES = ['Casual', 'Formal', 'Activity', 'Coffee', 'Dinner', 'Drinks', 'Movie', 'Outdoor', 'Other'];
 
 const REMINDER_OPTIONS = [
@@ -235,17 +234,15 @@ export default function ScheduleDateScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Date */}
+          {/* Date - FIX: Better picker UI */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Date *</Text>
             <TouchableOpacity
               style={styles.formInput}
               onPress={() => {
-                if (Platform.OS === 'web') {
-                  Alert.alert('Web Support', 'Date picker is not available on web. Please use the text input format: YYYY-MM-DD');
-                } else {
-                  setShowDatePicker(true);
-                }
+                console.log('[ScheduleDate] User tapped date picker');
+                Keyboard.dismiss();
+                setShowDatePicker(true);
               }}
             >
               <Text style={styles.formInputText}>
@@ -260,17 +257,15 @@ export default function ScheduleDateScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Time */}
+          {/* Time - FIX: Better picker UI */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Time *</Text>
             <TouchableOpacity
               style={styles.formInput}
               onPress={() => {
-                if (Platform.OS === 'web') {
-                  Alert.alert('Web Support', 'Time picker is not available on web. Please use the text input format: HH:MM');
-                } else {
-                  setShowTimePicker(true);
-                }
+                console.log('[ScheduleDate] User tapped time picker');
+                Keyboard.dismiss();
+                setShowTimePicker(true);
               }}
             >
               <Text style={styles.formInputText}>
@@ -419,7 +414,7 @@ export default function ScheduleDateScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* FIX: Person Picker Modal - Opens from TOP */}
+        {/* Person Picker Modal */}
         <Modal
           visible={showPersonPicker}
           transparent
@@ -438,7 +433,7 @@ export default function ScheduleDateScreen() {
                     </TouchableOpacity>
                   </View>
                   <ScrollView>
-                    {/* Roster Section - Green */}
+                    {/* Roster Section */}
                     {roster.length > 0 && (
                       <React.Fragment>
                         <View style={styles.sectionHeader}>
@@ -476,7 +471,7 @@ export default function ScheduleDateScreen() {
                       </React.Fragment>
                     )}
 
-                    {/* Bench Section - Red */}
+                    {/* Bench Section */}
                     {bench.length > 0 && (
                       <React.Fragment>
                         <View style={styles.sectionHeader}>
@@ -526,7 +521,7 @@ export default function ScheduleDateScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* FIX: Type Picker Modal - Opens from TOP */}
+        {/* Type Picker Modal */}
         <Modal
           visible={showTypePicker}
           transparent
@@ -572,34 +567,82 @@ export default function ScheduleDateScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* Date Picker */}
+        {/* FIX: Date Picker - Modal-based for better UX */}
         {Platform.OS !== 'web' && showDatePicker && DateTimePicker && (
-          <DateTimePicker
-            value={dateDate}
-            mode="date"
-            display="default"
-            onChange={(event: any, selectedDate?: Date) => {
-              setShowDatePicker(false);
-              if (selectedDate) {
-                setDateDate(selectedDate);
-              }
-            }}
-          />
+          <Modal
+            visible={showDatePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+              <View style={styles.pickerModalOverlay}>
+                <TouchableWithoutFeedback>
+                  <View style={styles.pickerModalContent}>
+                    <View style={styles.pickerModalHeader}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.pickerModalCancel}>Cancel</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.pickerModalTitle}>Select Date</Text>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.pickerModalDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={dateDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event: any, selectedDate?: Date) => {
+                        if (selectedDate) {
+                          setDateDate(selectedDate);
+                        }
+                      }}
+                      textColor={colors.text}
+                    />
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
         )}
 
-        {/* Time Picker */}
+        {/* FIX: Time Picker - Modal-based for better UX */}
         {Platform.OS !== 'web' && showTimePicker && DateTimePicker && (
-          <DateTimePicker
-            value={dateTime}
-            mode="time"
-            display="default"
-            onChange={(event: any, selectedTime?: Date) => {
-              setShowTimePicker(false);
-              if (selectedTime) {
-                setDateTime(selectedTime);
-              }
-            }}
-          />
+          <Modal
+            visible={showTimePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowTimePicker(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
+              <View style={styles.pickerModalOverlay}>
+                <TouchableWithoutFeedback>
+                  <View style={styles.pickerModalContent}>
+                    <View style={styles.pickerModalHeader}>
+                      <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                        <Text style={styles.pickerModalCancel}>Cancel</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.pickerModalTitle}>Select Time</Text>
+                      <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                        <Text style={styles.pickerModalDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={dateTime}
+                      mode="time"
+                      display="spinner"
+                      onChange={(event: any, selectedTime?: Date) => {
+                        if (selectedTime) {
+                          setDateTime(selectedTime);
+                        }
+                      }}
+                      textColor={colors.text}
+                    />
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
         )}
       </SafeAreaView>
     </TouchableWithoutFeedback>
@@ -756,7 +799,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  // FIX: Modal opens from TOP
   modalOverlayTop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -831,5 +873,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  // FIX: Better date/time picker modal styling
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalContent: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pickerModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  pickerModalCancel: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  pickerModalDone: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

@@ -177,8 +177,12 @@ export default function SafetyScreen() {
 
     console.log('[Safety] User tapped Check In');
     try {
-      await authenticatedPut(`/api/safety-dates/${activeSafetyDate.id}/check-in`, {});
+      // FIX: Send proper body with timestamp
+      await authenticatedPut(`/api/safety-dates/${activeSafetyDate.id}/check-in`, {
+        timestamp: new Date().toISOString(),
+      });
       Alert.alert('Check-in Successful', 'Your emergency contacts have been notified');
+      await loadActiveSafetyDate();
     } catch (error) {
       console.error('[Safety] Error checking in:', error);
       Alert.alert('Error', 'Failed to check in');
@@ -199,7 +203,10 @@ export default function SafetyScreen() {
           onPress: async () => {
             try {
               console.log('[Safety] Ending safety date...');
-              await authenticatedPut(`/api/safety-dates/${activeSafetyDate.id}/complete`, {});
+              // FIX: Send proper body with timestamp
+              await authenticatedPut(`/api/safety-dates/${activeSafetyDate.id}/complete`, {
+                timestamp: new Date().toISOString(),
+              });
               setActiveSafetyDate(null);
               Alert.alert('Safety Date Ended', 'Your emergency contacts have been notified');
             } catch (error) {

@@ -14,6 +14,8 @@ import {
   Modal,
   ActivityIndicator,
   Linking,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { authenticatedPost, BACKEND_URL } from '@/utils/api';
@@ -186,338 +188,345 @@ export default function PlanDateScreen() {
   const allPeople = [...roster, ...bench];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-
-      <LinearGradient
-        colors={['#FF6B9D', '#C44569']}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            console.log('[PlanDate] User tapped back button');
-            router.back();
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen
+          options={{
+            headerShown: false,
           }}
-        >
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="arrow-back"
-            size={24}
-            color="#fff"
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Plan a Date</Text>
-        <View style={styles.headerSpacer} />
-      </LinearGradient>
-
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.sectionTitle}>Who are you planning a date with?</Text>
-        <TouchableOpacity
-          style={styles.dropdownButton}
-          onPress={() => {
-            console.log('[PlanDate] User tapped person dropdown');
-            setShowPersonPicker(true);
-          }}
-        >
-          {selectedPerson ? (
-            <View style={styles.selectedPersonContent}>
-              {selectedPerson.imageUrl ? (
-                <Image source={{ uri: selectedPerson.imageUrl }} style={styles.personImage} />
-              ) : (
-                <View style={styles.personImagePlaceholder}>
-                  <IconSymbol
-                    ios_icon_name="person.fill"
-                    android_material_icon_name="person"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                </View>
-              )}
-              <Text style={styles.dropdownText}>{selectedPerson.name}</Text>
-            </View>
-          ) : (
-            <Text style={styles.dropdownPlaceholder}>Select from roster or bench</Text>
-          )}
-          <IconSymbol
-            ios_icon_name="chevron.down"
-            android_material_icon_name="arrow-drop-down"
-            size={24}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-
-        {/* Location input */}
-        <Text style={styles.sectionTitle}>Your Location</Text>
-        <View style={styles.locationContainer}>
-          <TextInput
-            style={styles.locationInput}
-            value={userLocation}
-            onChangeText={setUserLocation}
-            placeholder="Enter your city or location"
-            placeholderTextColor={colors.textSecondary}
-          />
-          <TouchableOpacity
-            style={styles.locationButton}
-            onPress={requestLocationPermission}
-          >
-            <IconSymbol
-              ios_icon_name="location.fill"
-              android_material_icon_name="my-location"
-              size={20}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.helperText}>
-          📍 We&apos;ll use your location to suggest nearby date ideas
-        </Text>
-
-        <Text style={styles.sectionTitle}>Budget</Text>
-        <View style={styles.optionsRow}>
-          {BUDGET_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[styles.optionButton, budget === option && styles.optionButtonActive]}
-              onPress={() => setBudget(option)}
-            >
-              <Text style={[styles.optionText, budget === option && styles.optionTextActive]}>
-                {option}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>Duration</Text>
-        <View style={styles.optionsColumn}>
-          {DURATION_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[styles.optionButton, duration === option && styles.optionButtonActive]}
-              onPress={() => setDuration(option)}
-            >
-              <Text style={[styles.optionText, duration === option && styles.optionTextActive]}>
-                {option}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>Preferences (optional)</Text>
-        <TextInput
-          style={styles.textInput}
-          value={preferences}
-          onChangeText={setPreferences}
-          placeholder="e.g., outdoor activities, food preferences..."
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          numberOfLines={4}
         />
 
-        <TouchableOpacity
-          style={styles.generateButton}
-          onPress={handleGenerateSuggestions}
-          disabled={loading}
+        <LinearGradient
+          colors={['#FF6B9D', '#C44569']}
+          style={styles.header}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <IconSymbol
-                ios_icon_name="sparkles"
-                android_material_icon_name="auto-awesome"
-                size={20}
-                color="#fff"
-              />
-              <Text style={styles.generateButtonText}>Generate Suggestions</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              console.log('[PlanDate] User tapped back button');
+              router.back();
+            }}
+          >
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow-back"
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Plan a Date</Text>
+          <View style={styles.headerSpacer} />
+        </LinearGradient>
 
-      {/* Person Picker Dropdown Modal */}
-      <Modal
-        visible={showPersonPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPersonPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setShowPersonPicker(false)}
-          />
-          <View style={styles.dropdownModal}>
-            <View style={styles.dropdownHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Person</Text>
-              <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.sectionTitle}>Who are you planning a date with?</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => {
+              console.log('[PlanDate] User tapped person dropdown');
+              Keyboard.dismiss();
+              setShowPersonPicker(true);
+            }}
+          >
+            {selectedPerson ? (
+              <View style={styles.selectedPersonContent}>
+                {selectedPerson.imageUrl ? (
+                  <Image source={{ uri: selectedPerson.imageUrl }} style={styles.personImage} />
+                ) : (
+                  <View style={styles.personImagePlaceholder}>
+                    <IconSymbol
+                      ios_icon_name="person.fill"
+                      android_material_icon_name="person"
+                      size={20}
+                      color={colors.textSecondary}
+                    />
+                  </View>
+                )}
+                <Text style={styles.dropdownText}>{selectedPerson.name}</Text>
+              </View>
+            ) : (
+              <Text style={styles.dropdownPlaceholder}>Select from roster or bench</Text>
+            )}
+            <IconSymbol
+              ios_icon_name="chevron.down"
+              android_material_icon_name="arrow-drop-down"
+              size={24}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+
+          {/* Location input */}
+          <Text style={styles.sectionTitle}>Your Location</Text>
+          <View style={styles.locationContainer}>
+            <TextInput
+              style={styles.locationInput}
+              value={userLocation}
+              onChangeText={setUserLocation}
+              placeholder="Enter your city or location"
+              placeholderTextColor={colors.textSecondary}
+            />
+            <TouchableOpacity
+              style={styles.locationButton}
+              onPress={requestLocationPermission}
+            >
+              <IconSymbol
+                ios_icon_name="location.fill"
+                android_material_icon_name="my-location"
+                size={20}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.helperText}>
+            📍 We&apos;ll use your location to suggest nearby date ideas
+          </Text>
+
+          <Text style={styles.sectionTitle}>Budget</Text>
+          <View style={styles.optionsRow}>
+            {BUDGET_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[styles.optionButton, budget === option && styles.optionButtonActive]}
+                onPress={() => setBudget(option)}
+              >
+                <Text style={[styles.optionText, budget === option && styles.optionTextActive]}>
+                  {option}
+                </Text>
               </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.dropdownScroll}>
-              {allPeople.length > 0 ? (
-                allPeople.map((person) => {
-                  const isOnBench = bench.some(p => p.id === person.id);
-                  return (
-                    <TouchableOpacity
-                      key={person.id}
-                      style={styles.personOption}
-                      onPress={() => {
-                        console.log('[PlanDate] User selected person:', person.name);
-                        setSelectedPerson(person);
-                        setShowPersonPicker(false);
-                      }}
-                    >
-                      <View style={styles.personOptionContent}>
-                        {person.imageUrl ? (
-                          <Image source={{ uri: person.imageUrl }} style={styles.personOptionImage} />
-                        ) : (
-                          <View style={styles.personOptionImagePlaceholder}>
-                            <IconSymbol
-                              ios_icon_name="person.fill"
-                              android_material_icon_name="person"
-                              size={24}
-                              color={colors.textSecondary}
-                            />
-                          </View>
-                        )}
-                        <View style={styles.personInfo}>
-                          <Text style={styles.personOptionName}>{person.name}</Text>
-                          <View style={[
-                            styles.statusBadge,
-                            { backgroundColor: isOnBench ? colors.red : colors.green }
-                          ]}>
-                            <Text style={styles.statusBadgeText}>
-                              {isOnBench ? 'Bench' : 'Roster'}
-                            </Text>
+            ))}
+          </View>
+
+          <Text style={styles.sectionTitle}>Duration</Text>
+          <View style={styles.optionsColumn}>
+            {DURATION_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[styles.optionButton, duration === option && styles.optionButtonActive]}
+                onPress={() => setDuration(option)}
+              >
+                <Text style={[styles.optionText, duration === option && styles.optionTextActive]}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.sectionTitle}>Preferences (optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={preferences}
+            onChangeText={setPreferences}
+            placeholder="e.g., outdoor activities, food preferences..."
+            placeholderTextColor={colors.textSecondary}
+            multiline
+            numberOfLines={4}
+          />
+
+          <TouchableOpacity
+            style={styles.generateButton}
+            onPress={handleGenerateSuggestions}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <IconSymbol
+                  ios_icon_name="sparkles"
+                  android_material_icon_name="auto-awesome"
+                  size={20}
+                  color="#fff"
+                />
+                <Text style={styles.generateButtonText}>Generate Suggestions</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Person Picker Dropdown Modal */}
+        <Modal
+          visible={showPersonPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowPersonPicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity 
+              style={styles.modalBackdrop} 
+              activeOpacity={1} 
+              onPress={() => setShowPersonPicker(false)}
+            />
+            <View style={styles.dropdownModal}>
+              <View style={styles.dropdownHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Person</Text>
+                <TouchableOpacity onPress={() => setShowPersonPicker(false)}>
+                  <IconSymbol
+                    ios_icon_name="xmark"
+                    android_material_icon_name="close"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.dropdownScroll}>
+                {allPeople.length > 0 ? (
+                  allPeople.map((person) => {
+                    const isOnBench = bench.some(p => p.id === person.id);
+                    return (
+                      <TouchableOpacity
+                        key={person.id}
+                        style={styles.personOption}
+                        onPress={() => {
+                          console.log('[PlanDate] User selected person:', person.name);
+                          setSelectedPerson(person);
+                          setShowPersonPicker(false);
+                        }}
+                      >
+                        <View style={styles.personOptionContent}>
+                          {person.imageUrl ? (
+                            <Image source={{ uri: person.imageUrl }} style={styles.personOptionImage} />
+                          ) : (
+                            <View style={styles.personOptionImagePlaceholder}>
+                              <IconSymbol
+                                ios_icon_name="person.fill"
+                                android_material_icon_name="person"
+                                size={24}
+                                color={colors.textSecondary}
+                              />
+                            </View>
+                          )}
+                          <View style={styles.personInfo}>
+                            <Text style={styles.personOptionName}>{person.name}</Text>
+                            <View style={[
+                              styles.statusBadge,
+                              { backgroundColor: isOnBench ? colors.red : colors.green }
+                            ]}>
+                              <Text style={styles.statusBadgeText}>
+                                {isOnBench ? 'Bench' : 'Roster'}
+                              </Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
-                      <IconSymbol
-                        ios_icon_name="chevron.right"
-                        android_material_icon_name="chevron-right"
-                        size={20}
-                        color={colors.textSecondary}
-                      />
-                    </TouchableOpacity>
-                  );
-                })
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No people in roster or bench</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Suggestions Modal */}
-      <Modal
-        visible={showSuggestions}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSuggestions(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setShowSuggestions(false)}
-          />
-          <View style={styles.suggestionsModal}>
-            <View style={styles.dropdownHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Date Suggestions</Text>
-              <TouchableOpacity onPress={() => setShowSuggestions(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {suggestions.map((suggestion) => (
-                <View key={suggestion.id} style={styles.suggestionCard}>
-                  <TouchableOpacity onPress={() => handleSelectSuggestion(suggestion)}>
-                    <Text style={styles.suggestionName}>{suggestion.name}</Text>
-                    <Text style={styles.suggestionType}>{suggestion.type}</Text>
-                    <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
-                    {suggestion.address && (
-                      <View style={styles.suggestionAddressRow}>
                         <IconSymbol
-                          ios_icon_name="location.fill"
-                          android_material_icon_name="location-on"
-                          size={14}
+                          ios_icon_name="chevron.right"
+                          android_material_icon_name="chevron-right"
+                          size={20}
                           color={colors.textSecondary}
                         />
-                        <Text style={styles.suggestionAddress}>{suggestion.address}</Text>
-                      </View>
-                    )}
-                    <View style={styles.suggestionDetails}>
-                      <Text style={styles.suggestionDetail}>💰 {suggestion.estimatedCost}</Text>
-                      <Text style={styles.suggestionDetail}>⏱️ {suggestion.duration}</Text>
-                    </View>
-                    <Text style={styles.suggestionWhy}>{suggestion.whyPerfect}</Text>
-                  </TouchableOpacity>
-                  
-                  {/* Links to website and Google Maps */}
-                  <View style={styles.suggestionLinks}>
-                    {suggestion.websiteUrl && (
-                      <TouchableOpacity
-                        style={styles.suggestionLinkButton}
-                        onPress={() => {
-                          console.log('[PlanDate] Opening website:', suggestion.websiteUrl);
-                          Linking.openURL(suggestion.websiteUrl!);
-                        }}
-                      >
-                        <IconSymbol
-                          ios_icon_name="globe"
-                          android_material_icon_name="language"
-                          size={16}
-                          color={colors.primary}
-                        />
-                        <Text style={styles.suggestionLinkText}>Website</Text>
                       </TouchableOpacity>
-                    )}
-                    {suggestion.googleMapsUrl && (
-                      <TouchableOpacity
-                        style={styles.suggestionLinkButton}
-                        onPress={() => {
-                          console.log('[PlanDate] Opening Google Maps:', suggestion.googleMapsUrl);
-                          Linking.openURL(suggestion.googleMapsUrl!);
-                        }}
-                      >
-                        <IconSymbol
-                          ios_icon_name="map.fill"
-                          android_material_icon_name="map"
-                          size={16}
-                          color={colors.primary}
-                        />
-                        <Text style={styles.suggestionLinkText}>Google Maps</Text>
-                      </TouchableOpacity>
-                    )}
+                    );
+                  })
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No people in roster or bench</Text>
                   </View>
-                </View>
-              ))}
-            </ScrollView>
+                )}
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        </Modal>
+
+        {/* Suggestions Modal */}
+        <Modal
+          visible={showSuggestions}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowSuggestions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity 
+              style={styles.modalBackdrop} 
+              activeOpacity={1} 
+              onPress={() => setShowSuggestions(false)}
+            />
+            <View style={styles.suggestionsModal}>
+              <View style={styles.dropdownHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Date Suggestions</Text>
+                <TouchableOpacity onPress={() => setShowSuggestions(false)}>
+                  <IconSymbol
+                    ios_icon_name="xmark"
+                    android_material_icon_name="close"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                {suggestions.map((suggestion) => (
+                  <View key={suggestion.id} style={styles.suggestionCard}>
+                    <TouchableOpacity onPress={() => handleSelectSuggestion(suggestion)}>
+                      <Text style={styles.suggestionName}>{suggestion.name}</Text>
+                      <Text style={styles.suggestionType}>{suggestion.type}</Text>
+                      <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
+                      {suggestion.address && (
+                        <View style={styles.suggestionAddressRow}>
+                          <IconSymbol
+                            ios_icon_name="location.fill"
+                            android_material_icon_name="location-on"
+                            size={14}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={styles.suggestionAddress}>{suggestion.address}</Text>
+                        </View>
+                      )}
+                      <View style={styles.suggestionDetails}>
+                        <Text style={styles.suggestionDetail}>💰 {suggestion.estimatedCost}</Text>
+                        <Text style={styles.suggestionDetail}>⏱️ {suggestion.duration}</Text>
+                      </View>
+                      <Text style={styles.suggestionWhy}>{suggestion.whyPerfect}</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Links to website and Google Maps */}
+                    <View style={styles.suggestionLinks}>
+                      {suggestion.websiteUrl && (
+                        <TouchableOpacity
+                          style={styles.suggestionLinkButton}
+                          onPress={() => {
+                            console.log('[PlanDate] Opening website:', suggestion.websiteUrl);
+                            Linking.openURL(suggestion.websiteUrl!);
+                          }}
+                        >
+                          <IconSymbol
+                            ios_icon_name="globe"
+                            android_material_icon_name="language"
+                            size={16}
+                            color={colors.primary}
+                          />
+                          <Text style={styles.suggestionLinkText}>Website</Text>
+                        </TouchableOpacity>
+                      )}
+                      {suggestion.googleMapsUrl && (
+                        <TouchableOpacity
+                          style={styles.suggestionLinkButton}
+                          onPress={() => {
+                            console.log('[PlanDate] Opening Google Maps:', suggestion.googleMapsUrl);
+                            Linking.openURL(suggestion.googleMapsUrl!);
+                          }}
+                        >
+                          <IconSymbol
+                            ios_icon_name="map.fill"
+                            android_material_icon_name="map"
+                            size={16}
+                            color={colors.primary}
+                          />
+                          <Text style={styles.suggestionLinkText}>Google Maps</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 

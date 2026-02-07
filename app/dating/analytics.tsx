@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -48,6 +49,10 @@ interface Analytics {
     date: string;
   }[];
 }
+
+// FIX: Get screen width for responsive sizing
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CHART_MAX_WIDTH = SCREEN_WIDTH - 120; // Leave room for labels and values
 
 export default function DatingAnalyticsScreen() {
   const router = useRouter();
@@ -249,15 +254,15 @@ export default function DatingAnalyticsScreen() {
             </View>
           )}
 
-          {/* Dates Per Month */}
+          {/* Dates Per Month - FIX: Constrained width */}
           {analytics.datesPerMonth && analytics.datesPerMonth.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Dates Per Month</Text>
               {analytics.datesPerMonth.map((item, index) => {
                 const monthStr = item.month;
                 const countNum = item.count;
-                const maxCount = Math.max(...analytics.datesPerMonth.map(d => d.count));
-                const widthPercent = (countNum / maxCount) * 100;
+                const maxCount = Math.max(...analytics.datesPerMonth.map(d => d.count), 1);
+                const widthPixels = (countNum / maxCount) * CHART_MAX_WIDTH;
                 
                 return (
                   <View key={index} style={styles.barChartRow}>
@@ -267,7 +272,7 @@ export default function DatingAnalyticsScreen() {
                         style={[
                           styles.bar,
                           {
-                            width: `${widthPercent}%`,
+                            width: widthPixels,
                           },
                         ]}
                       />
@@ -595,6 +600,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.grey,
   },
+  // FIX: Constrained bar chart width
   barChartRow: {
     marginBottom: 12,
   },
@@ -602,6 +608,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.darkText,
     marginBottom: 4,
+    width: 60,
   },
   barContainer: {
     flexDirection: 'row',
@@ -618,6 +625,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.darkText,
     fontWeight: '600',
+    width: 30,
   },
   flagRow: {
     flexDirection: 'row',
