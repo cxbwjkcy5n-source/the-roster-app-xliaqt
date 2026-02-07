@@ -54,6 +54,20 @@ export function useRoster() {
 
 // Helper function to map API profile to RosterPerson
 function mapProfileToRosterPerson(profile: any): RosterPerson {
+  // FIX: Ensure imageUrl is properly set from backend
+  let imageUrl = profile.profileImageUrl;
+  
+  // If imageUrl is a relative path, convert to full URL
+  if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('file://')) {
+    imageUrl = `${BACKEND_URL}${imageUrl}`;
+  }
+  
+  console.log('[RosterContext] Mapping profile image:', {
+    profileId: profile.id,
+    originalUrl: profile.profileImageUrl,
+    mappedUrl: imageUrl
+  });
+  
   return {
     id: profile.id,
     name: profile.name,
@@ -74,7 +88,7 @@ function mapProfileToRosterPerson(profile: any): RosterPerson {
     snapchat: profile.snapchat,
     notes: profile.notes,
     interestLevel: profile.interestLevel || 'medium',
-    imageUrl: profile.profileImageUrl,
+    imageUrl: imageUrl,
     redFlags: (profile.redFlags || []).map((flag: any) => ({
       id: flag.id,
       text: flag.flagText,
@@ -144,7 +158,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setRoster(profiles.filter((p: RosterPerson) => p.status === 'roster'));
       setBench(profiles.filter((p: RosterPerson) => p.status === 'bench'));
       setBackendReady(true);
-      setRetryCount(0); // Reset retry count on success
+      setRetryCount(0);
     } catch (err: any) {
       console.error('[RosterContext] Failed to refresh profiles:', err);
       if (err.message && err.message.includes('HTTP 500')) {
@@ -286,9 +300,8 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
       setError(errorMessage);
       
-      // If backend is not ready, schedule a retry with exponential backoff
       if (!backendReady && retryCount < 5) {
-        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
+        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
         console.log('[RosterContext] Scheduling retry in', retryDelay, 'ms');
         setTimeout(() => {
           setRetryCount(prev => prev + 1);
@@ -306,7 +319,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     await loadData();
   }, [loadData]);
 
-  // Load data when user authenticates or retry count changes
   useEffect(() => {
     if (user) {
       console.log('[RosterContext] User authenticated, loading data...');

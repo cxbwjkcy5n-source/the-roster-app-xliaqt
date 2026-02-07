@@ -20,6 +20,13 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// Helper to resolve image sources (handles both local and remote URLs)
+function resolveImageSource(source: string | number | undefined): { uri: string } | number {
+  if (!source) return { uri: '' };
+  if (typeof source === 'string') return { uri: source };
+  return source as number;
+}
+
 export default function DateHistoryScreen() {
   const router = useRouter();
   const { dates, roster, bench, rateDate, updateDate, refreshDates } = useRoster();
@@ -35,7 +42,7 @@ export default function DateHistoryScreen() {
   const [editTime, setEditTime] = useState('');
   const [editDate, setEditDate] = useState('');
   
-  // Rating state - FIX: Initialize wouldGoAgain to null (no default selection)
+  // Rating state
   const [rating, setRating] = useState(0);
   const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
   const [ratingNotes, setRatingNotes] = useState('');
@@ -85,7 +92,6 @@ export default function DateHistoryScreen() {
 
   const handleRateDate = (date: any) => {
     console.log('[DateHistory] User tapped Rate Date button for:', date.id);
-    // FIX: Load existing rating or default to 0 and null (no selection)
     setRating(date.rating || 0);
     setWouldGoAgain(date.wouldGoAgain ?? null);
     setRatingNotes(date.notes || '');
@@ -225,7 +231,7 @@ export default function DateHistoryScreen() {
                 <View style={styles.dateCardHeader}>
                   {personImageUrl && (
                     <Image 
-                      source={{ uri: personImageUrl }} 
+                      source={resolveImageSource(personImageUrl)} 
                       style={styles.dateCardImage}
                     />
                   )}
@@ -276,182 +282,182 @@ export default function DateHistoryScreen() {
         )}
       </ScrollView>
 
-      {/* FIX: Date Details Modal - Increased height to 90% for full visibility */}
+      {/* Date Details Modal - FIX: Full screen modal with proper scrolling */}
       <Modal
         visible={showDateDetails}
         animationType="slide"
-        transparent={true}
+        transparent={false}
         onRequestClose={() => setShowDateDetails(false)}
-        presentationStyle="pageSheet"
+        presentationStyle="fullScreen"
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlayTop}>
-            <View style={styles.modalContentTop}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Date Details</Text>
-                <TouchableOpacity onPress={() => setShowDateDetails(false)}>
-                  <IconSymbol 
-                    ios_icon_name="xmark" 
-                    android_material_icon_name="close" 
-                    size={24} 
-                    color={colors.darkText} 
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Date Details</Text>
+            <TouchableOpacity onPress={() => setShowDateDetails(false)}>
+              <IconSymbol 
+                ios_icon_name="xmark" 
+                android_material_icon_name="close" 
+                size={24} 
+                color={colors.darkText} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          {selectedDate && (
+            <ScrollView 
+              style={styles.dateDetailsScroll} 
+              contentContainerStyle={styles.dateDetailsContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <Text style={styles.dateDetailsName}>{selectedDate.profileName || 'Unknown'}</Text>
+              
+              <View style={styles.dateDetailsSection}>
+                <View style={styles.dateDetailsRow}>
+                  <IconSymbol
+                    ios_icon_name="calendar"
+                    android_material_icon_name="calendar-today"
+                    size={20}
+                    color={colors.rosterGreen}
                   />
-                </TouchableOpacity>
+                  <View style={styles.dateDetailsTextContainer}>
+                    <Text style={styles.dateDetailsLabel}>Date & Time</Text>
+                    <Text style={styles.dateDetailsValue}>
+                      {selectedDate.date} at {selectedDate.time}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.dateDetailsRow}>
+                  <IconSymbol
+                    ios_icon_name="location.fill"
+                    android_material_icon_name="location-on"
+                    size={20}
+                    color={colors.rosterGreen}
+                  />
+                  <View style={styles.dateDetailsTextContainer}>
+                    <Text style={styles.dateDetailsLabel}>Location</Text>
+                    <Text style={styles.dateDetailsValue}>{selectedDate.location || 'No location'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.dateDetailsRow}>
+                  <IconSymbol
+                    ios_icon_name="tag.fill"
+                    android_material_icon_name="label"
+                    size={20}
+                    color={colors.rosterGreen}
+                  />
+                  <View style={styles.dateDetailsTextContainer}>
+                    <Text style={styles.dateDetailsLabel}>Type</Text>
+                    <Text style={styles.dateDetailsValue}>{selectedDate.type || 'casual'}</Text>
+                  </View>
+                </View>
+
+                {selectedDate.notes && (
+                  <View style={styles.dateDetailsRow}>
+                    <IconSymbol
+                      ios_icon_name="note.text"
+                      android_material_icon_name="description"
+                      size={20}
+                      color={colors.rosterGreen}
+                    />
+                    <View style={styles.dateDetailsTextContainer}>
+                      <Text style={styles.dateDetailsLabel}>Notes</Text>
+                      <Text style={styles.dateDetailsValue}>{selectedDate.notes}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {selectedDate.status === 'completed' && selectedDate.rating && (
+                  <View style={styles.dateDetailsRow}>
+                    <IconSymbol
+                      ios_icon_name="star.fill"
+                      android_material_icon_name="star"
+                      size={20}
+                      color={colors.warning}
+                    />
+                    <View style={styles.dateDetailsTextContainer}>
+                      <Text style={styles.dateDetailsLabel}>Rating</Text>
+                      <View style={styles.dateDetailsRatingRow}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <IconSymbol
+                            key={star}
+                            ios_icon_name={star <= (selectedDate.rating || 0) ? "star.fill" : "star"}
+                            android_material_icon_name={star <= (selectedDate.rating || 0) ? "star" : "star-border"}
+                            size={18}
+                            color={star <= (selectedDate.rating || 0) ? colors.warning : colors.grey}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {selectedDate.status === 'completed' && selectedDate.wouldGoAgain !== undefined && (
+                  <View style={styles.dateDetailsRow}>
+                    <IconSymbol
+                      ios_icon_name={selectedDate.wouldGoAgain ? "checkmark.circle.fill" : "xmark.circle.fill"}
+                      android_material_icon_name={selectedDate.wouldGoAgain ? "check-circle" : "cancel"}
+                      size={20}
+                      color={selectedDate.wouldGoAgain ? colors.rosterGreen : colors.actionRed}
+                    />
+                    <View style={styles.dateDetailsTextContainer}>
+                      <Text style={styles.dateDetailsLabel}>Would Go Again?</Text>
+                      <Text style={[
+                        styles.dateDetailsValue,
+                        { color: selectedDate.wouldGoAgain ? colors.rosterGreen : colors.actionRed }
+                      ]}>
+                        {selectedDate.wouldGoAgain ? 'Yes' : 'No'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
               </View>
 
-              {selectedDate && (
-                <ScrollView style={styles.dateDetailsScroll} contentContainerStyle={styles.dateDetailsContent}>
-                  <Text style={styles.dateDetailsName}>{selectedDate.profileName || 'Unknown'}</Text>
-                  
-                  <View style={styles.dateDetailsSection}>
-                    <View style={styles.dateDetailsRow}>
-                      <IconSymbol
-                        ios_icon_name="calendar"
-                        android_material_icon_name="calendar-today"
-                        size={20}
-                        color={colors.rosterGreen}
-                      />
-                      <View style={styles.dateDetailsTextContainer}>
-                        <Text style={styles.dateDetailsLabel}>Date & Time</Text>
-                        <Text style={styles.dateDetailsValue}>
-                          {selectedDate.date} at {selectedDate.time}
-                        </Text>
-                      </View>
-                    </View>
+              <View style={styles.dateActionButtons}>
+                <TouchableOpacity
+                  style={styles.editDateButton}
+                  onPress={() => handleEditDate(selectedDate)}
+                >
+                  <LinearGradient
+                    colors={[colors.rosterGreen, '#1a7a4d']}
+                    style={styles.editDateButtonGradient}
+                  >
+                    <IconSymbol
+                      ios_icon_name="pencil"
+                      android_material_icon_name="edit"
+                      size={18}
+                      color="#fff"
+                    />
+                    <Text style={styles.editDateButtonText}>Edit Date</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-                    <View style={styles.dateDetailsRow}>
-                      <IconSymbol
-                        ios_icon_name="location.fill"
-                        android_material_icon_name="location-on"
-                        size={20}
-                        color={colors.rosterGreen}
-                      />
-                      <View style={styles.dateDetailsTextContainer}>
-                        <Text style={styles.dateDetailsLabel}>Location</Text>
-                        <Text style={styles.dateDetailsValue}>{selectedDate.location || 'No location'}</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.dateDetailsRow}>
-                      <IconSymbol
-                        ios_icon_name="tag.fill"
-                        android_material_icon_name="label"
-                        size={20}
-                        color={colors.rosterGreen}
-                      />
-                      <View style={styles.dateDetailsTextContainer}>
-                        <Text style={styles.dateDetailsLabel}>Type</Text>
-                        <Text style={styles.dateDetailsValue}>{selectedDate.type || 'casual'}</Text>
-                      </View>
-                    </View>
-
-                    {selectedDate.notes && (
-                      <View style={styles.dateDetailsRow}>
-                        <IconSymbol
-                          ios_icon_name="note.text"
-                          android_material_icon_name="description"
-                          size={20}
-                          color={colors.rosterGreen}
-                        />
-                        <View style={styles.dateDetailsTextContainer}>
-                          <Text style={styles.dateDetailsLabel}>Notes</Text>
-                          <Text style={styles.dateDetailsValue}>{selectedDate.notes}</Text>
-                        </View>
-                      </View>
-                    )}
-
-                    {selectedDate.status === 'completed' && selectedDate.rating && (
-                      <View style={styles.dateDetailsRow}>
-                        <IconSymbol
-                          ios_icon_name="star.fill"
-                          android_material_icon_name="star"
-                          size={20}
-                          color={colors.warning}
-                        />
-                        <View style={styles.dateDetailsTextContainer}>
-                          <Text style={styles.dateDetailsLabel}>Rating</Text>
-                          <View style={styles.dateDetailsRatingRow}>
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <IconSymbol
-                                key={star}
-                                ios_icon_name={star <= (selectedDate.rating || 0) ? "star.fill" : "star"}
-                                android_material_icon_name={star <= (selectedDate.rating || 0) ? "star" : "star-border"}
-                                size={18}
-                                color={star <= (selectedDate.rating || 0) ? colors.warning : colors.grey}
-                              />
-                            ))}
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {selectedDate.status === 'completed' && selectedDate.wouldGoAgain !== undefined && (
-                      <View style={styles.dateDetailsRow}>
-                        <IconSymbol
-                          ios_icon_name={selectedDate.wouldGoAgain ? "checkmark.circle.fill" : "xmark.circle.fill"}
-                          android_material_icon_name={selectedDate.wouldGoAgain ? "check-circle" : "cancel"}
-                          size={20}
-                          color={selectedDate.wouldGoAgain ? colors.rosterGreen : colors.actionRed}
-                        />
-                        <View style={styles.dateDetailsTextContainer}>
-                          <Text style={styles.dateDetailsLabel}>Would Go Again?</Text>
-                          <Text style={[
-                            styles.dateDetailsValue,
-                            { color: selectedDate.wouldGoAgain ? colors.rosterGreen : colors.actionRed }
-                          ]}>
-                            {selectedDate.wouldGoAgain ? 'Yes' : 'No'}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.dateActionButtons}>
-                    <TouchableOpacity
-                      style={styles.editDateButton}
-                      onPress={() => handleEditDate(selectedDate)}
+                {selectedDate.status === 'completed' && (
+                  <TouchableOpacity
+                    style={styles.rateDateButton}
+                    onPress={() => handleRateDate(selectedDate)}
+                  >
+                    <LinearGradient
+                      colors={['#FF6B9D', '#C44569']}
+                      style={styles.editDateButtonGradient}
                     >
-                      <LinearGradient
-                        colors={[colors.rosterGreen, '#1a7a4d']}
-                        style={styles.editDateButtonGradient}
-                      >
-                        <IconSymbol
-                          ios_icon_name="pencil"
-                          android_material_icon_name="edit"
-                          size={18}
-                          color="#fff"
-                        />
-                        <Text style={styles.editDateButtonText}>Edit Date</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-
-                    {selectedDate.status === 'completed' && (
-                      <TouchableOpacity
-                        style={styles.rateDateButton}
-                        onPress={() => handleRateDate(selectedDate)}
-                      >
-                        <LinearGradient
-                          colors={['#FF6B9D', '#C44569']}
-                          style={styles.editDateButtonGradient}
-                        >
-                          <IconSymbol
-                            ios_icon_name="star.fill"
-                            android_material_icon_name="star"
-                            size={18}
-                            color="#fff"
-                          />
-                          <Text style={styles.editDateButtonText}>
-                            {selectedDate.rating ? 'Update Rating' : 'Rate Date'}
-                          </Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </ScrollView>
-              )}
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
+                      <IconSymbol
+                        ios_icon_name="star.fill"
+                        android_material_icon_name="star"
+                        size={18}
+                        color="#fff"
+                      />
+                      <Text style={styles.editDateButtonText}>
+                        {selectedDate.rating ? 'Update Rating' : 'Rate Date'}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ScrollView>
+          )}
+        </SafeAreaView>
       </Modal>
 
       {/* Edit Modal */}
@@ -546,7 +552,7 @@ export default function DateHistoryScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Rating Modal - FIX: No default selection for wouldGoAgain */}
+      {/* Rating Modal */}
       <Modal
         visible={showRatingModal}
         animationType="slide"
@@ -814,12 +820,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
   modalOverlayTop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-start',
   },
-  // FIX: Increased modal height to 90% for full visibility
   modalContentTop: {
     backgroundColor: colors.white,
     borderBottomLeftRadius: 24,
@@ -834,7 +843,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
