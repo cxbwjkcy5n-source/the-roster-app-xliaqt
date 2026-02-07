@@ -55,7 +55,7 @@ interface Analytics {
 
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate } = useRoster();
+  const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate, error, backendReady, retryLoading } = useRoster();
   const { user, loading: authLoading } = useAuth();
   const [showDatingMenu, setShowDatingMenu] = useState(false);
 
@@ -66,7 +66,6 @@ export default function RosterScreen() {
     }
   }, [user, authLoading, router]);
 
-  // Check if user needs to complete profile
   useEffect(() => {
     if (user && user.firstLoginCompleted === false) {
       console.log('[Home] First login detected - redirecting to profile completion');
@@ -74,11 +73,76 @@ export default function RosterScreen() {
     }
   }, [user, router]);
 
-  if (authLoading || rosterLoading) {
+  // Show loading only on initial load
+  if (authLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.rosterGreen} />
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
+    );
+  }
+
+  // Show error state with retry button if backend is not ready
+  if (!backendReady && error) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <LinearGradient
+          colors={['#000000', '#1a1a1a']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>THE ROSTER</Text>
+            <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
+          </View>
+        </LinearGradient>
+        
+        <View style={styles.errorContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle"
+            android_material_icon_name="warning"
+            size={64}
+            color={colors.warning}
+          />
+          <Text style={styles.errorTitle}>App is Starting Up</Text>
+          <Text style={styles.errorMessage}>
+            The app is initializing. This usually takes a few seconds.
+          </Text>
+          <Text style={styles.errorSubtext}>
+            {rosterLoading ? 'Retrying...' : 'Please wait or tap retry below.'}
+          </Text>
+          
+          {rosterLoading ? (
+            <ActivityIndicator size="large" color={colors.rosterGreen} style={styles.retrySpinner} />
+          ) : (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                console.log('[Home] User tapped retry button');
+                retryLoading();
+              }}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[colors.rosterGreen, '#0d8555']}
+                style={styles.retryButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <IconSymbol
+                  ios_icon_name="arrow.clockwise"
+                  android_material_icon_name="refresh"
+                  size={20}
+                  color={colors.white}
+                />
+                <Text style={styles.retryButtonText}>Retry Now</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -248,7 +312,6 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* BLACK Header with "WHERE EVERYONE PLAYS THEIR POSITION" */}
       <LinearGradient
         colors={['#000000', '#1a1a1a']}
         start={{ x: 0, y: 0 }}
@@ -260,7 +323,6 @@ export default function RosterScreen() {
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         </View>
         <View style={styles.headerButtons}>
-          {/* FIX: Calendar button now navigates to /dating/history */}
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
@@ -276,7 +338,6 @@ export default function RosterScreen() {
               color={colors.white} 
             />
           </TouchableOpacity>
-          {/* FIX: Changed icon to menu and opens dating submenu modal */}
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
@@ -296,7 +357,6 @@ export default function RosterScreen() {
       </LinearGradient>
 
       <View style={styles.content}>
-        {/* Transparent Logo */}
         <View style={styles.logoContainer}>
           <Image 
             source={require('@/assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png')} 
@@ -322,7 +382,6 @@ export default function RosterScreen() {
         )}
       </View>
 
-      {/* Dating Submenu Modal - Opens from BOTTOM */}
       <Modal
         visible={showDatingMenu}
         animationType="slide"
@@ -405,6 +464,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.white,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.grey,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.darkText,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: colors.grey,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: colors.grey,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  retryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+  },
+  retryButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  retrySpinner: {
+    marginTop: 32,
   },
   header: {
     paddingHorizontal: 20,

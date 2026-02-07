@@ -36,8 +36,10 @@ interface RosterContextType {
   refreshInteractions: () => Promise<void>;
   refreshAnalytics: () => Promise<void>;
   refreshNudges: () => Promise<void>;
+  retryLoading: () => Promise<void>;
   loading: boolean;
   error: string | null;
+  backendReady: boolean;
 }
 
 const RosterContext = createContext<RosterContextType | undefined>(undefined);
@@ -63,7 +65,7 @@ function mapProfileToRosterPerson(profile: any): RosterPerson {
     favoriteFoodType: profile.favoriteFood || '',
     relationshipType: profile.relationshipType || 'dating',
     customRelationshipType: profile.customRelationshipType,
-    howMet: profile.howYouMet, // Map from API's howYouMet to frontend's howMet
+    howMet: profile.howYouMet,
     location: profile.location || '',
     phoneNumber: profile.phoneNumber || '',
     instagram: profile.instagram,
@@ -102,7 +104,7 @@ function mapRosterPersonToProfileData(person: RosterPerson) {
     favoriteFood: person.favoriteFoodType,
     relationshipType: person.relationshipType,
     customRelationshipType: person.customRelationshipType,
-    howYouMet: person.howMet, // Map from frontend's howMet to API's howYouMet
+    howYouMet: person.howMet,
     location: person.location,
     phoneNumber: person.phoneNumber,
     instagram: person.instagram,
@@ -129,7 +131,8 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const [nudges, setNudges] = useState<Nudge[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [backendReady, setBackendReady] = useState(true); // Track if backend is ready
+  const [backendReady, setBackendReady] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   const refreshProfiles = useCallback(async () => {
     try {
@@ -137,25 +140,23 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       const response = await authenticatedGet('/api/profiles');
       console.log('[RosterContext] Profiles fetched successfully:', response.length, 'profiles');
       const profiles = response.map(mapProfileToRosterPerson);
-      // Sort by sortOrder
       profiles.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       setRoster(profiles.filter((p: RosterPerson) => p.status === 'roster'));
       setBench(profiles.filter((p: RosterPerson) => p.status === 'bench'));
-      setBackendReady(true); // Backend is working
+      setBackendReady(true);
+      setRetryCount(0); // Reset retry count on success
     } catch (err: any) {
       console.error('[RosterContext] Failed to refresh profiles:', err);
-      // Check if it's a database error (HTTP 500)
       if (err.message && err.message.includes('HTTP 500')) {
         console.warn('[RosterContext] Backend database not ready - will retry later');
-        setBackendReady(false); // Backend is not ready
-        throw new Error('The app is starting up. Please wait a moment and try again.');
+        setBackendReady(false);
+        throw new Error('Backend is starting up. Please wait a moment.');
       }
       throw err;
     }
   }, []);
 
   const refreshDates = useCallback(async () => {
-    // Skip if backend is not ready
     if (!backendReady) {
       console.log('[RosterContext] Skipping dates refresh - backend not ready');
       return;
@@ -191,20 +192,17 @@ export function RosterProvider({ children }: { children: ReactNode }) {
         };
       });
       setDates(mappedDates);
-      setBackendReady(true); // Backend is working
+      setBackendReady(true);
     } catch (err: any) {
       console.error('[RosterContext] Failed to refresh dates:', err);
-      // Check if it's a database error (HTTP 500)
       if (err.message && err.message.includes('HTTP 500')) {
         console.warn('[RosterContext] Backend database not ready for dates');
-        setBackendReady(false); // Backend is not ready
+        setBackendReady(false);
       }
-      // Silently fail for dates - not critical for initial load
     }
   }, [backendReady]);
 
   const refreshReminders = useCallback(async () => {
-    // Skip if backend is not ready
     if (!backendReady) {
       console.log('[RosterContext] Skipping reminders refresh - backend not ready');
       return;
@@ -217,12 +215,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setReminders(response);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh reminders:', err);
-      // Silently fail for reminders - not critical for initial load
     }
   }, [backendReady]);
 
   const refreshInteractions = useCallback(async () => {
-    // Skip if backend is not ready
     if (!backendReady) {
       console.log('[RosterContext] Skipping interactions refresh - backend not ready');
       return;
@@ -230,18 +226,13 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     
     try {
       console.log('[RosterContext] Fetching interactions from backend...');
-      // Note: The API doesn't have a global interactions endpoint
-      // Interactions are fetched per profile via /api/interactions/{profileId}
-      // For now, we'll keep interactions empty and fetch them when viewing a specific profile
       setInteractions([]);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh interactions:', err);
-      // Silently fail for interactions - not critical for initial load
     }
   }, [backendReady]);
 
   const refreshAnalytics = useCallback(async () => {
-    // Skip if backend is not ready
     if (!backendReady) {
       console.log('[RosterContext] Skipping analytics refresh - backend not ready');
       return;
@@ -254,12 +245,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setAnalytics(response);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh analytics:', err);
-      // Silently fail for analytics - not critical for initial load
     }
   }, [backendReady]);
 
   const refreshNudges = useCallback(async () => {
-    // Skip if backend is not ready
     if (!backendReady) {
       console.log('[RosterContext] Skipping nudges refresh - backend not ready');
       return;
@@ -272,7 +261,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setNudges(response);
     } catch (err) {
       console.error('[RosterContext] Failed to refresh nudges:', err);
-      // Silently fail for nudges - not critical for initial load
     }
   }, [backendReady]);
 
@@ -280,9 +268,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      // Try to load profiles first (critical)
+      console.log('[RosterContext] Loading data (attempt', retryCount + 1, ')...');
+      
       await refreshProfiles();
-      // Then load other data (non-critical, can fail silently)
+      
       await Promise.allSettled([
         refreshDates(),
         refreshReminders(),
@@ -290,36 +279,47 @@ export function RosterProvider({ children }: { children: ReactNode }) {
         refreshAnalytics(),
         refreshNudges(),
       ]);
+      
+      console.log('[RosterContext] Data loaded successfully');
     } catch (err) {
       console.error('[RosterContext] Error loading data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
       setError(errorMessage);
-      // Don't show alert for authentication errors - user will be redirected to login
-      if (!errorMessage.includes('Authentication') && !errorMessage.includes('starting up')) {
-        Alert.alert('Error', errorMessage);
+      
+      // If backend is not ready, schedule a retry with exponential backoff
+      if (!backendReady && retryCount < 5) {
+        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
+        console.log('[RosterContext] Scheduling retry in', retryDelay, 'ms');
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+        }, retryDelay);
       }
     } finally {
       setLoading(false);
     }
-  }, [refreshProfiles, refreshDates, refreshReminders, refreshInteractions, refreshAnalytics, refreshNudges]);
+  }, [refreshProfiles, refreshDates, refreshReminders, refreshInteractions, refreshAnalytics, refreshNudges, backendReady, retryCount]);
 
-  // Only load data when user is authenticated
+  const retryLoading = useCallback(async () => {
+    console.log('[RosterContext] Manual retry triggered');
+    setRetryCount(0);
+    setBackendReady(true);
+    await loadData();
+  }, [loadData]);
+
+  // Load data when user authenticates or retry count changes
   useEffect(() => {
     if (user) {
       console.log('[RosterContext] User authenticated, loading data...');
       loadData();
       
-      // Set up periodic refresh for dates (every 60 seconds)
-      // This ensures dates automatically move to completed when their time passes
-      // Only run if backend is ready
       const intervalId = setInterval(() => {
         if (backendReady) {
-          console.log('[RosterContext] Auto-refreshing dates to check for status updates...');
+          console.log('[RosterContext] Auto-refreshing dates...');
           refreshDates();
         } else {
           console.log('[RosterContext] Skipping auto-refresh - backend not ready');
         }
-      }, 60000); // 60 seconds
+      }, 60000);
       
       return () => {
         console.log('[RosterContext] Cleaning up date refresh interval');
@@ -327,7 +327,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       };
     } else {
       console.log('[RosterContext] No user authenticated, clearing data...');
-      // Clear data when user logs out
       setRoster([]);
       setBench([]);
       setDates([]);
@@ -335,9 +334,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setInteractions([]);
       setAnalytics(null);
       setNudges([]);
-      setBackendReady(true); // Reset backend ready state
+      setBackendReady(true);
+      setRetryCount(0);
     }
-  }, [user, loadData, refreshDates, backendReady]);
+  }, [user, retryCount]);
 
   const addPerson = async (person: RosterPerson) => {
     try {
@@ -409,7 +409,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const reorderRoster = async (reorderedRoster: RosterPerson[]) => {
     try {
       console.log('[RosterContext] Reordering roster...');
-      // Update local state immediately for smooth UX
       setRoster(reorderedRoster);
       
       const orderData = reorderedRoster.map((person, index) => ({
@@ -421,7 +420,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[RosterContext] Failed to reorder roster:', err);
       Alert.alert('Error', 'Failed to save new order');
-      // Refresh to get correct order from backend
       await refreshProfiles();
       throw err;
     }
@@ -481,7 +479,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       };
       await authenticatedPut(`/api/dates/${date.id}`, dateData);
       console.log('[RosterContext] Date updated successfully');
-      // Refresh both dates and analytics when status changes (e.g., upcoming -> completed)
       await Promise.all([refreshDates(), refreshAnalytics()]);
     } catch (err) {
       console.error('[RosterContext] Failed to update date:', err);
@@ -506,10 +503,8 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const rateDate = async (dateId: string, rating: number, wouldGoAgain: boolean) => {
     try {
       console.log('[RosterContext] Rating date:', dateId);
-      // Update the date with rating and wouldGoAgain
       await authenticatedPut(`/api/dates/${dateId}`, { rating, wouldGoAgain });
       console.log('[RosterContext] Date rated successfully');
-      // Refresh both dates and analytics to show updated stats
       await Promise.all([refreshDates(), refreshAnalytics()]);
     } catch (err) {
       console.error('[RosterContext] Failed to rate date:', err);
@@ -572,7 +567,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const completeReminder = async (id: string) => {
     try {
       console.log('[RosterContext] Completing reminder:', id);
-      // Mark reminder as sent/completed by updating it
       await authenticatedPut(`/api/reminders/${id}`, { sent: true });
       console.log('[RosterContext] Reminder completed successfully');
       await refreshReminders();
@@ -663,8 +657,10 @@ export function RosterProvider({ children }: { children: ReactNode }) {
         refreshInteractions,
         refreshAnalytics,
         refreshNudges,
+        retryLoading,
         loading,
         error,
+        backendReady,
       }}
     >
       {children}
