@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
-  Animated,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,7 +43,6 @@ export default function FloatingTabBar({
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
-  const animatedValue = React.useRef(new Animated.Value(0)).current;
 
   // FIXED: Improved active tab detection for nested routes
   const activeTabIndex = React.useMemo(() => {
@@ -90,18 +88,6 @@ export default function FloatingTabBar({
     return 0; // Default to roster
   }, [pathname, tabs]);
 
-  React.useEffect(() => {
-    if (activeTabIndex >= 0) {
-      Animated.spring(animatedValue, {
-        toValue: activeTabIndex,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 120,
-        mass: 1,
-      }).start();
-    }
-  }, [activeTabIndex, animatedValue]);
-
   const [pressedTab, setPressedTab] = React.useState<number | null>(null);
 
   const handleTabPress = (route: Href, index: number) => {
@@ -120,20 +106,6 @@ export default function FloatingTabBar({
       router.push('/person/add' as Href);
     }
   };
-
-  const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
-  const tabWidth = (containerWidth - 8) / tabs.length;
-
-  // Calculate proper indicator position accounting for left/right groups
-  const indicatorTranslateX = animatedValue.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [
-      4, // Roster (left group, first position)
-      tabWidth + 4, // Bench (left group, second position)
-      tabWidth * 2 + 84, // Dating (right group, first position - accounting for center spacer)
-      tabWidth * 3 + 84, // Profile (right group, second position)
-    ],
-  });
 
   const dynamicStyles = {
     blurContainer: {
@@ -156,11 +128,6 @@ export default function FloatingTabBar({
     },
     background: {
       ...styles.background,
-    },
-    indicator: {
-      ...styles.indicator,
-      backgroundColor: 'rgba(17, 163, 106, 0.1)',
-      width: `${tabWidthPercent}%` as `${number}%`,
     },
   };
 
@@ -196,14 +163,7 @@ export default function FloatingTabBar({
           style={[dynamicStyles.blurContainer, { borderRadius }]}
         >
           <View style={dynamicStyles.background} />
-          <Animated.View 
-            style={[
-              dynamicStyles.indicator, 
-              {
-                transform: [{ translateX: indicatorTranslateX }]
-              }
-            ]} 
-          />
+          {/* Removed animated overlay indicator */}
           {/* Updated layout: grouped tabs with center spacing for add button */}
           <View style={styles.tabsContainer}>
             {/* Left group: Roster and Bench */}
@@ -340,13 +300,6 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-  },
-  indicator: {
-    position: 'absolute',
-    top: 4,
-    left: 2,
-    bottom: 4,
-    borderRadius: 24,
   },
   tabsContainer: {
     flexDirection: 'row',
