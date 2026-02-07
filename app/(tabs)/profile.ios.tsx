@@ -142,7 +142,9 @@ export default function ProfileScreen() {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload image');
+          const errorText = await uploadResponse.text();
+          console.error('[Profile iOS] Upload failed:', errorText);
+          throw new Error(`Failed to upload image: ${errorText}`);
         }
 
         const uploadData = await uploadResponse.json();
@@ -151,9 +153,9 @@ export default function ProfileScreen() {
         setProfileImageKey(uploadData.key);
         setProfileImage(uploadData.url);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Profile iOS] Image upload failed:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to upload image. Please try again.');
       setProfileImage(null);
     } finally {
       setUploadingImage(false);

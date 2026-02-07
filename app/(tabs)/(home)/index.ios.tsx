@@ -66,6 +66,14 @@ export default function RosterScreen() {
     }
   }, [user, authLoading, router]);
 
+  // Check if user needs to complete profile
+  useEffect(() => {
+    if (user && user.firstLoginCompleted === false) {
+      console.log('[Home] First login detected - redirecting to profile completion');
+      router.push('/(tabs)/profile');
+    }
+  }, [user, router]);
+
   if (authLoading || rosterLoading) {
     return (
       <View style={styles.loadingContainer}>

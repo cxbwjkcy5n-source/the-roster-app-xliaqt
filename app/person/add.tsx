@@ -259,7 +259,7 @@ export default function AddPersonScreen() {
           if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
             console.error('[AddPerson] Upload failed:', errorText);
-            throw new Error('Failed to upload image');
+            throw new Error(`Failed to upload image: ${errorText}`);
           }
 
           const uploadData = await uploadResponse.json();
@@ -267,11 +267,16 @@ export default function AddPersonScreen() {
           uploadedImageKey = uploadData.key;
           
           console.log('[AddPerson] Image uploaded successfully:', uploadedImageUrl);
-        } catch (uploadError) {
+        } catch (uploadError: any) {
           console.error('[AddPerson] Image upload failed:', uploadError);
-          // Don't fail the whole save, just use the local URI
-          uploadedImageUrl = photoUri;
-          console.log('[AddPerson] Using local image URI as fallback');
+          // CRITICAL: Don't save with local file path - show error to user
+          Alert.alert(
+            'Image Upload Failed',
+            'Failed to upload the image. Please try again or choose a different image.',
+            [{ text: 'OK' }]
+          );
+          setSaving(false);
+          return; // Stop the save process
         }
       }
 

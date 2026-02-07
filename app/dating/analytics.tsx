@@ -65,8 +65,25 @@ export default function DatingAnalyticsScreen() {
       const data = await authenticatedGet('/api/analytics');
       console.log('[DatingAnalytics] Analytics loaded:', data);
       setAnalytics(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[DatingAnalytics] Error loading analytics:', error);
+      // Set empty analytics if error (e.g., no roster profiles yet)
+      setAnalytics({
+        totalProfiles: 0,
+        totalDates: 0,
+        upcomingDates: 0,
+        completedDates: 0,
+        interestLevelBreakdown: { low: 0, medium: 0, high: 0 },
+        statusBreakdown: { roster: 0, bench: 0 },
+        dateFrequency: { thisWeek: 0, thisMonth: 0, lastMonth: 0 },
+        datesPerMonth: [],
+        averageRating: 0,
+        totalRatings: 0,
+        wouldGoAgainPercentage: 0,
+        commonRedFlags: [],
+        commonGreenFlags: [],
+        topRatedDates: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -392,7 +409,25 @@ export default function DatingAnalyticsScreen() {
         </ScrollView>
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No analytics data available</Text>
+          <IconSymbol
+            ios_icon_name="chart.bar.fill"
+            android_material_icon_name="bar-chart"
+            size={64}
+            color={colors.grey}
+          />
+          <Text style={styles.emptyText}>No Analytics Yet</Text>
+          <Text style={styles.emptySubtext}>
+            Add people to your roster and schedule dates to see your dating analytics
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={() => {
+              console.log('[DatingAnalytics] User tapped "Add to Roster" - navigating to add person');
+              router.push('/person/add');
+            }}
+          >
+            <Text style={styles.emptyButtonText}>Add to Roster</Text>
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
@@ -663,9 +698,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
     color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  emptyButton: {
+    backgroundColor: colors.rosterGreen,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

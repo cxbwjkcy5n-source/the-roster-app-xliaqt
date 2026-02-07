@@ -78,8 +78,17 @@ export default function BenchScreen() {
       const data = await authenticatedGet<Analytics>('/api/analytics');
       console.log('[Bench] Analytics loaded:', data);
       setAnalytics(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Bench] Error loading analytics:', error);
+      // Set empty analytics if error (e.g., no roster profiles yet)
+      setAnalytics({
+        totalProfiles: 0,
+        totalDates: 0,
+        upcomingDates: 0,
+        completedDates: 0,
+        interestLevelBreakdown: { low: 0, medium: 0, high: 0 },
+        statusBreakdown: { roster: 0, bench: 0 },
+      });
     } finally {
       setLoadingAnalytics(false);
     }
