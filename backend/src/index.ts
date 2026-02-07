@@ -84,32 +84,42 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
       'Migration attempt failed'
     );
 
-    // Check for known WASM/initialization issues that shouldn't block startup
-    const isKnownError =
-      errorMessage.includes('already exists') ||
+    // Check if this is a recoverable WASM initialization error (not a real migration failure)
+    const isWasmInitError =
       errorMessage.includes('Aborted') ||
-      errorMessage.includes('CREATE SCHEMA') ||
       errorMessage.includes('RuntimeError') ||
       errorMessage.includes('WASM') ||
-      errorMessage.includes('does not exist') ||
       errorMessage.includes('ENOENT') ||
-      errorMessage.includes('No such file');
+      errorMessage.includes('No such file') ||
+      errorMessage.includes('MODULE_NOT_FOUND');
 
-    if (isKnownError) {
-      app.logger.info(
-        { err: errorMessage },
-        'Database initialization issue detected - this is expected during local development.'
-      );
-      if (migrationAttempts >= maxMigrationAttempts) {
-        app.logger.info('Continuing with startup after expected migration issues.');
-        migrationsSuccessful = true; // Allow startup to continue
+    // Check if tables already exist (migrations already applied)
+    const isAlreadyApplied = errorMessage.includes('already exists');
+
+    if (isWasmInitError || isAlreadyApplied) {
+      if (isAlreadyApplied) {
+        app.logger.info(
+          { err: errorMessage },
+          'Database tables already exist - migrations previously applied.'
+        );
+        migrationsSuccessful = true;
+      } else {
+        // WASM initialization issue - retry
+        app.logger.info(
+          { err: errorMessage },
+          'WASM initialization issue detected - retrying...'
+        );
+        if (migrationAttempts >= maxMigrationAttempts) {
+          app.logger.error({ err: errorMessage, stack: errorStack }, 'WASM initialization failed after all retries');
+          process.exit(1); // Fail startup - this is a critical issue
+        }
       }
     } else {
-      // For other errors, still allow startup to continue
-      app.logger.error({ err: errorMessage, stack: errorStack }, 'Migration error details');
+      // Real migration error - must fail
+      app.logger.error({ err: errorMessage, stack: errorStack }, 'Critical migration error');
       if (migrationAttempts >= maxMigrationAttempts) {
-        app.logger.warn('Migration failed after all attempts. Continuing with startup.');
-        migrationsSuccessful = true;
+        app.logger.error('Migrations failed after all attempts. Database tables not created.');
+        process.exit(1); // Fail startup - cannot continue without database
       }
     }
   }
