@@ -25,6 +25,31 @@ const DateSuggestionSchema = z.object({
 
 type DateSuggestion = z.infer<typeof DateSuggestionSchema>;
 
+/**
+ * Helper function to validate and correct status based on dateTime
+ * Prevents setting status to "upcoming" if dateTime is in the past
+ */
+function getCorrectStatus(
+  requestedStatus: string | undefined,
+  dateTime: Date | null | undefined,
+  logger: any,
+  context: string
+): string | undefined {
+  if (!requestedStatus || !dateTime) return requestedStatus;
+
+  if (requestedStatus === 'upcoming') {
+    const now = new Date();
+    if (dateTime < now) {
+      logger.info(
+        { context },
+        'Status "upcoming" rejected - dateTime is in the past. Auto-correcting to "completed"'
+      );
+      return 'completed';
+    }
+  }
+  return requestedStatus;
+}
+
 export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
   // Create new date
@@ -261,8 +286,25 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
         }
 
         const updateData: Record<string, any> = { ...body };
+        let dateTime = existing.dateTime;
+
         if (body.dateTime) {
-          updateData.dateTime = new Date(body.dateTime);
+          dateTime = new Date(body.dateTime);
+          updateData.dateTime = dateTime;
+        }
+
+        // Use helper function to validate and correct status based on dateTime
+        // If status is "upcoming" but dateTime is in the past, auto-correct to "completed"
+        if (body.status) {
+          const correctedStatus = getCorrectStatus(
+            body.status,
+            dateTime,
+            app.logger,
+            `userId=${session.user.id},dateId=${id}`
+          );
+          if (correctedStatus) {
+            updateData.status = correctedStatus;
+          }
         }
 
         const [updated] = await app.db
