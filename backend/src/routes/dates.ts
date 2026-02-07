@@ -137,14 +137,26 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           return reply.status(404).send({ error: 'Profile not found' });
         }
 
+        // Parse dateTime if provided
+        const dateTime = body.dateTime ? new Date(body.dateTime) : undefined;
+
+        // Validate and correct status based on dateTime
+        // If status is "upcoming" but dateTime is in the past, auto-correct to "completed"
+        const correctedStatus = getCorrectStatus(
+          body.status,
+          dateTime,
+          app.logger,
+          `userId=${session.user.id},profileId=${body.profileId}`
+        );
+
         const [date] = await app.db
           .insert(schema.dates)
           .values({
             userId: session.user.id,
             profileId: body.profileId,
-            status: body.status as 'upcoming' | 'completed' | undefined,
+            status: correctedStatus as 'upcoming' | 'completed' | undefined,
             type: body.type as 'casual' | 'formal' | 'activity' | 'dinner' | 'drinks' | 'coffee' | 'movie' | 'outdoor' | 'other' | undefined,
-            dateTime: body.dateTime ? new Date(body.dateTime) : undefined,
+            dateTime: dateTime,
             locationName: body.locationName,
             locationAddress: body.locationAddress,
             locationCoordinates: body.locationCoordinates,
@@ -155,7 +167,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
           })
           .returning();
 
-        app.logger.info({ dateId: date.id, userId: session.user.id, profileId: body.profileId }, 'Date record created successfully');
+        app.logger.info({ dateId: date.id, userId: session.user.id, profileId: body.profileId, status: date.status }, 'Date record created successfully');
         return date;
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id, profileId: body.profileId }, 'Failed to create date record');
@@ -191,6 +203,8 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       try {
         // First, update any upcoming dates that have passed their dateTime to completed status
         const now = new Date();
+        app.logger.debug({ userId: session.user.id, currentTime: now.toISOString() }, 'Checking for upcoming dates that need status update');
+
         const upcomingDatesToUpdate = await app.db
           .select()
           .from(schema.dates)
@@ -204,7 +218,11 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
         if (upcomingDatesToUpdate.length > 0) {
           app.logger.info(
-            { userId: session.user.id, count: upcomingDatesToUpdate.length },
+            {
+              userId: session.user.id,
+              count: upcomingDatesToUpdate.length,
+              passedDates: upcomingDatesToUpdate.map(d => ({ id: d.id, scheduledTime: d.dateTime?.toISOString() }))
+            },
             'Auto-updating passed upcoming dates to completed'
           );
 
@@ -219,6 +237,16 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
                 lt(schema.dates.dateTime, now)
               )
             );
+
+          app.logger.info(
+            { userId: session.user.id, count: upcomingDatesToUpdate.length },
+            'Successfully updated passed dates to completed status'
+          );
+        } else {
+          app.logger.debug(
+            { userId: session.user.id },
+            'No upcoming dates found that have passed their scheduled time'
+          );
         }
 
         // Status filtering
