@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "The Roster",
-    "slug": "theroster1",
-    "scheme": "theroster1",
+    "slug": "The Roster",
+    "scheme": "The Roster",
     "extra": {
       "backendUrl": "https://svuaszgx5v6c3k9w6qqku44nfpjn3782.app.specular.dev"
     }

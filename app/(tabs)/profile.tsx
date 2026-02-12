@@ -112,8 +112,6 @@ export default function ProfileScreen() {
         const uri = result.assets[0].uri;
         console.log('[Profile] Image selected, uploading...');
         
-        setProfileImage(uri);
-        
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'profile-image.jpg';
         const match = /\.(\w+)$/.exec(filename);
@@ -133,7 +131,8 @@ export default function ProfileScreen() {
           throw new Error('No access token found');
         }
         
-        const uploadResponse = await fetch(`${BACKEND_URL}/api/user/profile-image`, {
+        // FIX: Use correct endpoint /api/upload/profile-image
+        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,

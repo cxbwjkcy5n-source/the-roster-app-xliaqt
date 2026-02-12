@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import { colors } from "@/styles/commonStyles";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -19,10 +18,11 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native";
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from "@react-navigation/native";
-import { colors } from "@/styles/commonStyles";
+import * as ImagePicker from 'expo-image-picker';
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -65,11 +65,11 @@ export default function ProfileScreen() {
     if (!user) return;
     
     try {
-      console.log('[Profile iOS] Loading profile data from backend...');
+      console.log('[Profile] Loading profile data from backend...');
       const { authenticatedGet } = await import('@/utils/api');
       const profileData = await authenticatedGet('/api/user/profile');
       
-      console.log('[Profile iOS] Profile data loaded:', profileData);
+      console.log('[Profile] Profile data loaded:', profileData);
       
       if (profileData.name) setName(profileData.name);
       if (profileData.image) setProfileImage(profileData.image);
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
       if (profileData.twitter) setTwitter(profileData.twitter);
       if (profileData.notes) setNotes(profileData.notes);
     } catch (error) {
-      console.error('[Profile iOS] Error loading profile data:', error);
+      console.error('[Profile] Error loading profile data:', error);
     }
   }, [user]);
 
@@ -99,7 +99,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     try {
       setUploadingImage(true);
-      console.log('[Profile iOS] Opening image picker...');
+      console.log('[Profile] Opening image picker...');
       
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -110,9 +110,7 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        console.log('[Profile iOS] Image selected, uploading...');
-        
-        setProfileImage(uri);
+        console.log('[Profile] Image selected, uploading...');
         
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'profile-image.jpg';
@@ -133,7 +131,8 @@ export default function ProfileScreen() {
           throw new Error('No access token found');
         }
         
-        const uploadResponse = await fetch(`${BACKEND_URL}/api/user/profile-image`, {
+        // FIX: Use correct endpoint /api/upload/profile-image
+        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -143,18 +142,18 @@ export default function ProfileScreen() {
 
         if (!uploadResponse.ok) {
           const errorText = await uploadResponse.text();
-          console.error('[Profile iOS] Upload failed:', errorText);
+          console.error('[Profile] Upload failed:', errorText);
           throw new Error(`Failed to upload image: ${errorText}`);
         }
 
         const uploadData = await uploadResponse.json();
-        console.log('[Profile iOS] Image uploaded successfully:', uploadData.url);
+        console.log('[Profile] Image uploaded successfully:', uploadData.url);
         
         setProfileImageKey(uploadData.key);
         setProfileImage(uploadData.url);
       }
     } catch (error: any) {
-      console.error('[Profile iOS] Image upload failed:', error);
+      console.error('[Profile] Image upload failed:', error);
       Alert.alert('Error', error.message || 'Failed to upload image. Please try again.');
       setProfileImage(null);
     } finally {
@@ -163,7 +162,7 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
-    console.log('[Profile iOS] User tapped Save button');
+    console.log('[Profile] User tapped Save button');
     
     if (isFirstLogin) {
       const missingFields: string[] = [];
@@ -190,7 +189,7 @@ export default function ProfileScreen() {
     
     try {
       setLoading(true);
-      console.log('[Profile iOS] Saving profile data...');
+      console.log('[Profile] Saving profile data...');
       
       const profileData: any = {
         name: name.trim(),
@@ -209,10 +208,10 @@ export default function ProfileScreen() {
       
       const { authenticatedPut } = await import('@/utils/api');
       await authenticatedPut('/api/user/profile', profileData);
-      console.log('[Profile iOS] Profile data saved successfully');
+      console.log('[Profile] Profile data saved successfully');
       
       if (isFirstLogin) {
-        console.log('[Profile iOS] First login - marking as complete');
+        console.log('[Profile] First login - marking as complete');
         
         const { authenticatedPost } = await import('@/utils/api');
         await authenticatedPost('/api/user/complete-profile', {});
@@ -236,7 +235,7 @@ export default function ProfileScreen() {
         Alert.alert('Success', 'Profile updated successfully');
       }
     } catch (error) {
-      console.error('[Profile iOS] Error saving profile:', error);
+      console.error('[Profile] Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
@@ -244,19 +243,19 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
-    console.log('[Profile iOS] User tapped Logout button');
+    console.log('[Profile] User tapped Logout button');
     setShowLogoutConfirm(true);
   };
 
   const confirmSignOut = async () => {
     try {
-      console.log('[Profile iOS] User confirmed logout');
+      console.log('[Profile] User confirmed logout');
       setShowLogoutConfirm(false);
       await signOut();
-      console.log('[Profile iOS] Logout successful, navigating to home');
+      console.log('[Profile] Logout successful, navigating to home');
       router.replace('/(tabs)/(home)/');
     } catch (error) {
-      console.error('[Profile iOS] Logout error:', error);
+      console.error('[Profile] Logout error:', error);
       Alert.alert("Error", "Failed to sign out");
     }
   };
@@ -743,7 +742,7 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     style={styles.logoutModalCancelButton}
                     onPress={() => {
-                      console.log('[Profile iOS] User cancelled logout');
+                      console.log('[Profile] User cancelled logout');
                       setShowLogoutConfirm(false);
                     }}
                   >
