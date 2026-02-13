@@ -50,16 +50,27 @@ if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
   );
 }
 
+// Helper function to safely get platform
+function getPlatform() {
+  try {
+    return Platform.OS;
+  } catch (error) {
+    // Fallback to web if Platform is not available
+    return 'web';
+  }
+}
+
 console.log('[Supabase] Initializing with URL:', supabaseUrl);
-console.log('[Supabase] Platform:', Platform.OS);
+console.log('[Supabase] Platform:', getPlatform());
 console.log('[Supabase] Is configured:', isSupabaseConfigured());
 
 // Create a storage adapter that works across platforms
 const ExpoSecureStoreAdapter = {
   getItem: async (key: string): Promise<string | null> => {
     try {
+      const platform = getPlatform();
       // SecureStore is only available on native platforms
-      if (Platform.OS === 'web') {
+      if (platform === 'web') {
         // Use localStorage for web
         if (typeof window !== 'undefined' && window.localStorage) {
           return window.localStorage.getItem(key);
@@ -77,8 +88,9 @@ const ExpoSecureStoreAdapter = {
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
+      const platform = getPlatform();
       // SecureStore is only available on native platforms
-      if (Platform.OS === 'web') {
+      if (platform === 'web') {
         // Use localStorage for web
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem(key, value);
@@ -94,8 +106,9 @@ const ExpoSecureStoreAdapter = {
   },
   removeItem: async (key: string): Promise<void> => {
     try {
+      const platform = getPlatform();
       // SecureStore is only available on native platforms
-      if (Platform.OS === 'web') {
+      if (platform === 'web') {
         // Use localStorage for web
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.removeItem(key);
@@ -121,7 +134,7 @@ export const supabase = createClient(
       storage: ExpoSecureStoreAdapter,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: Platform.OS === 'web', // Only detect URL sessions on web
+      detectSessionInUrl: getPlatform() === 'web', // Only detect URL sessions on web
     },
   }
 );
