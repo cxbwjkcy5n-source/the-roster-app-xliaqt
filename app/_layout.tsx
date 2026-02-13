@@ -1,11 +1,11 @@
 
 import "react-native-url-polyfill/auto";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
-import { useColorScheme, Alert, Platform } from "react-native";
+import { useColorScheme, Alert, Platform, InteractionManager } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -18,7 +18,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { RosterProvider } from "@/contexts/RosterContext";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DebugOverlay } from "@/components/DebugOverlay";
+import { checkAndMigrateVersion } from "@/utils/storage";
+import { processUploadQueue } from "@/utils/imageUpload";
 
+// Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -27,13 +31,47 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const [appReady, setAppReady] = useState(false);
 
+  // Initialize app storage and migrations
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    async function initializeApp() {
+      try {
+        console.log('[App] Initializing app...');
+        
+        // Check and migrate version (non-blocking)
+        await checkAndMigrateVersion();
+        
+        // Process any queued uploads (non-blocking)
+        InteractionManager.runAfterInteractions(() => {
+          processUploadQueue().catch(err => {
+            console.error('[App] Error processing upload queue:', err);
+          });
+        });
+        
+        console.log('[App] Initialization complete');
+        setAppReady(true);
+      } catch (error) {
+        console.error('[App] Initialization error:', error);
+        // Don't block app startup on initialization errors
+        setAppReady(true);
+      }
     }
-  }, [loaded]);
 
+    initializeApp();
+  }, []);
+
+  // Hide splash screen when fonts are loaded AND app is ready
+  useEffect(() => {
+    if (loaded && appReady) {
+      // Use InteractionManager to ensure UI is ready before hiding splash
+      InteractionManager.runAfterInteractions(() => {
+        SplashScreen.hideAsync();
+      });
+    }
+  }, [loaded, appReady]);
+
+  // Network status monitoring
   React.useEffect(() => {
     if (Platform.OS !== 'web' && !networkState.isConnected && networkState.isInternetReachable === false) {
       Alert.alert(
@@ -43,7 +81,19 @@ export default function RootLayout() {
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
-  if (!loaded) {
+  // Process upload queue when network reconnects
+  React.useEffect(() => {
+    if (networkState.isConnected && networkState.isInternetReachable) {
+      console.log('[App] Network connected, processing upload queue...');
+      InteractionManager.runAfterInteractions(() => {
+        processUploadQueue().catch(err => {
+          console.error('[App] Error processing upload queue on reconnect:', err);
+        });
+      });
+    }
+  }, [networkState.isConnected, networkState.isInternetReachable]);
+
+  if (!loaded || !appReady) {
     return null;
   }
 
@@ -101,6 +151,9 @@ export default function RootLayout() {
                 <Stack.Screen name="dating/coach" />
               </Stack>
               {Platform.OS !== 'web' && <SystemBars style="auto" />}
+              
+              {/* Debug overlay - triple tap top-right corner to show */}
+              <DebugOverlay />
             </GestureHandlerRootView>
           </RosterProvider>
         </AuthProvider>

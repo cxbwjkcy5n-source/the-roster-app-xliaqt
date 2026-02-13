@@ -24,6 +24,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
+import { uploadImage } from "@/utils/imageUpload";
+import { logSaveError } from "@/utils/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,6 +47,7 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(isFirstLogin);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [profileImageKey, setProfileImageKey] = useState<string | null>(null);
   const [name, setName] = useState(user?.name || '');
@@ -99,65 +102,42 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     try {
       setUploadingImage(true);
+      setUploadProgress(0);
       console.log('[Profile] Opening image picker...');
       
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.5,
+        quality: 1.0, // Start with high quality, we'll compress it
       });
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        console.log('[Profile] Image selected, uploading...');
+        console.log('[Profile] Image selected, uploading with compression and retry...');
         
-        const formData = new FormData();
-        const filename = uri.split('/').pop() || 'profile-image.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        setUploadProgress(30);
         
-        formData.append('file', {
-          uri,
-          name: filename,
-          type,
-        } as any);
-
-        const { supabase } = await import('@/lib/supabase');
-        const { BACKEND_URL } = await import('@/utils/api');
-        const { data: { session } } = await supabase.auth.getSession();
+        // Use the new robust upload utility
+        const uploadResult = await uploadImage(uri, 'profile');
         
-        if (!session?.access_token) {
-          throw new Error('No access token found');
-        }
+        setUploadProgress(100);
+        console.log('[Profile] Image uploaded successfully:', uploadResult.url);
         
-        // FIX: Use correct endpoint /api/upload/profile-image
-        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text();
-          console.error('[Profile] Upload failed:', errorText);
-          throw new Error(`Failed to upload image: ${errorText}`);
-        }
-
-        const uploadData = await uploadResponse.json();
-        console.log('[Profile] Image uploaded successfully:', uploadData.url);
-        
-        setProfileImageKey(uploadData.key);
-        setProfileImage(uploadData.url);
+        setProfileImageKey(uploadResult.key);
+        setProfileImage(uploadResult.url);
       }
     } catch (error: any) {
       console.error('[Profile] Image upload failed:', error);
-      Alert.alert('Error', error.message || 'Failed to upload image. Please try again.');
+      Alert.alert(
+        'Upload Failed',
+        error.message || 'Failed to upload image. The upload has been queued and will retry automatically when you reopen the app.',
+        [{ text: 'OK' }]
+      );
       setProfileImage(null);
     } finally {
       setUploadingImage(false);
+      setUploadProgress(0);
     }
   };
 
@@ -234,8 +214,9 @@ export default function ProfileScreen() {
         setIsEditing(false);
         Alert.alert('Success', 'Profile updated successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Profile] Error saving profile:', error);
+      await logSaveError(error.message || 'Failed to save profile');
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
@@ -359,7 +340,9 @@ export default function ProfileScreen() {
               {uploadingImage ? (
                 <>
                   <ActivityIndicator color="#fff" size="large" />
-                  <Text style={styles.imageOverlayText}>Uploading...</Text>
+                  <Text style={styles.imageOverlayText}>
+                    {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Compressing...'}
+                  </Text>
                 </>
               ) : (
                 <>
