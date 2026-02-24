@@ -8,20 +8,21 @@ export default function AuthPopupScreen() {
   const { provider } = useLocalSearchParams<{ provider: string }>();
 
   useEffect(() => {
-    console.log('[AuthPopup] OAuth popup screen loaded for provider:', provider);
-    
-    // This screen is primarily for web OAuth popup flow
-    // On native, OAuth should use deep linking instead
-    console.log('[AuthPopup] Note: This screen is designed for web OAuth popup flow');
-    
+    console.log('[AuthPopup Web] Starting OAuth flow for provider:', provider);
+
     if (!provider || !["google", "github", "apple"].includes(provider)) {
-      console.error('[AuthPopup] Invalid provider:', provider);
+      console.error('[AuthPopup Web] Invalid provider:', provider);
+      if (window.opener) {
+        window.opener.postMessage({ type: "oauth-error", error: "Invalid provider" }, "*");
+      }
       return;
     }
 
-    // On native, this would typically redirect to the OAuth provider
-    // using deep linking configured in app.json
-    console.log('[AuthPopup] Provider:', provider);
+    // Start OAuth flow
+    authClient.signIn.social({
+      provider: provider as any,
+      callbackURL: `${window.location.origin}/auth-callback`,
+    });
   }, [provider]);
 
   return (
