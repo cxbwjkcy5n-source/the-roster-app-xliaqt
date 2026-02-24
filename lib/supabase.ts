@@ -2,7 +2,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 // Try to read from environment variables first, then fall back to app.json
@@ -50,18 +49,27 @@ if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
   );
 }
 
-// Helper function to safely get platform
-function getPlatform() {
+// Helper function to safely get platform - LAZY IMPORT
+function getPlatform(): 'ios' | 'android' | 'web' | 'unknown' {
   try {
-    return Platform.OS;
-  } catch (error) {
-    // Fallback to web if Platform is not available
+    // Lazy import Platform only when needed
+    const { Platform } = require('react-native');
+    if (Platform && Platform.OS) {
+      return Platform.OS;
+    }
+  } catch (e) {
+    // Platform not available (e.g., during SSR or initial web load)
+  }
+  
+  // Fallback detection for web
+  if (typeof window !== 'undefined') {
     return 'web';
   }
+  
+  return 'unknown';
 }
 
 console.log('[Supabase] Initializing with URL:', supabaseUrl);
-console.log('[Supabase] Platform:', getPlatform());
 console.log('[Supabase] Is configured:', isSupabaseConfigured());
 
 // Create a storage adapter that works across platforms
@@ -69,6 +77,8 @@ const ExpoSecureStoreAdapter = {
   getItem: async (key: string): Promise<string | null> => {
     try {
       const platform = getPlatform();
+      console.log('[Supabase Storage] Getting item on platform:', platform);
+      
       // SecureStore is only available on native platforms
       if (platform === 'web') {
         // Use localStorage for web
@@ -89,6 +99,8 @@ const ExpoSecureStoreAdapter = {
   setItem: async (key: string, value: string): Promise<void> => {
     try {
       const platform = getPlatform();
+      console.log('[Supabase Storage] Setting item on platform:', platform);
+      
       // SecureStore is only available on native platforms
       if (platform === 'web') {
         // Use localStorage for web
@@ -107,6 +119,8 @@ const ExpoSecureStoreAdapter = {
   removeItem: async (key: string): Promise<void> => {
     try {
       const platform = getPlatform();
+      console.log('[Supabase Storage] Removing item on platform:', platform);
+      
       // SecureStore is only available on native platforms
       if (platform === 'web') {
         // Use localStorage for web
@@ -134,7 +148,7 @@ export const supabase = createClient(
       storage: ExpoSecureStoreAdapter,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: getPlatform() === 'web', // Only detect URL sessions on web
+      detectSessionInUrl: typeof window !== 'undefined', // Only detect URL sessions on web
     },
   }
 );
