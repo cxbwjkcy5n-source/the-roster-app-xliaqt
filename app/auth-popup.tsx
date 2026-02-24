@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import { Platform } from "react-native";
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { authClient } from "@/lib/auth";
 
@@ -8,7 +7,13 @@ export default function AuthPopupScreen() {
   const { provider } = useLocalSearchParams<{ provider: string }>();
 
   useEffect(() => {
-    if (Platform.OS !== "web") return;
+    // Safety check for web environment
+    const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
+    
+    if (!isWeb) {
+      console.log('[AuthPopup] Not on web platform, skipping OAuth popup flow');
+      return;
+    }
 
     if (!provider || !["google", "github", "apple"].includes(provider)) {
       window.opener?.postMessage({ type: "oauth-error", error: "Invalid provider" }, "*");

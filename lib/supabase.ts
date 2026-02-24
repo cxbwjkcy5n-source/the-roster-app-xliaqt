@@ -52,16 +52,22 @@ if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
 // Helper function to safely get platform - LAZY IMPORT
 function getPlatform(): 'ios' | 'android' | 'web' | 'unknown' {
   try {
-    // Lazy import Platform only when needed
+    // Check if we're in a web environment first
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      return 'web';
+    }
+    
+    // Lazy import Platform only when needed for native
     const { Platform } = require('react-native');
     if (Platform && Platform.OS) {
       return Platform.OS;
     }
   } catch (e) {
     // Platform not available (e.g., during SSR or initial web load)
+    console.log('[Supabase] Platform detection failed, using fallback:', e);
   }
   
-  // Fallback detection for web
+  // Final fallback
   if (typeof window !== 'undefined') {
     return 'web';
   }

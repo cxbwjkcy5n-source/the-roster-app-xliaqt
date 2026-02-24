@@ -1,13 +1,23 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '@/lib/supabase';
 import { colors } from '@/styles/commonStyles';
+
+// Lazy import supabase to avoid Platform initialization issues
+let supabase: any = null;
+async function getSupabase() {
+  if (!supabase) {
+    const { supabase: supabaseClient } = await import('@/lib/supabase');
+    supabase = supabaseClient;
+  }
+  return supabase;
+}
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[AuthCallback] Processing callback with params:', params);
@@ -15,6 +25,9 @@ export default function AuthCallbackScreen() {
     // Handle the callback (both OAuth and email verification)
     const handleCallback = async () => {
       try {
+        // Get supabase client lazily
+        const supabaseClient = await getSupabase();
+        
         // Check if this is an email verification callback
         // Supabase email verification links include type=signup or type=recovery
         const type = params.type as string | undefined;
@@ -26,14 +39,15 @@ export default function AuthCallbackScreen() {
         // If we have tokens in the URL, set the session
         if (accessToken && refreshToken) {
           console.log('[AuthCallback] Setting session from URL tokens...');
-          const { data, error } = await supabase.auth.setSession({
+          const { data, error } = await supabaseClient.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           if (error) {
             console.error('[AuthCallback] Error setting session:', error);
-            router.replace('/auth/login');
+            setError('Failed to verify email. Please try again.');
+            setTimeout(() => router.replace('/auth/login'), 2000);
             return;
           }
 
@@ -46,11 +60,12 @@ export default function AuthCallbackScreen() {
         }
 
         // Otherwise, check if we already have a session (OAuth flow)
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
         
         if (error) {
           console.error('[AuthCallback] Error getting session:', error);
-          router.replace('/auth/login');
+          setError('Authentication failed. Please try again.');
+          setTimeout(() => router.replace('/auth/login'), 2000);
           return;
         }
 
@@ -63,7 +78,8 @@ export default function AuthCallbackScreen() {
         }
       } catch (error) {
         console.error('[AuthCallback] Error handling callback:', error);
-        router.replace('/auth/login');
+        setError('An unexpected error occurred. Please try again.');
+        setTimeout(() => router.replace('/auth/login'), 2000);
       }
     };
 
@@ -72,8 +88,17 @@ export default function AuthCallbackScreen() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={styles.text}>Completing sign in...</Text>
+      {error ? (
+        <>
+          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.subText}>Redirecting...</Text>
+        </>
+      ) : (
+        <>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.text}>Completing sign in...</Text>
+        </>
+      )}
     </View>
   );
 }
@@ -89,5 +114,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: colors.text,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF3B30',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  subText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 });
