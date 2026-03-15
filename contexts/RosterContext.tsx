@@ -52,6 +52,35 @@ export function useRoster() {
   return context;
 }
 
+// Check backend health via /api/health before loading data (8s timeout)
+async function checkBackendHealth(): Promise<boolean> {
+  try {
+    console.log('[RosterContext] Checking backend health...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    let response: Response;
+    try {
+      response = await fetch(`${BACKEND_URL}/api/health`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (response.ok) {
+      const data = await response.json().catch(() => ({}));
+      console.log('[RosterContext] Backend health check passed:', data);
+      return true;
+    }
+    console.warn('[RosterContext] Backend health check failed with status:', response.status);
+    return false;
+  } catch (err) {
+    console.warn('[RosterContext] Backend health check error:', err);
+    return false;
+  }
+}
+
 // Helper function to map API profile to RosterPerson
 function mapProfileToRosterPerson(profile: any): RosterPerson {
   // FIX: Ensure imageUrl is properly set from backend
@@ -147,6 +176,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [backendReady, setBackendReady] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const healthRetryIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshProfiles = useCallback(async () => {
     try {
@@ -161,11 +191,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setRetryCount(0);
     } catch (err: any) {
       console.error('[RosterContext] Failed to refresh profiles:', err);
-      if (err.message && err.message.includes('HTTP 500')) {
-        console.warn('[RosterContext] Backend database not ready - will retry later');
-        setBackendReady(false);
-        throw new Error('Backend is starting up. Please wait a moment.');
-      }
       throw err;
     }
   }, []);
@@ -209,10 +234,6 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setBackendReady(true);
     } catch (err: any) {
       console.error('[RosterContext] Failed to refresh dates:', err);
-      if (err.message && err.message.includes('HTTP 500')) {
-        console.warn('[RosterContext] Backend database not ready for dates');
-        setBackendReady(false);
-      }
     }
   }, [backendReady]);
 
@@ -278,14 +299,36 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     }
   }, [backendReady]);
 
+  const stopHealthRetry = useCallback(() => {
+    if (healthRetryIntervalRef.current !== null) {
+      console.log('[RosterContext] Stopping health retry interval');
+      clearInterval(healthRetryIntervalRef.current);
+      healthRetryIntervalRef.current = null;
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       console.log('[RosterContext] Loading data (attempt', retryCount + 1, ')...');
-      
+
+      // Check backend health first — only show "Starting Up" if health itself fails
+      const healthy = await checkBackendHealth();
+      if (!healthy) {
+        console.warn('[RosterContext] Backend health check failed - marking not ready');
+        setBackendReady(false);
+        setError('Backend is starting up. Please wait a moment.');
+        return; // exit early; auto-retry interval will re-trigger via retryCount
+      }
+
+      // Health passed — stop any pending retry interval and proceed
+      stopHealthRetry();
+      setBackendReady(true);
+      setError(null);
+
       await refreshProfiles();
-      
+
       await Promise.allSettled([
         refreshDates(),
         refreshReminders(),
@@ -293,38 +336,33 @@ export function RosterProvider({ children }: { children: ReactNode }) {
         refreshAnalytics(),
         refreshNudges(),
       ]);
-      
+
       console.log('[RosterContext] Data loaded successfully');
     } catch (err) {
       console.error('[RosterContext] Error loading data:', err);
+      // Profile/date fetch errors do NOT mark backend as not ready
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
       setError(errorMessage);
-      
-      if (!backendReady && retryCount < 5) {
-        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        console.log('[RosterContext] Scheduling retry in', retryDelay, 'ms');
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, retryDelay);
-      }
     } finally {
       setLoading(false);
     }
-  }, [refreshProfiles, refreshDates, refreshReminders, refreshInteractions, refreshAnalytics, refreshNudges, backendReady, retryCount]);
+  }, [refreshProfiles, refreshDates, refreshReminders, refreshInteractions, refreshAnalytics, refreshNudges, retryCount, stopHealthRetry]);
 
   const retryLoading = useCallback(async () => {
     console.log('[RosterContext] Manual retry triggered');
+    stopHealthRetry();
     setRetryCount(0);
     setBackendReady(true);
+    setError(null);
     await loadData();
-  }, [loadData]);
+  }, [loadData, stopHealthRetry]);
 
   useEffect(() => {
     if (user) {
       console.log('[RosterContext] User authenticated, loading data...');
       loadData();
-      
-      const intervalId = setInterval(() => {
+
+      const dateIntervalId = setInterval(() => {
         if (backendReady) {
           console.log('[RosterContext] Auto-refreshing dates...');
           refreshDates();
@@ -332,13 +370,14 @@ export function RosterProvider({ children }: { children: ReactNode }) {
           console.log('[RosterContext] Skipping auto-refresh - backend not ready');
         }
       }, 60000);
-      
+
       return () => {
         console.log('[RosterContext] Cleaning up date refresh interval');
-        clearInterval(intervalId);
+        clearInterval(dateIntervalId);
       };
     } else {
       console.log('[RosterContext] No user authenticated, clearing data...');
+      stopHealthRetry();
       setRoster([]);
       setBench([]);
       setDates([]);
@@ -350,6 +389,24 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setRetryCount(0);
     }
   }, [user, retryCount]);
+
+  // When backend is not ready, auto-retry health check every 5 seconds
+  useEffect(() => {
+    if (!backendReady && user) {
+      console.log('[RosterContext] Backend not ready — starting 5s auto-retry interval');
+      if (healthRetryIntervalRef.current === null) {
+        healthRetryIntervalRef.current = setInterval(() => {
+          console.log('[RosterContext] Auto-retry: incrementing retryCount');
+          setRetryCount(prev => prev + 1);
+        }, 5000);
+      }
+    } else {
+      stopHealthRetry();
+    }
+    return () => {
+      // cleanup handled by stopHealthRetry
+    };
+  }, [backendReady, user, stopHealthRetry]);
 
   const addPerson = async (person: RosterPerson) => {
     try {

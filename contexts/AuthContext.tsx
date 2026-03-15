@@ -156,11 +156,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[AuthContext] Auth state changed:', event);
       
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN') {
+        // Always bust cache on fresh sign-in so profile-complete is re-checked
+        if (session?.user?.id) {
+          console.log('[AuthContext] SIGNED_IN — busting profile cache for fresh profile-complete check');
+          delete profileCacheRef.current[session.user.id];
+        }
         const mappedUser = await mapSupabaseUser(session?.user || null);
         setUser(mappedUser);
         setLoading(false);
-        console.log('[AuthContext] User updated and loading set to false');
+        console.log('[AuthContext] User updated after SIGNED_IN, firstLoginCompleted:', mappedUser?.firstLoginCompleted);
+
+        // Redirect to profile setup if profile is incomplete
+        if (mappedUser?.firstLoginCompleted === false) {
+          console.log('[AuthContext] Profile incomplete on SIGNED_IN — redirecting to profile setup');
+          router.replace('/(tabs)/profile');
+        }
+      } else if (event === 'TOKEN_REFRESHED') {
+        const mappedUser = await mapSupabaseUser(session?.user || null);
+        setUser(mappedUser);
+        setLoading(false);
+        console.log('[AuthContext] User updated after TOKEN_REFRESHED');
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setLoading(false);
