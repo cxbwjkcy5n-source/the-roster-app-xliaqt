@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { colors } from '@/styles/commonStyles';
 import {
   View,
@@ -7,12 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Modal,
   Dimensions,
-  ScrollView,
   ActivityIndicator,
   FlatList,
-  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -24,81 +21,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const DATING_MENU_ITEMS = [
-  {
-    id: 'have-date',
-    title: 'I Have a Date',
-    subtitle: 'Schedule & track your date',
-    iosIcon: 'calendar',
-    androidIcon: 'calendar-today' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#E91E8C',
-    route: '/dating/schedule',
-  },
-  {
-    id: 'plan-date',
-    title: 'Plan a Date',
-    subtitle: 'Get AI-powered suggestions',
-    iosIcon: 'sparkles',
-    androidIcon: 'auto-awesome' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#9C27B0',
-    route: '/dating/plan',
-  },
-  {
-    id: 'on-date',
-    title: "I'm On a Date",
-    subtitle: 'Safety check-in & tracking',
-    iosIcon: 'location.fill',
-    androidIcon: 'location-on' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#F44336',
-    route: '/dating/safety',
-  },
-  {
-    id: 'dating-coach',
-    title: 'Dating Coach',
-    subtitle: 'AI advice & conversation help',
-    iosIcon: 'bubble.left.fill',
-    androidIcon: 'chat' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#2196F3',
-    route: '/dating/coach',
-  },
-  {
-    id: 'my-dates',
-    title: 'My Dates',
-    subtitle: 'View your date history',
-    iosIcon: 'clock.fill',
-    androidIcon: 'history' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#4CAF50',
-    route: '/dating/history',
-  },
-];
-
 export default function RosterScreen() {
   const router = useRouter();
   const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate } = useRoster();
   const { user, loading: authLoading, profileIncomplete } = useAuth();
-  const [showDatingMenu, setShowDatingMenu] = useState(false);
-  const slideAnim = useRef(new Animated.Value(400)).current;
-
-  const openDatingMenu = () => {
-    console.log('[Home] User tapped dating menu button - opening submenu');
-    setShowDatingMenu(true);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start();
-  };
-
-  const closeDatingMenu = () => {
-    console.log('[Home] User closed dating menu');
-    Animated.spring(slideAnim, {
-      toValue: 400,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start(() => setShowDatingMenu(false));
-  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -246,31 +172,17 @@ export default function RosterScreen() {
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         </View>
         <View style={styles.headerButtons}>
-          {/* FIX: Calendar button now navigates to /dating/history */}
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              console.log('[Home] User tapped calendar button - navigating to My Dates screen');
-              router.push('/dating/history');
+              console.log('[Home] User tapped Dating Analytics button - navigating to analytics');
+              router.push('/dating/analytics');
             }}
             activeOpacity={0.7}
           >
             <IconSymbol 
-              ios_icon_name="calendar" 
-              android_material_icon_name="calendar-today" 
-              size={22} 
-              color={colors.white} 
-            />
-          </TouchableOpacity>
-          {/* FIX: Changed icon to menu and opens dating submenu modal */}
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={openDatingMenu}
-            activeOpacity={0.7}
-          >
-            <IconSymbol 
-              ios_icon_name="line.3.horizontal" 
-              android_material_icon_name="menu" 
+              ios_icon_name="chart.bar.fill" 
+              android_material_icon_name="insert-chart" 
               size={22} 
               color={colors.white} 
             />
@@ -296,68 +208,6 @@ export default function RosterScreen() {
         )}
       </View>
 
-      <Modal
-        visible={showDatingMenu}
-        animationType="none"
-        transparent
-        onRequestClose={closeDatingMenu}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={closeDatingMenu}
-          />
-          <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Dating</Text>
-            <ScrollView
-              style={styles.modalScroll}
-              contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {DATING_MENU_ITEMS.map((item, index) => (
-                <React.Fragment key={item.id}>
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => {
-                      console.log('[Home] User tapped dating menu item:', item.title);
-                      closeDatingMenu();
-                      setTimeout(() => router.push(item.route as any), 300);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.menuIconCircle, { backgroundColor: item.color }]}>
-                      <IconSymbol
-                        ios_icon_name={item.iosIcon}
-                        android_material_icon_name={item.androidIcon}
-                        size={22}
-                        color="#FFFFFF"
-                      />
-                    </View>
-                    <View style={styles.menuTextContainer}>
-                      <Text style={styles.menuItemTitle}>{item.title}</Text>
-                      <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
-                    </View>
-                    <IconSymbol
-                      ios_icon_name="chevron.right"
-                      android_material_icon_name="chevron-right"
-                      size={16}
-                      color="#555555"
-                    />
-                  </TouchableOpacity>
-                  {index < DATING_MENU_ITEMS.length - 1 && (
-                    <View style={styles.menuSeparator} />
-                  )}
-                </React.Fragment>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.cancelButton} onPress={closeDatingMenu} activeOpacity={0.8}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -540,92 +390,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.grey,
     marginTop: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-  },
-  modalBackdrop: {
-    flex: 1,
-  },
-  modalContent: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: 34,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#444444',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  modalScroll: {
-    flexShrink: 1,
-  },
-  modalScrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 0,
-  },
-  menuIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  menuTextContainer: {
-    flex: 1,
-  },
-  menuItemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  menuItemSubtitle: {
-    fontSize: 13,
-    color: '#888888',
-    marginTop: 2,
-  },
-  menuSeparator: {
-    height: 1,
-    backgroundColor: '#2a2a2a',
-    marginLeft: 58,
-  },
-  cancelButton: {
-    marginHorizontal: 16,
-    marginBottom: 32,
-    marginTop: 8,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   profileBanner: {
     backgroundColor: '#8B0000',

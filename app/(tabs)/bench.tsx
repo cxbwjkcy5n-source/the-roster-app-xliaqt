@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,10 @@ import {
   Image,
   Dimensions,
   Modal,
-  Pressable,
   TouchableWithoutFeedback,
   Keyboard,
-  ActivityIndicator,
   TextInput,
   Alert,
-  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,107 +20,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
-import { authenticatedGet } from '@/utils/api';
-
-const DATING_MENU_ITEMS = [
-  {
-    id: 'have-date',
-    title: 'I Have a Date',
-    subtitle: 'Schedule & track your date',
-    iosIcon: 'calendar',
-    androidIcon: 'calendar-today' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#E91E8C',
-    route: '/dating/schedule',
-  },
-  {
-    id: 'plan-date',
-    title: 'Plan a Date',
-    subtitle: 'Get AI-powered suggestions',
-    iosIcon: 'sparkles',
-    androidIcon: 'auto-awesome' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#9C27B0',
-    route: '/dating/plan',
-  },
-  {
-    id: 'on-date',
-    title: "I'm On a Date",
-    subtitle: 'Safety check-in & tracking',
-    iosIcon: 'location.fill',
-    androidIcon: 'location-on' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#F44336',
-    route: '/dating/safety',
-  },
-  {
-    id: 'dating-coach',
-    title: 'Dating Coach',
-    subtitle: 'AI advice & conversation help',
-    iosIcon: 'bubble.left.fill',
-    androidIcon: 'chat' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#2196F3',
-    route: '/dating/coach',
-  },
-  {
-    id: 'my-dates',
-    title: 'My Dates',
-    subtitle: 'View your date history',
-    iosIcon: 'clock.fill',
-    androidIcon: 'history' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-    color: '#4CAF50',
-    route: '/dating/history',
-  },
-];
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 64) / 2;
 
-interface Analytics {
-  totalProfiles: number;
-  totalDates: number;
-  upcomingDates: number;
-  completedDates: number;
-  interestLevelBreakdown: {
-    low: number;
-    medium: number;
-    high: number;
-  };
-  statusBreakdown: {
-    roster: number;
-    bench: number;
-  };
-}
-
 export default function BenchScreen() {
   const router = useRouter();
   const { bench, dates, roster, updateDate, rateDate, refreshDates } = useRoster();
-  const [showDatingMenu, setShowDatingMenu] = useState(false);
-  const slideAnim = useRef(new Animated.Value(400)).current;
-
-  const openDatingMenu = () => {
-    console.log('[Bench] User tapped dating menu button - opening submenu');
-    setShowDatingMenu(true);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start();
-  };
-
-  const closeDatingMenu = () => {
-    console.log('[Bench] User closed dating menu');
-    Animated.spring(slideAnim, {
-      toValue: 400,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start(() => setShowDatingMenu(false));
-  };
-
   const [showDatesModal, setShowDatesModal] = useState(false);
-  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [selectedDate, setSelectedDate] = useState<any>(null);
   const [showDateDetails, setShowDateDetails] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -143,35 +48,6 @@ export default function BenchScreen() {
   const upcomingDates = dates.filter(d => d.status === 'upcoming');
   const completedDates = dates.filter(d => d.status === 'completed');
   const displayDates = datesTab === 'upcoming' ? upcomingDates : completedDates;
-
-  const loadAnalytics = useCallback(async () => {
-    try {
-      setLoadingAnalytics(true);
-      console.log('[Bench] Loading analytics...');
-      const data = await authenticatedGet<Analytics>('/api/analytics');
-      console.log('[Bench] Analytics loaded:', data);
-      setAnalytics(data);
-    } catch (error: any) {
-      console.error('[Bench] Error loading analytics:', error);
-      // Set empty analytics if error (e.g., no roster profiles yet)
-      setAnalytics({
-        totalProfiles: 0,
-        totalDates: 0,
-        upcomingDates: 0,
-        completedDates: 0,
-        interestLevelBreakdown: { low: 0, medium: 0, high: 0 },
-        statusBreakdown: { roster: 0, bench: 0 },
-      });
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (showAnalyticsModal && !analytics) {
-      loadAnalytics();
-    }
-  }, [showAnalyticsModal, analytics, loadAnalytics]);
 
   const handleEditDate = (date: any) => {
     console.log('[Bench] User tapped Edit Date button for:', date.id);
@@ -253,209 +129,6 @@ export default function BenchScreen() {
     }
   };
 
-  const getInterestPercentages = () => {
-    if (!analytics) return { high: 0, medium: 0, low: 0 };
-    const total = analytics.interestLevelBreakdown.high + 
-                  analytics.interestLevelBreakdown.medium + 
-                  analytics.interestLevelBreakdown.low;
-    if (total === 0) return { high: 0, medium: 0, low: 0 };
-    return {
-      high: (analytics.interestLevelBreakdown.high / total) * 100,
-      medium: (analytics.interestLevelBreakdown.medium / total) * 100,
-      low: (analytics.interestLevelBreakdown.low / total) * 100,
-    };
-  };
-
-  const renderAnalyticsInfographic = () => {
-    if (!analytics) {
-      console.log('[Bench] Analytics is null, cannot render infographic');
-      return null;
-    }
-    
-    console.log('[Bench] Rendering analytics infographic with data:', analytics);
-    
-    const interestPercentages = getInterestPercentages();
-    const totalProfiles = analytics.totalProfiles;
-    const rosterPercentage = totalProfiles > 0 ? (analytics.statusBreakdown.roster / totalProfiles) * 100 : 0;
-    const benchPercentage = totalProfiles > 0 ? (analytics.statusBreakdown.bench / totalProfiles) * 100 : 0;
-
-    return (
-      <ScrollView style={styles.analyticsScroll} contentContainerStyle={styles.analyticsContent}>
-        {/* Hero Stats */}
-        <View style={styles.heroStatsContainer}>
-          <LinearGradient
-            colors={['#667eea', '#764ba2']}
-            style={styles.heroStatCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <IconSymbol
-              ios_icon_name="person.3.fill"
-              android_material_icon_name="group"
-              size={32}
-              color="#fff"
-            />
-            <Text style={styles.heroStatValue}>{analytics.totalProfiles}</Text>
-            <Text style={styles.heroStatLabel}>Total Profiles</Text>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={['#FF6B9D', '#C44569']}
-            style={styles.heroStatCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <IconSymbol
-              ios_icon_name="calendar"
-              android_material_icon_name="calendar-today"
-              size={32}
-              color="#fff"
-            />
-            <Text style={styles.heroStatValue}>{analytics.totalDates}</Text>
-            <Text style={styles.heroStatLabel}>Total Dates</Text>
-          </LinearGradient>
-        </View>
-
-        {/* Dates Breakdown */}
-        <View style={styles.infographicSection}>
-          <Text style={styles.sectionTitle}>📅 Dates Overview</Text>
-          <View style={styles.datesBreakdownContainer}>
-            <View style={styles.dateBreakdownCard}>
-              <View style={[styles.dateIconCircle, { backgroundColor: '#4FACFE' }]}>
-                <IconSymbol
-                  ios_icon_name="clock.fill"
-                  android_material_icon_name="schedule"
-                  size={24}
-                  color="#fff"
-                />
-              </View>
-              <Text style={styles.dateBreakdownValue}>{analytics.upcomingDates}</Text>
-              <Text style={styles.dateBreakdownLabel}>Upcoming</Text>
-            </View>
-
-            <View style={styles.dateBreakdownCard}>
-              <View style={[styles.dateIconCircle, { backgroundColor: '#2E7D32' }]}>
-                <IconSymbol
-                  ios_icon_name="checkmark.circle.fill"
-                  android_material_icon_name="check-circle"
-                  size={24}
-                  color="#fff"
-                />
-              </View>
-              <Text style={styles.dateBreakdownValue}>{analytics.completedDates}</Text>
-              <Text style={styles.dateBreakdownLabel}>Completed</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Interest Level Breakdown */}
-        <View style={styles.infographicSection}>
-          <Text style={styles.sectionTitle}>💚 Interest Levels</Text>
-          
-          {/* High Interest */}
-          <View style={styles.interestRow}>
-            <View style={styles.interestLabelContainer}>
-              <View style={[styles.interestDot, { backgroundColor: '#2E7D32' }]} />
-              <Text style={styles.interestLabel}>High</Text>
-            </View>
-            <View style={styles.interestBarContainer}>
-              <View 
-                style={[
-                  styles.interestBar, 
-                  { 
-                    width: `${interestPercentages.high}%`,
-                    backgroundColor: '#2E7D32'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.high}</Text>
-          </View>
-
-          {/* Medium Interest */}
-          <View style={styles.interestRow}>
-            <View style={styles.interestLabelContainer}>
-              <View style={[styles.interestDot, { backgroundColor: '#FFC107' }]} />
-              <Text style={styles.interestLabel}>Medium</Text>
-            </View>
-            <View style={styles.interestBarContainer}>
-              <View 
-                style={[
-                  styles.interestBar, 
-                  { 
-                    width: `${interestPercentages.medium}%`,
-                    backgroundColor: '#FFC107'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.medium}</Text>
-          </View>
-
-          {/* Low Interest */}
-          <View style={styles.interestRow}>
-            <View style={styles.interestLabelContainer}>
-              <View style={[styles.interestDot, { backgroundColor: '#DC3545' }]} />
-              <Text style={styles.interestLabel}>Low</Text>
-            </View>
-            <View style={styles.interestBarContainer}>
-              <View 
-                style={[
-                  styles.interestBar, 
-                  { 
-                    width: `${interestPercentages.low}%`,
-                    backgroundColor: '#DC3545'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.interestValue}>{analytics.interestLevelBreakdown.low}</Text>
-          </View>
-        </View>
-
-        {/* Roster vs Bench */}
-        <View style={styles.infographicSection}>
-          <Text style={styles.sectionTitle}>⚡ Status Distribution</Text>
-          <View style={styles.statusContainer}>
-            <View style={styles.statusCard}>
-              <LinearGradient
-                colors={['#2E7D32', '#1a4d2e']}
-                style={styles.statusCardGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="star.fill"
-                  android_material_icon_name="star"
-                  size={28}
-                  color="#fff"
-                />
-                <Text style={styles.statusValue}>{analytics.statusBreakdown.roster}</Text>
-                <Text style={styles.statusLabel}>Roster</Text>
-                <Text style={styles.statusPercentage}>{rosterPercentage.toFixed(0)}%</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statusCard}>
-              <LinearGradient
-                colors={['#DC3545', '#a02834']}
-                style={styles.statusCardGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="pause.circle.fill"
-                  android_material_icon_name="pause-circle"
-                  size={28}
-                  color="#fff"
-                />
-                <Text style={styles.statusValue}>{analytics.statusBreakdown.bench}</Text>
-                <Text style={styles.statusLabel}>Bench</Text>
-                <Text style={styles.statusPercentage}>{benchPercentage.toFixed(0)}%</Text>
-              </LinearGradient>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient colors={gradients.benchRed} style={styles.header}>
@@ -464,47 +137,7 @@ export default function BenchScreen() {
             <Text style={styles.headerTitle}>THE BENCH</Text>
             <Text style={styles.headerSubtitle}>Paused connections</Text>
           </View>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => {
-                console.log('[Bench] User tapped My Dates button');
-                setShowDatesModal(true);
-              }}
-            >
-              <IconSymbol
-                ios_icon_name="calendar"
-                android_material_icon_name="calendar-today"
-                size={24}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => {
-                console.log('[Bench] User tapped Analytics button');
-                setShowAnalyticsModal(true);
-              }}
-            >
-              <IconSymbol
-                ios_icon_name="chart.bar.fill"
-                android_material_icon_name="insert-chart"
-                size={24}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={openDatingMenu}
-            >
-              <IconSymbol
-                ios_icon_name="line.3.horizontal"
-                android_material_icon_name="menu"
-                size={24}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-          </View>
+
         </View>
       </LinearGradient>
 
@@ -722,42 +355,6 @@ export default function BenchScreen() {
             </View>
           </View>
         </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* Analytics Modal - Opens from top */}
-      <Modal
-        visible={showAnalyticsModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowAnalyticsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📊 Dating Analytics</Text>
-              <TouchableOpacity onPress={() => setShowAnalyticsModal(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            {loadingAnalytics ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.actionRed} />
-                <Text style={styles.loadingText}>Loading analytics...</Text>
-              </View>
-            ) : analytics ? (
-              renderAnalyticsInfographic()
-            ) : (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.emptyText}>Failed to load analytics</Text>
-              </View>
-            )}
-          </View>
-        </View>
       </Modal>
 
       {/* Date Details Modal - FIX: Increased maxHeight to 85% */}
@@ -1030,70 +627,6 @@ export default function BenchScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Dating Menu Modal */}
-      <Modal
-        visible={showDatingMenu}
-        animationType="none"
-        transparent
-        onRequestClose={closeDatingMenu}
-      >
-        <View style={styles.datingMenuOverlay}>
-          <TouchableOpacity
-            style={styles.datingMenuBackdrop}
-            activeOpacity={1}
-            onPress={closeDatingMenu}
-          />
-          <Animated.View style={[styles.datingMenuContent, { transform: [{ translateY: slideAnim }] }]}>
-            <View style={styles.datingMenuHandle} />
-            <Text style={styles.datingMenuTitle}>Dating</Text>
-            <ScrollView
-              style={styles.datingMenuScroll}
-              contentContainerStyle={styles.datingMenuScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {DATING_MENU_ITEMS.map((item, index) => (
-                <React.Fragment key={item.id}>
-                  <TouchableOpacity
-                    style={styles.datingMenuItem}
-                    onPress={() => {
-                      console.log('[Bench] User tapped dating menu item:', item.title);
-                      closeDatingMenu();
-                      setTimeout(() => router.push(item.route as any), 300);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.datingMenuIconCircle, { backgroundColor: item.color }]}>
-                      <IconSymbol
-                        ios_icon_name={item.iosIcon}
-                        android_material_icon_name={item.androidIcon}
-                        size={22}
-                        color="#FFFFFF"
-                      />
-                    </View>
-                    <View style={styles.datingMenuTextContainer}>
-                      <Text style={styles.datingMenuItemTitle}>{item.title}</Text>
-                      <Text style={styles.datingMenuItemSubtitle}>{item.subtitle}</Text>
-                    </View>
-                    <IconSymbol
-                      ios_icon_name="chevron.right"
-                      android_material_icon_name="chevron-right"
-                      size={16}
-                      color="#555555"
-                    />
-                  </TouchableOpacity>
-                  {index < DATING_MENU_ITEMS.length - 1 && (
-                    <View style={styles.datingMenuSeparator} />
-                  )}
-                </React.Fragment>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.datingMenuCancelButton} onPress={closeDatingMenu} activeOpacity={0.8}>
-              <Text style={styles.datingMenuCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </Modal>
-
       {/* Rating Modal */}
       <Modal
         visible={showRatingModal}
@@ -1259,18 +792,6 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 4,
   },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
   },
@@ -1364,93 +885,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.white,
     fontWeight: '600',
-  },
-  // Dating Menu Modal styles
-  datingMenuOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-  },
-  datingMenuBackdrop: {
-    flex: 1,
-  },
-  datingMenuContent: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: 34,
-  },
-  datingMenuHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#444444',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  datingMenuTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  datingMenuScroll: {
-    flexShrink: 1,
-  },
-  datingMenuScrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  datingMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 0,
-  },
-  datingMenuIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  datingMenuTextContainer: {
-    flex: 1,
-  },
-  datingMenuItemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  datingMenuItemSubtitle: {
-    fontSize: 13,
-    color: '#888888',
-    marginTop: 2,
-  },
-  datingMenuSeparator: {
-    height: 1,
-    backgroundColor: '#2a2a2a',
-    marginLeft: 58,
-  },
-  datingMenuCancelButton: {
-    marginHorizontal: 16,
-    marginBottom: 32,
-    marginTop: 8,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  datingMenuCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   reasonBadge: {
     marginTop: 8,
