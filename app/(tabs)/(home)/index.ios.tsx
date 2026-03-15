@@ -66,13 +66,7 @@ export default function RosterScreen() {
     }
   }, [user, authLoading, router]);
 
-  // Check if user needs to complete profile
-  useEffect(() => {
-    if (user && user.firstLoginCompleted === false) {
-      console.log('[Home] First login detected - redirecting to profile completion');
-      router.push('/(tabs)/profile');
-    }
-  }, [user, router]);
+  const profileIncomplete = user && user.firstLoginCompleted === false;
 
   if (authLoading || rosterLoading) {
     return (
@@ -248,6 +242,30 @@ export default function RosterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {profileIncomplete && (
+        <TouchableOpacity
+          style={styles.profileBanner}
+          onPress={() => {
+            console.log('[Home] User tapped complete profile banner');
+            router.push('/(tabs)/profile');
+          }}
+          activeOpacity={0.85}
+        >
+          <IconSymbol
+            ios_icon_name="person.crop.circle.badge.exclamationmark"
+            android_material_icon_name="account-circle"
+            size={20}
+            color="#fff"
+          />
+          <Text style={styles.profileBannerText}>Complete your profile to get started</Text>
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={16}
+            color="rgba(255,255,255,0.8)"
+          />
+        </TouchableOpacity>
+      )}
       {/* Roster Header - Black Gradient */}
       <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
         <View style={styles.headerContent}>
@@ -650,5 +668,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.95)',
     fontWeight: '500',
+  },
+  profileBanner: {
+    backgroundColor: '#8B0000',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  profileBannerText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

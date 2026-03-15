@@ -614,6 +614,34 @@ export default function ProfileScreen() {
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           )}
+
+          {isEditing && (
+            <TouchableOpacity
+              style={[styles.saveProfileButton, (loading || uploadingImage) && styles.saveProfileButtonDisabled]}
+              onPress={() => {
+                console.log('[Profile] User tapped bottom Save Profile button');
+                handleSave();
+              }}
+              disabled={loading || uploadingImage}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={22}
+                    color="#fff"
+                  />
+                  <Text style={styles.saveProfileButtonText}>
+                    {isFirstLogin ? 'Complete Profile' : 'Save Profile'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -792,7 +820,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   welcomeCard: {
     backgroundColor: colors.card,
@@ -1079,5 +1107,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  saveProfileButton: {
+    backgroundColor: colors.rosterRed,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    borderRadius: 14,
+    gap: 10,
+    marginTop: 24,
+    shadowColor: colors.rosterRed,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  saveProfileButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveProfileButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

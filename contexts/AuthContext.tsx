@@ -167,11 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         console.log('[AuthContext] User updated after SIGNED_IN, firstLoginCompleted:', mappedUser?.firstLoginCompleted);
 
-        // Redirect to profile setup if profile is incomplete
-        if (mappedUser?.firstLoginCompleted === false) {
-          console.log('[AuthContext] Profile incomplete on SIGNED_IN — redirecting to profile setup');
-          router.replace('/(tabs)/profile');
-        }
+        // Do NOT force-redirect to profile — home screen shows a non-blocking banner instead
       } else if (event === 'TOKEN_REFRESHED') {
         const mappedUser = await mapSupabaseUser(session?.user || null);
         setUser(mappedUser);
