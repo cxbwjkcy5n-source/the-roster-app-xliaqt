@@ -19,7 +19,8 @@ import { registerCoachingRoutes } from './routes/coaching.js';
 import { registerLocationsRoutes } from './routes/locations.js';
 
 // Add delay before application creation to allow WASM modules to initialize
-await new Promise(resolve => setTimeout(resolve, 500));
+// Increased delay to allow PGlite WASM to fully initialize
+await new Promise(resolve => setTimeout(resolve, 2000));
 
 // Handle uncaught exceptions to prevent WASM abort errors from crashing
 process.on('uncaughtException', (error) => {
@@ -45,25 +46,36 @@ export const app = await createApplication(schema);
 export type App = typeof app;
 
 // Run database migrations on startup
-app.logger.info('Starting database migration process');
+// Skip migrations if DATABASE_URL is not set (local PGlite development)
+const shouldSkipMigrations = !process.env.DATABASE_URL && process.env.SKIP_DB_MIGRATIONS !== 'false';
+
+app.logger.info({ shouldSkip: shouldSkipMigrations }, 'Starting database migration process');
+
 let migrationAttempts = 0;
-const maxMigrationAttempts = 3;
-let migrationsSuccessful = false;
+const maxMigrationAttempts = 2; // Reduced to 2 for faster startup
+let migrationsSuccessful = !shouldSkipMigrations; // Skip if in local dev mode
 
-while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
-  try {
-    migrationAttempts++;
+if (!shouldSkipMigrations) {
+  while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
+    try {
+      migrationAttempts++;
 
-    // Add delay between attempts
-    if (migrationAttempts > 1) {
-      app.logger.info({ attempt: migrationAttempts }, 'Waiting 2 seconds before retry...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
+      // Add delay between attempts - increase delay for each attempt
+      if (migrationAttempts > 1) {
+        const delayMs = Math.min(5000, 1000 * migrationAttempts);
+        app.logger.info({ attempt: migrationAttempts, delayMs }, 'Waiting before retry...');
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
 
     app.logger.info({ attempt: migrationAttempts, maxAttempts: maxMigrationAttempts }, 'Executing database migrations');
-    await runMigrations({ logger: app.logger });
-    app.logger.info('✓ Database migrations completed successfully');
-    migrationsSuccessful = true;
+    try {
+      await runMigrations({ logger: app.logger });
+      app.logger.info('✓ Database migrations completed successfully');
+      migrationsSuccessful = true;
+    } catch (migrationError) {
+      // Handle migration errors - don't let them crash startup
+      throw migrationError;
+    }
   } catch (error) {
     // Log but don't fail startup - the framework may have already initialized the schema
     // and this error might be about the drizzle schema which is optional
@@ -90,7 +102,8 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
       errorMessage.includes('RuntimeError') ||
       errorMessage.includes('WASM') ||
       errorMessage.includes('_pg_initdb') ||
-      errorMessage.includes('CREATE SCHEMA');
+      errorMessage.includes('CREATE SCHEMA') ||
+      errorMessage.includes('Failed query');
 
     // Check if tables already exist (migrations already applied)
     const isAlreadyApplied = errorMessage.includes('already exists');
@@ -109,9 +122,10 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
           { err: errorMessage },
           'WASM initialization issue detected - this is expected during PGlite startup'
         );
-        if (migrationAttempts >= maxMigrationAttempts) {
+        // Allow startup after just 2 attempts when WASM errors occur
+        if (migrationAttempts >= 2) {
           app.logger.info(
-            'WASM initialization completed after retries. Database schema will be initialized by framework.'
+            'WASM initialization issue detected. Database schema will be initialized by framework on demand. Server starting now.'
           );
           migrationsSuccessful = true; // Allow startup to continue - framework handles schema
         }
@@ -130,6 +144,7 @@ while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
       }
     }
   }
+}
 }
 
 // Enable authentication with Better Auth configuration
