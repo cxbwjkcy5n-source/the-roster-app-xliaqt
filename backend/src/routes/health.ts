@@ -10,36 +10,21 @@ export function registerHealthRoutes(app: App, fastify: FastifyInstance) {
     '/api/health',
     {
       schema: {
-        description: 'Health check endpoint',
+        description: 'Health check endpoint - simple liveness check',
         tags: ['health'],
         response: {
           200: {
             type: 'object',
             properties: {
               status: { type: 'string' },
-              timestamp: { type: 'string' },
-              database: { type: 'string' },
             },
           },
         },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      let dbStatus = 'ok';
-
-      try {
-        // Test database connection
-        await app.db.execute(sql`SELECT 1`);
-      } catch (error) {
-        app.logger.warn({ err: error }, 'Database health check failed');
-        dbStatus = 'degraded';
-      }
-
-      return {
-        status: 'ok',
-        database: dbStatus,
-        timestamp: new Date().toISOString(),
-      };
+      app.logger.info('Health check request');
+      return { status: 'ok' };
     }
   );
 
