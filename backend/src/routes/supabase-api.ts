@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { supabaseAuthMiddleware, requireAuth, type AuthenticatedRequest } from '../middleware/supabase-auth.js';
 import { supabase } from '../lib/supabase.js';
 import { ensureUserExists } from '../lib/ensure-user.js';
+import { mapFieldsToSupabase } from '../lib/field-mapper.js';
 
 export function registerSupabaseRoutes(fastify: FastifyInstance) {
   // Register auth middleware for all protected routes
@@ -92,6 +93,9 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         // Ensure user exists
         await ensureUserExists(userId, request.userEmail!, request.userName!);
 
+        // Map field names to Supabase format (supports both camelCase and snake_case)
+        const mappedBody = mapFieldsToSupabase(body);
+
         // Check if profile exists
         const { data: existingProfile, error: selectError } = await supabase
           .from('user_profiles')
@@ -109,7 +113,7 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
           const { error: updateError } = await supabase
             .from('user_profiles')
             .update({
-              ...body,
+              ...mappedBody,
               updated_at: new Date().toISOString(),
             })
             .eq('user_id', userId);
@@ -124,7 +128,7 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
             .from('user_profiles')
             .insert({
               user_id: userId,
-              ...body,
+              ...mappedBody,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
@@ -203,12 +207,15 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         // Ensure user exists
         await ensureUserExists(userId, request.userEmail!, request.userName!);
 
+        // Map field names to Supabase format (supports both camelCase and snake_case)
+        const mappedBody = mapFieldsToSupabase(body);
+
         // Insert new profile
         const { data, error } = await supabase
           .from('profiles')
           .insert({
             user_id: userId,
-            ...body,
+            ...mappedBody,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -313,11 +320,14 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
           return reply.status(403).send({ error: { message: 'Forbidden' } });
         }
 
+        // Map field names to Supabase format (supports both camelCase and snake_case)
+        const mappedBody = mapFieldsToSupabase(body);
+
         // Update profile
         const { data, error } = await supabase
           .from('profiles')
           .update({
-            ...body,
+            ...mappedBody,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id)
@@ -537,11 +547,14 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const userId = request.userId!;
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('dates')
           .insert({
             user_id: userId,
-            ...body,
+            ...mappedBody,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -567,9 +580,12 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('dates')
-          .update({ ...body, updated_at: new Date().toISOString() })
+          .update({ ...mappedBody, updated_at: new Date().toISOString() })
           .eq('id', id);
 
         if (error) {
@@ -636,9 +652,12 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const userId = request.userId!;
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('reminders')
-          .insert({ user_id: userId, ...body });
+          .insert({ user_id: userId, ...mappedBody });
 
         if (error) {
           console.error({ err: error }, 'Error creating reminder');
@@ -661,9 +680,12 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('reminders')
-          .update(body)
+          .update(mappedBody)
           .eq('id', id);
 
         if (error) {
@@ -774,9 +796,12 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('profiles')
-          .update({ status: 'benched', bench_reason: body.benchReason || body.bench_reason })
+          .update({ status: 'benched', bench_reason: mappedBody.bench_reason || body.benchReason || body.bench_reason })
           .eq('id', id);
 
         if (error) {
@@ -823,12 +848,15 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('profile_flags')
           .insert({
             profile_id: id,
-            flag_text: body.flagText || body.flag_text,
-            type: body.type || 'red',
+            flag_text: mappedBody.flag_text || body.flagText || body.flag_text,
+            type: mappedBody.type || body.type || 'red',
           });
 
         if (error) {
@@ -893,12 +921,15 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
         const userId = request.userId!;
         const body = request.body as Record<string, any>;
 
+        // Map field names to Supabase format
+        const mappedBody = mapFieldsToSupabase(body);
+
         const { error } = await supabase
           .from('coaching_history')
           .insert({
             user_id: userId,
-            role: body.role,
-            content: body.content,
+            role: mappedBody.role || body.role,
+            content: mappedBody.content || body.content,
           });
 
         if (error) {

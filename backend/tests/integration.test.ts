@@ -146,6 +146,179 @@ describe('Integration Tests', () => {
     });
   });
 
+  describe('Sign Up and Sign In', () => {
+    it('should sign up with valid credentials', async () => {
+      const email = `testuser-signup-${Date.now()}@test.com`;
+      const password = 'validPassword123';
+      const name = 'Test Sign Up User';
+
+      const res = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+        }),
+      });
+      await expectStatus(res, 201);
+
+      const data = await res.json() as any;
+      expect(data.user).toBeDefined();
+      expect(data.user.id).toBeDefined();
+      expect(data.user.email).toBe(email);
+      expect(data.session).toBeDefined();
+      expect(data.session.token).toBeDefined();
+    });
+
+    it('should reject sign up with password too short', async () => {
+      const email = `testuser-${Date.now()}@test.com`;
+      const password = 'short'; // Less than 8 characters
+
+      const res = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          name: 'Test User',
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should reject sign up with missing name', async () => {
+      const email = `testuser-${Date.now()}@test.com`;
+      const password = 'validPassword123';
+
+      const res = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should reject sign up with missing email', async () => {
+      const password = 'validPassword123';
+      const name = 'Test User';
+
+      const res = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          password,
+          name,
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should reject sign up with missing password', async () => {
+      const email = `testuser-${Date.now()}@test.com`;
+      const name = 'Test User';
+
+      const res = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          name,
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should sign in with valid credentials', async () => {
+      const email = `testuser-signin-${Date.now()}@test.com`;
+      const password = 'validPassword123';
+      const name = 'Test Sign In User';
+
+      // First, sign up
+      const signUpRes = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+        }),
+      });
+      await expectStatus(signUpRes, 201);
+
+      // Then, sign in
+      const signInRes = await api('/api/sign-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+      await expectStatus(signInRes, 200);
+
+      const data = await signInRes.json() as any;
+      expect(data.user).toBeDefined();
+      expect(data.user.email).toBe(email);
+      expect(data.session).toBeDefined();
+      expect(data.session.token).toBeDefined();
+    });
+
+    it('should reject sign in with wrong password', async () => {
+      const email = `testuser-wrongpwd-${Date.now()}@test.com`;
+      const password = 'validPassword123';
+      const name = 'Test Wrong Password User';
+
+      // First, sign up
+      const signUpRes = await api('/api/sign-up', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+        }),
+      });
+      await expectStatus(signUpRes, 201);
+
+      // Then, try to sign in with wrong password
+      const signInRes = await api('/api/sign-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password: 'wrongPassword123',
+        }),
+      });
+      await expectStatus(signInRes, 400, 401);
+    });
+
+    it('should reject sign in with nonexistent email', async () => {
+      const res = await api('/api/sign-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'nonexistent-user-12345@test.com',
+          password: 'somePassword123',
+        }),
+      });
+      await expectStatus(res, 400, 401);
+    });
+
+    it('should reject sign in with missing email', async () => {
+      const res = await api('/api/sign-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          password: 'somePassword123',
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should reject sign in with missing password', async () => {
+      const res = await api('/api/sign-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'test@test.com',
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+  });
+
   describe('Authentication Endpoints', () => {
     let authToken: string;
     let userId: string;
