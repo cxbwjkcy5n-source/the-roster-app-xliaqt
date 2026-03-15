@@ -83,7 +83,7 @@ export default function ProfileScreen() {
       console.log('[Profile] Profile data loaded:', profileData);
 
       if (profileData.name) setName(profileData.name);
-      if (profileData.image) setProfileImage(profileData.image);
+      if (profileData.image || profileData.profileImageUrl) setProfileImage(profileData.image || profileData.profileImageUrl);
       if (profileData.age) setAge(profileData.age.toString());
       if (profileData.location) setLocation(profileData.location);
       if (profileData.phoneNumber) setPhoneNumber(profileData.phoneNumber);
@@ -218,7 +218,13 @@ export default function ProfileScreen() {
       if (phoneNumber) profileData.phoneNumber = phoneNumber.trim();
       if (favoriteColor) profileData.favoriteColor = favoriteColor;
       if (favoriteFoodType) profileData.favoriteFoodType = favoriteFoodType;
-      if (profileImage) profileData.profileImageUrl = profileImage;
+      if (instagram) profileData.instagram = instagram.trim();
+      if (twitter) profileData.twitter = twitter.trim();
+      if (notes) profileData.notes = notes.trim();
+      if (profileImage) {
+        profileData.image = profileImage;
+        profileData.profileImageUrl = profileImage;
+      }
 
       console.log('[Profile] Sending profile data to API:', JSON.stringify(profileData));
       const { authenticatedPut } = await import('@/utils/api');

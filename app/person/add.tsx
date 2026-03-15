@@ -253,12 +253,14 @@ export default function AddPersonScreen() {
       // Upload image to backend if selected and changed
       let uploadedImageUrl: string | undefined;
       
+      let uploadedImageKey: string | undefined = undefined;
+
       // For editing: if photoUri is a remote URL (not a local file), carry it forward as-is
-      if (isEditing && photoUri && !photoUri.startsWith('file://')) {
+      if (isEditing && photoUri && !photoUri.startsWith('file://') && !photoUri.startsWith('content://')) {
         uploadedImageUrl = photoUri;
       }
 
-      if (photoUri && (!isEditing || photoUri.startsWith('file://'))) {
+      if (photoUri && (!isEditing || photoUri.startsWith('file://') || photoUri.startsWith('content://'))) {
         try {
           console.log('[AddPerson] Uploading image to backend via uploadImage utility...');
           const uploadResult = await uploadImage(photoUri, 'roster');
