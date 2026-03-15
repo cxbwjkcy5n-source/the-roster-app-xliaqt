@@ -3,6 +3,7 @@ import { supabaseAuthMiddleware, requireAuth, type AuthenticatedRequest } from '
 import { supabase } from '../lib/supabase.js';
 import { ensureUserExists } from '../lib/ensure-user.js';
 import { mapFieldsToSupabase } from '../lib/field-mapper.js';
+import { uploadImage, ensureBucketExists } from '../lib/image-upload.js';
 
 export function registerSupabaseRoutes(fastify: FastifyInstance) {
   // Register auth middleware for all protected routes
@@ -22,6 +23,14 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
       await supabaseAuthMiddleware(request, reply);
       await requireAuth(request, reply);
     }
+  });
+
+  // Initialize storage buckets on startup
+  ensureBucketExists('profile-images').catch((err) => {
+    console.warn('Failed to ensure profile-images bucket:', err);
+  });
+  ensureBucketExists('roster-images').catch((err) => {
+    console.warn('Failed to ensure roster-images bucket:', err);
   });
 
   // GET /api/user/profile - Get user's own profile
@@ -409,48 +418,41 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
     '/api/upload/profile-image',
     {
       schema: {
-        description: 'Upload profile image to Supabase Storage',
+        description: 'Upload profile image to Supabase Storage (accepts base64 data URL or HTTPS URL)',
         tags: ['upload'],
+        body: {
+          type: 'object',
+          properties: {
+            image: { type: 'string', description: 'Base64 data URL or HTTPS URL' },
+          },
+          required: ['image'],
+        },
         response: {
           200: {
             type: 'object',
-            properties: { url: { type: 'string' } },
+            properties: {
+              url: { type: 'string' },
+              key: { type: 'string' },
+            },
           },
         },
       },
     },
     async (request: AuthenticatedRequest, reply) => {
       try {
-        const userId = request.userId!;
-        const data = await request.file();
+        const body = request.body as Record<string, any>;
+        const image = body.image as string;
 
-        if (!data) {
-          return reply.status(400).send({ error: { message: 'No file provided' } });
+        if (!image || typeof image !== 'string') {
+          return reply.status(400).send({ error: { message: 'Image field is required and must be a string' } });
         }
 
-        const buffer = await data.toBuffer();
-        const filename = `${userId}/${Date.now()}-${data.filename}`;
-
-        const { error } = await supabase.storage
-          .from('profile-images')
-          .upload(filename, buffer, {
-            contentType: data.mimetype,
-            upsert: false,
-          });
-
-        if (error) {
-          console.error({ err: error }, 'Error uploading profile image');
-          return reply.status(500).send({ error: { message: 'Failed to upload image' } });
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('profile-images')
-          .getPublicUrl(filename);
-
-        return { url: publicUrlData.publicUrl };
+        const result = await uploadImage('profile-images', image);
+        return reply.status(200).send(result);
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Internal server error';
         console.error({ err: error }, 'Error in POST /api/upload/profile-image');
-        return reply.status(500).send({ error: { message: 'Internal server error' } });
+        return reply.status(500).send({ error: { message } });
       }
     }
   );
@@ -460,48 +462,41 @@ export function registerSupabaseRoutes(fastify: FastifyInstance) {
     '/api/upload/roster-image',
     {
       schema: {
-        description: 'Upload roster image to Supabase Storage',
+        description: 'Upload roster image to Supabase Storage (accepts base64 data URL or HTTPS URL)',
         tags: ['upload'],
+        body: {
+          type: 'object',
+          properties: {
+            image: { type: 'string', description: 'Base64 data URL or HTTPS URL' },
+          },
+          required: ['image'],
+        },
         response: {
           200: {
             type: 'object',
-            properties: { url: { type: 'string' } },
+            properties: {
+              url: { type: 'string' },
+              key: { type: 'string' },
+            },
           },
         },
       },
     },
     async (request: AuthenticatedRequest, reply) => {
       try {
-        const userId = request.userId!;
-        const data = await request.file();
+        const body = request.body as Record<string, any>;
+        const image = body.image as string;
 
-        if (!data) {
-          return reply.status(400).send({ error: { message: 'No file provided' } });
+        if (!image || typeof image !== 'string') {
+          return reply.status(400).send({ error: { message: 'Image field is required and must be a string' } });
         }
 
-        const buffer = await data.toBuffer();
-        const filename = `${userId}/${Date.now()}-${data.filename}`;
-
-        const { error } = await supabase.storage
-          .from('roster-images')
-          .upload(filename, buffer, {
-            contentType: data.mimetype,
-            upsert: false,
-          });
-
-        if (error) {
-          console.error({ err: error }, 'Error uploading roster image');
-          return reply.status(500).send({ error: { message: 'Failed to upload image' } });
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('roster-images')
-          .getPublicUrl(filename);
-
-        return { url: publicUrlData.publicUrl };
+        const result = await uploadImage('roster-images', image);
+        return reply.status(200).send(result);
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Internal server error';
         console.error({ err: error }, 'Error in POST /api/upload/roster-image');
-        return reply.status(500).send({ error: { message: 'Internal server error' } });
+        return reply.status(500).send({ error: { message } });
       }
     }
   );
