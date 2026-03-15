@@ -56,7 +56,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row to prevent foreign key violations
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         const [profile] = await app.db
           .insert(schema.rosterProfiles)
@@ -159,7 +159,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         let updated = 0;
 
@@ -208,7 +208,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, session.user.id),
@@ -249,7 +249,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { code } = request.query as { code: string };
 

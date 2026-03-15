@@ -68,7 +68,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const body = request.body as {
         profileName: string;
@@ -164,7 +164,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const activeSafetyDate = await app.db.query.safetyDates.findFirst({
         where: and(
@@ -198,7 +198,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const safetyDates = await app.db.query.safetyDates.findMany({
         where: eq(schema.safetyDates.userId, session.user.id),
@@ -227,7 +227,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
 
@@ -264,7 +264,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
 
@@ -309,7 +309,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
 
@@ -364,7 +364,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
       const body = request.body as { contactName: string; phoneNumber: string };
@@ -427,7 +427,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id, contactId } = request.params as { id: string; contactId: string };
 
@@ -469,7 +469,7 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };

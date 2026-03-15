@@ -50,7 +50,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id, profileName: body.name }, 'Creating new roster profile');
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       try {
         const [profile] = await app.db
@@ -108,7 +108,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       app.logger.info({ userId: session.user.id }, 'Fetching all roster profiles');
 
@@ -141,7 +141,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
 
@@ -181,7 +181,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };
@@ -225,7 +225,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
 
@@ -276,7 +276,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
       const { flagText, flagType } = request.body as { flagText: string; flagType: 'red' | 'green' };

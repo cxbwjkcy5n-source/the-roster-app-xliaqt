@@ -59,7 +59,7 @@ export function registerLocationsRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { query } = request.query as { query: string };
 

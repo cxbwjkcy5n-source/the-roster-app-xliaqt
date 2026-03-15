@@ -21,7 +21,7 @@ export function registerFlagsRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       const { id } = request.params as { id: string };
 
