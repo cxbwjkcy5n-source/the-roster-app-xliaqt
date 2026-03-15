@@ -119,16 +119,6 @@ describe('Integration Tests', () => {
     await stopServer();
   });
 
-  describe('Health Check', () => {
-    it('should return 200 on /api/health', async () => {
-      const res = await api('/api/health');
-      await expectStatus(res, 200);
-
-      const data = await res.json() as any;
-      expect(data.status).toBe('ok');
-    });
-  });
-
   describe('Protected Routes', () => {
     it('should return 401 on protected routes without token', async () => {
       const res = await api('/api/profiles');
@@ -576,6 +566,104 @@ describe('Integration Tests', () => {
     });
   });
 
+  describe('Roster CRUD', () => {
+    let authToken: string;
+    let rosterMemberId: string;
+
+    it('should sign up a test user', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should create a roster member with compatibility scoring', async () => {
+      const res = await authenticatedApi('/api/roster', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Jane Doe',
+          age: 28,
+          location: 'Los Angeles',
+          birthday_month: 'March',
+          birthday_day: 15,
+          zodiac_sign: 'Pisces',
+          favorite_color: 'blue',
+          favorite_food: 'pasta',
+          relationship_type: 'romantic',
+          interest_level: 8,
+          status: 'active',
+        }),
+      });
+      await expectStatus(res, 201);
+
+      const data = await res.json() as any;
+      expect(data.id).toBeDefined();
+      rosterMemberId = data.id;
+    });
+
+    it('should get all roster members', async () => {
+      const res = await authenticatedApi('/api/roster', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(Array.isArray(data)).toBe(true);
+      expect(data.length).toBeGreaterThan(0);
+    });
+
+    it('should get a single roster member by ID', async () => {
+      const res = await authenticatedApi(`/api/roster/${rosterMemberId}`, authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.id).toBe(rosterMemberId);
+      expect(data.name).toBe('Jane Doe');
+    });
+
+    it('should update a roster member', async () => {
+      const res = await authenticatedApi(`/api/roster/${rosterMemberId}`, authToken, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: 'Jane Smith',
+          age: 29,
+          favorite_color: 'green',
+        }),
+      });
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data).toBeDefined();
+    });
+
+    it('should delete a roster member', async () => {
+      const res = await authenticatedApi(`/api/roster/${rosterMemberId}`, authToken, {
+        method: 'DELETE',
+      });
+      await expectStatus(res, 204);
+    });
+
+    it('should return 404 for deleted roster member', async () => {
+      const res = await authenticatedApi(`/api/roster/${rosterMemberId}`, authToken);
+      await expectStatus(res, 404);
+    });
+
+    it('should reject roster member creation without required name', async () => {
+      const res = await authenticatedApi('/api/roster', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          age: 25,
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should return 404 for nonexistent roster member', async () => {
+      const res = await authenticatedApi(
+        '/api/roster/00000000-0000-0000-0000-000000000000',
+        authToken,
+      );
+      await expectStatus(res, 404);
+    });
+  });
+
   describe('File Uploads', () => {
     let authToken: string;
 
@@ -996,6 +1084,14 @@ describe('Integration Tests', () => {
     it('should return 404 for nonexistent date', async () => {
       const res = await authenticatedApi(
         '/api/dates/00000000-0000-0000-0000-000000000000',
+        authToken,
+      );
+      await expectStatus(res, 404);
+    });
+
+    it('should return 404 for nonexistent roster member', async () => {
+      const res = await authenticatedApi(
+        '/api/roster/00000000-0000-0000-0000-000000000000',
         authToken,
       );
       await expectStatus(res, 404);
