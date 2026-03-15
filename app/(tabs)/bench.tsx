@@ -137,7 +137,38 @@ export default function BenchScreen() {
             <Text style={styles.headerTitle}>THE BENCH</Text>
             <Text style={styles.headerSubtitle}>Paused connections</Text>
           </View>
-
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                console.log('[Bench] User tapped Dates button - navigating to dates');
+                router.push('/dating/dates' as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={22}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                console.log('[Bench] User tapped Analytics button - navigating to analytics');
+                router.push('/dating/analytics' as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name="chart.bar.fill"
+                android_material_icon_name="insert-chart"
+                size={22}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -779,6 +810,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerTitle: {
     fontSize: 28,

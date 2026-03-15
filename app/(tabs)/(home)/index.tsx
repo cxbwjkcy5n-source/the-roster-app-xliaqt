@@ -246,8 +246,23 @@ export default function RosterScreen() {
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
+              console.log('[Home] User tapped Dates button - navigating to dates');
+              router.push('/dating/dates' as any);
+            }}
+            activeOpacity={0.7}
+          >
+            <IconSymbol 
+              ios_icon_name="calendar" 
+              android_material_icon_name="calendar-today" 
+              size={22} 
+              color={colors.white} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {
               console.log('[Home] User tapped Dating Analytics button - navigating to analytics');
-              router.push('/dating/analytics');
+              router.push('/dating/analytics' as any);
             }}
             activeOpacity={0.7}
           >

@@ -1,129 +1,280 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
-import { authenticatedGet } from '@/utils/api';
+import { useRoster } from '@/contexts/RosterContext';
 
-interface Analytics {
-  totalProfiles: number;
-  totalDates: number;
-  upcomingDates: number;
-  completedDates: number;
-  interestLevelBreakdown: {
-    low: number;
-    medium: number;
-    high: number;
-  };
-  statusBreakdown: {
-    roster: number;
-    bench: number;
-  };
-  dateFrequency: {
-    thisWeek: number;
-    thisMonth: number;
-    lastMonth: number;
-  };
-  datesPerMonth: { month: string; count: number }[];
-  averageRating: number;
-  totalRatings: number;
-  wouldGoAgainPercentage: number;
-  commonRedFlags: { flag: string; count: number }[];
-  commonGreenFlags: { flag: string; count: number }[];
-  topRatedDates: {
-    id: string;
-    profileName: string;
-    type: string;
-    rating: number;
-    date: string;
-  }[];
+// ─── Derived helpers ────────────────────────────────────────────────────────
+
+function getAvgRating(ratings: number[]): string {
+  if (ratings.length === 0) return '—';
+  const sum = ratings.reduce((a, b) => a + b, 0);
+  return (sum / ratings.length).toFixed(1);
 }
 
-// FIX: Get screen width for responsive sizing
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_MAX_WIDTH = SCREEN_WIDTH - 120; // Leave room for labels and values
-
-export default function DatingAnalyticsScreen() {
-  const router = useRouter();
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadAnalytics();
-  }, []);
-
-  const loadAnalytics = async () => {
-    try {
-      console.log('[DatingAnalytics] Loading analytics...');
-      setLoading(true);
-      const data = await authenticatedGet('/api/analytics');
-      console.log('[DatingAnalytics] Analytics loaded:', data);
-      setAnalytics(data);
-    } catch (error: any) {
-      console.error('[DatingAnalytics] Error loading analytics:', error);
-      // Set empty analytics if error (e.g., no roster profiles yet)
-      setAnalytics({
-        totalProfiles: 0,
-        totalDates: 0,
-        upcomingDates: 0,
-        completedDates: 0,
-        interestLevelBreakdown: { low: 0, medium: 0, high: 0 },
-        statusBreakdown: { roster: 0, bench: 0 },
-        dateFrequency: { thisWeek: 0, thisMonth: 0, lastMonth: 0 },
-        datesPerMonth: [],
-        averageRating: 0,
-        totalRatings: 0,
-        wouldGoAgainPercentage: 0,
-        commonRedFlags: [],
-        commonGreenFlags: [],
-        topRatedDates: [],
-      });
-    } finally {
-      setLoading(false);
+function getMostActiveDay(dateDates: string[]): string {
+  if (dateDates.length === 0) return '—';
+  const dayCounts: Record<string, number> = {};
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  dateDates.forEach((d) => {
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) {
+      const name = dayNames[parsed.getDay()];
+      dayCounts[name] = (dayCounts[name] || 0) + 1;
     }
-  };
+  });
+  const entries = Object.entries(dayCounts);
+  if (entries.length === 0) return '—';
+  return entries.sort((a, b) => b[1] - a[1])[0][0];
+}
 
-  // Safely extract values with defaults
-  const averageRating = analytics?.averageRating ?? 0;
-  const wouldGoAgainPercentage = analytics?.wouldGoAgainPercentage ?? 0;
-  const totalRatings = analytics?.totalRatings ?? 0;
-  const totalDates = analytics?.totalDates ?? 0;
-  const completedDates = analytics?.completedDates ?? 0;
-  const upcomingDates = analytics?.upcomingDates ?? 0;
-  const thisMonthDates = analytics?.dateFrequency?.thisMonth ?? 0;
-  
-  const averageRatingDisplay = averageRating.toFixed(1);
-  const wouldGoAgainDisplay = wouldGoAgainPercentage.toFixed(0);
+function getMatchRate(total: number, completed: number): string {
+  if (total === 0) return '0%';
+  return Math.round((completed / total) * 100) + '%';
+}
+
+// ─── Bar chart row ───────────────────────────────────────────────────────────
+
+interface BarRowProps {
+  label: string;
+  value: number;
+  max: number;
+  color: string;
+}
+
+function BarRow({ label, value, max, color }: BarRowProps) {
+  const pct = max === 0 ? 0 : Math.min((value / max) * 100, 100);
+  const pctStr = pct.toFixed(0) + '%';
+  return (
+    <View style={barStyles.row}>
+      <Text style={barStyles.label}>{label}</Text>
+      <View style={barStyles.track}>
+        <View style={[barStyles.fill, { width: pctStr, backgroundColor: color }]} />
+      </View>
+      <Text style={barStyles.value}>{value}</Text>
+    </View>
+  );
+}
+
+const barStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  label: {
+    width: 36,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.grey,
+  },
+  track: {
+    flex: 1,
+    height: 20,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginHorizontal: 10,
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 10,
+  },
+  value: {
+    width: 24,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.darkText,
+    textAlign: 'right',
+  },
+});
+
+// ─── Star display ────────────────────────────────────────────────────────────
+
+function StarDisplay({ rating }: { rating: number }) {
+  const filled = Math.round(rating);
+  return (
+    <View style={{ flexDirection: 'row', gap: 3 }}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <IconSymbol
+          key={s}
+          ios_icon_name={s <= filled ? 'star.fill' : 'star'}
+          android_material_icon_name={s <= filled ? 'star' : 'star-border'}
+          size={18}
+          color={s <= filled ? colors.warning : colors.border}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─── Stat card ───────────────────────────────────────────────────────────────
+
+interface StatCardProps {
+  icon: string;
+  androidIcon: string;
+  label: string;
+  value: string;
+  accent: string;
+}
+
+function StatCard({ icon, androidIcon, label, value, accent }: StatCardProps) {
+  return (
+    <View style={[statStyles.card, { borderTopColor: accent, borderTopWidth: 3 }]}>
+      <View style={[statStyles.iconWrap, { backgroundColor: accent + '18' }]}>
+        <IconSymbol
+          ios_icon_name={icon}
+          android_material_icon_name={androidIcon}
+          size={22}
+          color={accent}
+        />
+      </View>
+      <Text style={statStyles.value}>{value}</Text>
+      <Text style={statStyles.label}>{label}</Text>
+    </View>
+  );
+}
+
+const statStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  value: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.darkText,
+    marginBottom: 4,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.grey,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+});
+
+// ─── Section wrapper ─────────────────────────────────────────────────────────
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={sectionStyles.wrap}>
+      <Text style={sectionStyles.title}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  wrap: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginBottom: 16,
+  },
+});
+
+// ─── Main screen ─────────────────────────────────────────────────────────────
+
+export default function AnalyticsScreen() {
+  const router = useRouter();
+  const { dates, roster, bench } = useRoster();
+
+  // Derived stats from real data
+  const totalDates = dates.length;
+  const completedDates = dates.filter((d) => d.status === 'completed');
+  const upcomingDates = dates.filter((d) => d.status === 'upcoming');
+  const completedCount = completedDates.length;
+  const upcomingCount = upcomingDates.length;
+
+  const ratings = completedDates.map((d) => d.rating || 0).filter((r) => r > 0);
+  const avgRatingNum = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+  const avgRatingStr = getAvgRating(ratings);
+  const matchRateStr = getMatchRate(totalDates, completedCount);
+  const mostActiveDayStr = getMostActiveDay(dates.map((d) => d.date || ''));
+
+  const totalPeople = roster.length + bench.length;
+  const rosterCount = roster.length;
+  const benchCount = bench.length;
+
+  // Date type breakdown
+  const typeCounts: Record<string, number> = {};
+  dates.forEach((d) => {
+    const t = d.type || 'casual';
+    typeCounts[t] = (typeCounts[t] || 0) + 1;
+  });
+  const typeEntries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+  const maxTypeCount = typeEntries.length > 0 ? typeEntries[0][1] : 1;
+
+  // Rating distribution
+  const ratingDist = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: ratings.filter((r) => r === star).length,
+  }));
+  const maxRatingCount = Math.max(...ratingDist.map((r) => r.count), 1);
+
+  // Would go again
+  const wouldGoAgainCount = completedDates.filter((d) => d.wouldGoAgain === true).length;
+  const wouldNotGoAgainCount = completedDates.filter((d) => d.wouldGoAgain === false).length;
+
+  // Type bar colors
+  const typeColors = ['#E91E8C', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800'];
+
+  const wouldGoAgainPct = completedCount > 0 ? Math.round((wouldGoAgainCount / completedCount) * 100) : 0;
+  const wouldGoAgainPctStr = wouldGoAgainPct + '%';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen 
-        options={{
-          headerShown: false,
-        }} 
-      />
-      
-      <LinearGradient
-        colors={['#FF6B9D', '#C44569']}
-        style={styles.header}
-      >
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Pink gradient header matching dates.tsx */}
+      <LinearGradient colors={['#E91E8C', '#C2185B']} style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
-            console.log('[DatingAnalytics] User tapped back button');
+            console.log('[Analytics] User tapped back button');
             router.back();
           }}
+          activeOpacity={0.7}
         >
           <IconSymbol
             ios_icon_name="chevron.left"
@@ -132,309 +283,240 @@ export default function DatingAnalyticsScreen() {
             color="#fff"
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Dating Analytics</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Analytics</Text>
+          <Text style={styles.headerSubtitle}>Your dating insights</Text>
+        </View>
         <View style={styles.headerSpacer} />
       </LinearGradient>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading analytics...</Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero stat cards */}
+        <View style={styles.statRow}>
+          <StatCard
+            icon="calendar.badge.checkmark"
+            androidIcon="event-available"
+            label="Total Dates"
+            value={String(totalDates)}
+            accent="#E91E8C"
+          />
+          <View style={styles.statGap} />
+          <StatCard
+            icon="percent"
+            androidIcon="percent"
+            label="Match Rate"
+            value={matchRateStr}
+            accent="#9C27B0"
+          />
         </View>
-      ) : analytics ? (
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-        >
-          {/* Overview Stats */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{totalDates}</Text>
-              <Text style={styles.statLabel}>Total Dates</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{completedDates}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{upcomingDates}</Text>
-              <Text style={styles.statLabel}>Upcoming</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{thisMonthDates}</Text>
-              <Text style={styles.statLabel}>This Month</Text>
-            </View>
-          </View>
 
-          {/* Date Ratings Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Date Ratings</Text>
-            <View style={styles.ratingStatsRow}>
-              <View style={styles.ratingStatCard}>
-                <View style={styles.ratingStarRow}>
-                  <IconSymbol
-                    ios_icon_name="star.fill"
-                    android_material_icon_name="star"
-                    size={32}
-                    color={colors.warning}
-                  />
-                  <Text style={styles.ratingValue}>{averageRatingDisplay}</Text>
-                </View>
-                <Text style={styles.ratingLabel}>Average Rating</Text>
-                <Text style={styles.ratingSubtext}>
-                  Based on {totalRatings} rating{totalRatings !== 1 ? 's' : ''}
-                </Text>
+        <View style={[styles.statRow, { marginTop: 12 }]}>
+          <StatCard
+            icon="star.fill"
+            androidIcon="star"
+            label="Avg Rating"
+            value={avgRatingStr}
+            accent={colors.warning}
+          />
+          <View style={styles.statGap} />
+          <StatCard
+            icon="person.2.fill"
+            androidIcon="group"
+            label="Total People"
+            value={String(totalPeople)}
+            accent={colors.rosterGreen}
+          />
+        </View>
+
+        {/* Dates overview */}
+        <View style={{ marginTop: 20 }}>
+          <Section title="Dates Overview">
+            <View style={styles.overviewRow}>
+              <View style={[styles.overviewCard, { borderColor: '#E91E8C' }]}>
+                <IconSymbol
+                  ios_icon_name="calendar.badge.clock"
+                  android_material_icon_name="event"
+                  size={28}
+                  color="#E91E8C"
+                />
+                <Text style={[styles.overviewValue, { color: '#E91E8C' }]}>{upcomingCount}</Text>
+                <Text style={styles.overviewLabel}>Upcoming</Text>
               </View>
-              
-              <View style={styles.ratingStatCard}>
-                <View style={styles.ratingStarRow}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={32}
-                    color={colors.rosterGreen}
-                  />
-                  <Text style={styles.ratingValue}>{wouldGoAgainDisplay}%</Text>
-                </View>
-                <Text style={styles.ratingLabel}>Would Go Again</Text>
-                <Text style={styles.ratingSubtext}>
-                  {Math.round((wouldGoAgainPercentage / 100) * totalRatings)} of {totalRatings} dates
-                </Text>
+              <View style={[styles.overviewCard, { borderColor: colors.rosterGreen }]}>
+                <IconSymbol
+                  ios_icon_name="checkmark.circle.fill"
+                  android_material_icon_name="check-circle"
+                  size={28}
+                  color={colors.rosterGreen}
+                />
+                <Text style={[styles.overviewValue, { color: colors.rosterGreen }]}>{completedCount}</Text>
+                <Text style={styles.overviewLabel}>Completed</Text>
+              </View>
+              <View style={[styles.overviewCard, { borderColor: colors.warning }]}>
+                <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="calendar-today"
+                  size={28}
+                  color={colors.warning}
+                />
+                <Text style={[styles.overviewValue, { color: colors.warning }]}>{totalDates}</Text>
+                <Text style={styles.overviewLabel}>Total</Text>
               </View>
             </View>
-          </View>
+          </Section>
+        </View>
 
-          {/* Top Rated Dates - CLICKABLE */}
-          {analytics.topRatedDates && analytics.topRatedDates.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Top Rated Dates</Text>
-              {analytics.topRatedDates.map((date, index) => {
-                const dateStr = date.date;
-                const profileNameStr = date.profileName;
-                const typeStr = date.type;
-                const ratingNum = date.rating;
-                
-                return (
-                  <TouchableOpacity 
-                    key={date.id || index} 
-                    style={styles.topDateCard}
-                    onPress={() => {
-                      console.log('[DatingAnalytics] User tapped top rated date - navigating to date history');
-                      router.push('/dating/history');
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.topDateHeader}>
-                      <Text style={styles.topDateName}>{profileNameStr}</Text>
-                      <View style={styles.topDateRating}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <IconSymbol
-                            key={star}
-                            ios_icon_name={star <= ratingNum ? "star.fill" : "star"}
-                            android_material_icon_name={star <= ratingNum ? "star" : "star-border"}
-                            size={14}
-                            color={star <= ratingNum ? colors.warning : colors.grey}
-                          />
-                        ))}
-                      </View>
-                    </View>
-                    <Text style={styles.topDateType}>{typeStr}</Text>
-                    <Text style={styles.topDateDate}>{dateStr}</Text>
-                    <View style={styles.clickIndicator}>
-                      <IconSymbol
-                        ios_icon_name="chevron.right"
-                        android_material_icon_name="chevron-right"
-                        size={16}
-                        color={colors.grey}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Dates Per Month - FIX: Constrained width */}
-          {analytics.datesPerMonth && analytics.datesPerMonth.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Dates Per Month</Text>
-              {analytics.datesPerMonth.map((item, index) => {
-                const monthStr = item.month;
-                const countNum = item.count;
-                const maxCount = Math.max(...analytics.datesPerMonth.map(d => d.count), 1);
-                const widthPixels = (countNum / maxCount) * CHART_MAX_WIDTH;
-                
-                return (
-                  <View key={index} style={styles.barChartRow}>
-                    <Text style={styles.barLabel}>{monthStr}</Text>
-                    <View style={styles.barContainer}>
-                      <View
-                        style={[
-                          styles.bar,
-                          {
-                            width: widthPixels,
-                          },
-                        ]}
-                      />
-                      <Text style={styles.barValue}>{countNum}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Common Red Flags */}
-          {analytics.commonRedFlags && analytics.commonRedFlags.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Common Red Flags</Text>
-              {analytics.commonRedFlags.slice(0, 5).map((item, index) => {
-                const flagStr = item.flag;
-                const countNum = item.count;
-                
-                return (
-                  <View key={index} style={styles.flagRow}>
-                    <Text style={styles.flagEmoji}>🚩</Text>
-                    <Text style={styles.flagText}>{flagStr}</Text>
-                    <Text style={styles.flagCount}>{countNum}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Common Green Flags */}
-          {analytics.commonGreenFlags && analytics.commonGreenFlags.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Common Green Flags</Text>
-              {analytics.commonGreenFlags.slice(0, 5).map((item, index) => {
-                const flagStr = item.flag;
-                const countNum = item.count;
-                
-                return (
-                  <View key={index} style={styles.flagRow}>
-                    <Text style={styles.flagEmoji}>✅</Text>
-                    <Text style={styles.flagText}>{flagStr}</Text>
-                    <Text style={styles.flagCount}>{countNum}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Interest Level Breakdown - CLICKABLE */}
-          <TouchableOpacity 
-            style={styles.section}
-            onPress={() => {
-              console.log('[DatingAnalytics] User tapped interest breakdown - navigating to roster');
-              router.push('/(tabs)/(home)');
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Interest Level Breakdown</Text>
-              <IconSymbol
-                ios_icon_name="chevron.right"
-                android_material_icon_name="chevron-right"
-                size={20}
-                color={colors.grey}
-              />
-            </View>
-            <View style={styles.interestBreakdown}>
-              <View style={styles.interestRow}>
-                <View style={[styles.interestDot, { backgroundColor: colors.green }]} />
-                <Text style={styles.interestLabel}>High Interest</Text>
-                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.high ?? 0}</Text>
+        {/* Most active day + avg rating */}
+        <Section title="Highlights">
+          <View style={styles.highlightRow}>
+            <View style={styles.highlightItem}>
+              <View style={[styles.highlightIcon, { backgroundColor: '#E91E8C18' }]}>
+                <IconSymbol
+                  ios_icon_name="sun.max.fill"
+                  android_material_icon_name="wb-sunny"
+                  size={22}
+                  color="#E91E8C"
+                />
               </View>
-              <View style={styles.interestRow}>
-                <View style={[styles.interestDot, { backgroundColor: colors.yellow }]} />
-                <Text style={styles.interestLabel}>Medium Interest</Text>
-                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.medium ?? 0}</Text>
-              </View>
-              <View style={styles.interestRow}>
-                <View style={[styles.interestDot, { backgroundColor: colors.lowInterest }]} />
-                <Text style={styles.interestLabel}>Low Interest</Text>
-                <Text style={styles.interestValue}>{analytics.interestLevelBreakdown?.low ?? 0}</Text>
-              </View>
+              <Text style={styles.highlightLabel}>Most Active Day</Text>
+              <Text style={styles.highlightValue}>{mostActiveDayStr}</Text>
             </View>
-          </TouchableOpacity>
-
-          {/* Status Breakdown - CLICKABLE */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Status Breakdown</Text>
-            <View style={styles.statusBreakdown}>
-              <TouchableOpacity 
-                style={styles.statusRow}
-                onPress={() => {
-                  console.log('[DatingAnalytics] User tapped Roster - navigating to roster');
-                  router.push('/(tabs)/(home)');
-                }}
-                activeOpacity={0.7}
-              >
+            <View style={styles.highlightDivider} />
+            <View style={styles.highlightItem}>
+              <View style={[styles.highlightIcon, { backgroundColor: colors.warning + '18' }]}>
                 <IconSymbol
                   ios_icon_name="star.fill"
                   android_material_icon_name="star"
-                  size={20}
-                  color={colors.rosterGreen}
+                  size={22}
+                  color={colors.warning}
                 />
-                <Text style={styles.statusLabel}>Roster</Text>
-                <Text style={styles.statusValue}>{analytics.statusBreakdown?.roster ?? 0}</Text>
-                <IconSymbol
-                  ios_icon_name="chevron.right"
-                  android_material_icon_name="chevron-right"
-                  size={16}
-                  color={colors.grey}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.statusRow}
-                onPress={() => {
-                  console.log('[DatingAnalytics] User tapped Bench - navigating to bench');
-                  router.push('/(tabs)/bench');
-                }}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name="pause.fill"
-                  android_material_icon_name="pause"
-                  size={20}
-                  color={colors.benchRed}
-                />
-                <Text style={styles.statusLabel}>Bench</Text>
-                <Text style={styles.statusValue}>{analytics.statusBreakdown?.bench ?? 0}</Text>
-                <IconSymbol
-                  ios_icon_name="chevron.right"
-                  android_material_icon_name="chevron-right"
-                  size={16}
-                  color={colors.grey}
-                />
-              </TouchableOpacity>
+              </View>
+              <Text style={styles.highlightLabel}>Avg Rating</Text>
+              {avgRatingNum > 0 ? (
+                <StarDisplay rating={avgRatingNum} />
+              ) : (
+                <Text style={styles.highlightValue}>—</Text>
+              )}
             </View>
           </View>
-        </ScrollView>
-      ) : (
-        <View style={styles.emptyContainer}>
-          <IconSymbol
-            ios_icon_name="chart.bar.fill"
-            android_material_icon_name="bar-chart"
-            size={64}
-            color={colors.grey}
-          />
-          <Text style={styles.emptyText}>No Analytics Yet</Text>
-          <Text style={styles.emptySubtext}>
-            Add people to your roster and schedule dates to see your dating analytics
-          </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={() => {
-              console.log('[DatingAnalytics] User tapped "Add to Roster" - navigating to add person');
-              router.push('/person/add');
-            }}
-          >
-            <Text style={styles.emptyButtonText}>Add to Roster</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+
+          <View style={[styles.highlightRow, { marginTop: 16 }]}>
+            <View style={styles.highlightItem}>
+              <View style={[styles.highlightIcon, { backgroundColor: colors.rosterGreen + '18' }]}>
+                <IconSymbol
+                  ios_icon_name="person.fill"
+                  android_material_icon_name="person"
+                  size={22}
+                  color={colors.rosterGreen}
+                />
+              </View>
+              <Text style={styles.highlightLabel}>On Roster</Text>
+              <Text style={styles.highlightValue}>{rosterCount}</Text>
+            </View>
+            <View style={styles.highlightDivider} />
+            <View style={styles.highlightItem}>
+              <View style={[styles.highlightIcon, { backgroundColor: colors.rosterRed + '18' }]}>
+                <IconSymbol
+                  ios_icon_name="pause.circle.fill"
+                  android_material_icon_name="pause-circle-outline"
+                  size={22}
+                  color={colors.rosterRed}
+                />
+              </View>
+              <Text style={styles.highlightLabel}>On Bench</Text>
+              <Text style={styles.highlightValue}>{benchCount}</Text>
+            </View>
+          </View>
+        </Section>
+
+        {/* Rating distribution */}
+        {ratings.length > 0 && (
+          <Section title="Rating Distribution">
+            {ratingDist.map(({ star, count }) => (
+              <BarRow
+                key={star}
+                label={String(star) + '★'}
+                value={count}
+                max={maxRatingCount}
+                color={colors.warning}
+              />
+            ))}
+          </Section>
+        )}
+
+        {/* Date type breakdown */}
+        {typeEntries.length > 0 && (
+          <Section title="Date Types">
+            {typeEntries.map(([type, count], i) => (
+              <BarRow
+                key={type}
+                label={type.slice(0, 3)}
+                value={count}
+                max={maxTypeCount}
+                color={typeColors[i % typeColors.length]}
+              />
+            ))}
+          </Section>
+        )}
+
+        {/* Would go again */}
+        {completedCount > 0 && (
+          <Section title="Would Go Again?">
+            <View style={styles.wouldGoRow}>
+              <View style={styles.wouldGoItem}>
+                <LinearGradient
+                  colors={[colors.rosterGreen, '#1F6B3A']}
+                  style={styles.wouldGoCircle}
+                >
+                  <Text style={styles.wouldGoCircleText}>{wouldGoAgainPctStr}</Text>
+                </LinearGradient>
+                <Text style={styles.wouldGoLabel}>Yes</Text>
+                <Text style={styles.wouldGoCount}>{wouldGoAgainCount} dates</Text>
+              </View>
+              <View style={styles.wouldGoItem}>
+                <LinearGradient
+                  colors={['#E91E8C', '#C2185B']}
+                  style={styles.wouldGoCircle}
+                >
+                  <Text style={styles.wouldGoCircleText}>{100 - wouldGoAgainPct}%</Text>
+                </LinearGradient>
+                <Text style={styles.wouldGoLabel}>No</Text>
+                <Text style={styles.wouldGoCount}>{wouldNotGoAgainCount} dates</Text>
+              </View>
+            </View>
+          </Section>
+        )}
+
+        {/* Empty state */}
+        {totalDates === 0 && (
+          <View style={styles.emptyState}>
+            <IconSymbol
+              ios_icon_name="chart.bar"
+              android_material_icon_name="bar-chart"
+              size={64}
+              color={colors.border}
+            />
+            <Text style={styles.emptyTitle}>No Data Yet</Text>
+            <Text style={styles.emptySubtext}>
+              Schedule and complete dates to see your analytics here.
+            </Text>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={() => {
+                console.log('[Analytics] User tapped Schedule a Date CTA');
+                router.push('/dating/schedule' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.ctaButtonText}>Schedule a Date</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -442,7 +524,7 @@ export default function DatingAnalyticsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F2F2F7',
   },
   header: {
     flexDirection: 'row',
@@ -459,278 +541,162 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerCenter: {
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
   },
+  headerSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
   headerSpacer: {
     width: 40,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  content: {
+  scroll: {
     flex: 1,
   },
-  contentContainer: {
+  scrollContent: {
     padding: 16,
     paddingBottom: 100,
   },
-  statsGrid: {
+  statRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
   },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.darkText,
-    marginBottom: 12,
-  },
-  ratingStatsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  ratingStatCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  ratingStarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  ratingValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.darkText,
-  },
-  ratingLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.darkText,
-    marginBottom: 4,
-  },
-  ratingSubtext: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  topDateCard: {
-    backgroundColor: colors.card,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    position: 'relative',
-  },
-  clickIndicator: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    transform: [{ translateY: -8 }],
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  topDateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  topDateName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.darkText,
-  },
-  topDateRating: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  topDateType: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textTransform: 'capitalize',
-    marginBottom: 2,
-  },
-  topDateDate: {
-    fontSize: 12,
-    color: colors.grey,
-  },
-  // FIX: Constrained bar chart width
-  barChartRow: {
-    marginBottom: 12,
-  },
-  barLabel: {
-    fontSize: 12,
-    color: colors.darkText,
-    marginBottom: 4,
-    width: 60,
-  },
-  barContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  bar: {
-    height: 24,
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-    minWidth: 20,
-  },
-  barValue: {
-    fontSize: 12,
-    color: colors.darkText,
-    fontWeight: '600',
-    width: 30,
-  },
-  flagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  flagEmoji: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  flagText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.darkText,
-  },
-  flagCount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  interestBreakdown: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  interestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  interestDot: {
+  statGap: {
     width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
   },
-  interestLabel: {
+  overviewRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  overviewCard: {
     flex: 1,
-    fontSize: 14,
-    color: colors.darkText,
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+    borderRadius: 14,
+    paddingVertical: 16,
+    borderWidth: 1.5,
+    gap: 6,
   },
-  interestValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.darkText,
+  overviewValue: {
+    fontSize: 28,
+    fontWeight: '800',
   },
-  statusBreakdown: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+  overviewLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.grey,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  statusRow: {
+  highlightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  statusLabel: {
+  highlightItem: {
     flex: 1,
-    fontSize: 14,
-    color: colors.darkText,
-    marginLeft: 12,
+    alignItems: 'center',
+    gap: 6,
   },
-  statusValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.darkText,
-  },
-  emptyContainer: {
-    flex: 1,
+  highlightIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
   },
-  emptyText: {
+  highlightLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.grey,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  highlightValue: {
     fontSize: 20,
+    fontWeight: '800',
+    color: colors.darkText,
+  },
+  highlightDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: colors.border,
+    marginHorizontal: 8,
+  },
+  wouldGoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  wouldGoItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  wouldGoCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  wouldGoCircleText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  wouldGoLabel: {
+    fontSize: 16,
     fontWeight: '700',
     color: colors.darkText,
-    marginTop: 16,
-    marginBottom: 8,
+  },
+  wouldGoCount: {
+    fontSize: 12,
+    color: colors.grey,
+    fontWeight: '500',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.darkText,
+    marginTop: 20,
+    marginBottom: 10,
   },
   emptySubtext: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.grey,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  emptyButton: {
-    backgroundColor: colors.rosterGreen,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+  ctaButton: {
+    backgroundColor: '#E91E8C',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 14,
+    shadowColor: '#E91E8C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  emptyButtonText: {
+  ctaButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
