@@ -146,6 +146,63 @@ describe('Integration Tests', () => {
     });
   });
 
+  describe('Authentication Endpoints', () => {
+    let authToken: string;
+    let userId: string;
+
+    it('should sign up a test user', async () => {
+      const { token, user } = await signUpTestUser();
+      authToken = token;
+      userId = user.id;
+      expect(token).toBeDefined();
+      expect(user.id).toBeDefined();
+    });
+
+    it('should verify a valid token', async () => {
+      const res = await authenticatedApi('/api/verify-token', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.user).toBeDefined();
+      expect(data.user.id).toBeDefined();
+      expect(data.authSource).toBeDefined();
+    });
+
+    it('should get current session', async () => {
+      const res = await authenticatedApi('/api/session', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.user).toBeDefined();
+      expect(data.user.id).toBeDefined();
+    });
+
+    it('should return 200 on /api/auth-health (no auth required)', async () => {
+      const res = await api('/api/auth-health');
+      await expectStatus(res, 200);
+    });
+
+    it('should get auth health check with authentication', async () => {
+      const res = await authenticatedApi('/api/health/auth', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.status).toBeDefined();
+      expect(data.authenticated).toBe(true);
+      expect(data.userId).toBeDefined();
+    });
+
+    it('should sign out successfully', async () => {
+      const res = await authenticatedApi('/api/sign-out', authToken, {
+        method: 'POST',
+      });
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.message).toBeDefined();
+    });
+  });
+
   describe('User Profile', () => {
     let authToken: string;
     let userId: string;
@@ -190,6 +247,17 @@ describe('Integration Tests', () => {
 
       const data = await res.json() as any;
       expect(data.age).toBe(28);
+    });
+
+    it('should complete user profile', async () => {
+      const res = await authenticatedApi('/api/user/complete-profile', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Complete Profile User',
+          age: 30,
+        }),
+      });
+      await expectStatus(res, 200);
     });
 
     describe('Roster Profiles CRUD', () => {
@@ -245,6 +313,36 @@ describe('Integration Tests', () => {
             name: 'Alice Johnson',
             age: 31,
             favorite_color: 'purple',
+          }),
+        });
+        await expectStatus(res, 200);
+
+        const data = await res.json() as any;
+        expect(data).toBeDefined();
+      });
+
+      it('should move profile to bench', async () => {
+        const res = await authenticatedApi(`/api/profiles/${profileId}/bench`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            bench_reason: 'Not interested right now',
+          }),
+        });
+        await expectStatus(res, 200);
+      });
+
+      it('should move profile to roster', async () => {
+        const res = await authenticatedApi(`/api/profiles/${profileId}/roster`, authToken, {
+          method: 'PUT',
+        });
+        await expectStatus(res, 200);
+      });
+
+      it('should add flag to profile', async () => {
+        const res = await authenticatedApi(`/api/profiles/${profileId}/flags`, authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            flag: 'important',
           }),
         });
         await expectStatus(res, 200);
@@ -362,24 +460,270 @@ describe('Integration Tests', () => {
       expect(Array.isArray(data)).toBe(true);
     });
 
-    it('should create a profile and it appears in dates', async () => {
-      // Create a profile marked as date-suitable
+    it('should create a date entry', async () => {
+      // Create a profile to use for dates
       const profileRes = await authenticatedApi('/api/profiles', authToken, {
         method: 'POST',
         body: JSON.stringify({
           name: 'Date Candidate',
           relationship_type: 'date',
-          favorite_color: 'green',
         }),
       });
       await expectStatus(profileRes, 201);
+      const profile = await profileRes.json() as any;
 
-      // Get dates should include it
+      // Create a date entry
+      const dateRes = await authenticatedApi('/api/dates', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          profile_id: profile.id,
+          date: '2026-04-15',
+        }),
+      });
+      await expectStatus(dateRes, 200, 201);
+    });
+
+    it('should update a date entry', async () => {
+      // Get existing dates to find one to update
       const datesRes = await authenticatedApi('/api/dates', authToken);
       await expectStatus(datesRes, 200);
+      const dates = await datesRes.json() as any;
 
-      const data = await datesRes.json() as any;
+      if (dates.length > 0) {
+        const dateId = dates[0].id;
+        const updateRes = await authenticatedApi(`/api/dates/${dateId}`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            date: '2026-04-20',
+            notes: 'Updated date',
+          }),
+        });
+        await expectStatus(updateRes, 200);
+      }
+    });
+
+    it('should delete a date entry', async () => {
+      // Get existing dates
+      const datesRes = await authenticatedApi('/api/dates', authToken);
+      await expectStatus(datesRes, 200);
+      const dates = await datesRes.json() as any;
+
+      if (dates.length > 0) {
+        const dateId = dates[0].id;
+        const deleteRes = await authenticatedApi(`/api/dates/${dateId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(deleteRes, 200);
+      }
+    });
+  });
+
+  describe('Reminders Endpoint', () => {
+    let authToken: string;
+    let reminderId: string;
+
+    it('should sign up a test user for reminders', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should get all reminders', async () => {
+      const res = await authenticatedApi('/api/reminders', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
       expect(Array.isArray(data)).toBe(true);
+    });
+
+    it('should create a reminder', async () => {
+      const res = await authenticatedApi('/api/reminders', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'Call Alice',
+          description: 'Catch up with old friend',
+          reminder_date: '2026-04-15',
+        }),
+      });
+      await expectStatus(res, 200, 201);
+
+      const data = await res.json() as any;
+      if (data.id) {
+        reminderId = data.id;
+      }
+    });
+
+    it('should update a reminder', async () => {
+      // Get reminders to find one to update
+      const remindersRes = await authenticatedApi('/api/reminders', authToken);
+      await expectStatus(remindersRes, 200);
+      const reminders = await remindersRes.json() as any;
+
+      if (reminders.length > 0) {
+        const id = reminders[0].id;
+        const updateRes = await authenticatedApi(`/api/reminders/${id}`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: 'Updated Reminder',
+            description: 'Updated description',
+          }),
+        });
+        await expectStatus(updateRes, 200);
+      }
+    });
+
+    it('should delete a reminder', async () => {
+      // Get reminders
+      const remindersRes = await authenticatedApi('/api/reminders', authToken);
+      await expectStatus(remindersRes, 200);
+      const reminders = await remindersRes.json() as any;
+
+      if (reminders.length > 0) {
+        const id = reminders[0].id;
+        const deleteRes = await authenticatedApi(`/api/reminders/${id}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(deleteRes, 200);
+      }
+    });
+  });
+
+  describe('Analytics Endpoint', () => {
+    let authToken: string;
+
+    it('should sign up a test user for analytics', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should get analytics', async () => {
+      const res = await authenticatedApi('/api/analytics', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data).toBeDefined();
+    });
+  });
+
+  describe('Nudges Endpoint', () => {
+    let authToken: string;
+
+    it('should sign up a test user for nudges', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should get nudges', async () => {
+      const res = await authenticatedApi('/api/nudges', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(Array.isArray(data)).toBe(true);
+    });
+  });
+
+  describe('Profiles by Code', () => {
+    let authToken: string;
+
+    it('should sign up a test user', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should get profiles by code', async () => {
+      const res = await authenticatedApi('/api/profiles/by-code', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data).toBeDefined();
+    });
+  });
+
+  describe('Flags Management', () => {
+    let authToken: string;
+    let profileId: string;
+    let flagId: string;
+
+    it('should sign up a test user', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should create a profile for flagging', async () => {
+      const res = await authenticatedApi('/api/profiles', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Flagged Profile',
+        }),
+      });
+      await expectStatus(res, 201);
+
+      const data = await res.json() as any;
+      profileId = data.id;
+    });
+
+    it('should add a flag to profile', async () => {
+      const res = await authenticatedApi(`/api/profiles/${profileId}/flags`, authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          flag: 'important',
+        }),
+      });
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      if (data.id) {
+        flagId = data.id;
+      }
+    });
+
+    it('should delete a flag', async () => {
+      if (flagId) {
+        const res = await authenticatedApi(`/api/flags/${flagId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(res, 200);
+      }
+    });
+  });
+
+  describe('Coaching History', () => {
+    let authToken: string;
+
+    it('should sign up a test user', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should get coaching history', async () => {
+      const res = await authenticatedApi('/api/coaching/history', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(Array.isArray(data)).toBe(true);
+    });
+
+    it('should create coaching history entry', async () => {
+      const res = await authenticatedApi('/api/coaching/history', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'First coaching session',
+          notes: 'Discussed dating strategy',
+        }),
+      });
+      await expectStatus(res, 200, 201);
+    });
+
+    it('should delete coaching history', async () => {
+      const res = await authenticatedApi('/api/coaching/history', authToken, {
+        method: 'DELETE',
+      });
+      await expectStatus(res, 200);
     });
   });
 
@@ -420,6 +764,22 @@ describe('Integration Tests', () => {
         },
       });
       await expectStatus(res, 400);
+    });
+
+    it('should return 404 for nonexistent reminder', async () => {
+      const res = await authenticatedApi(
+        '/api/reminders/00000000-0000-0000-0000-000000000000',
+        authToken,
+      );
+      await expectStatus(res, 404);
+    });
+
+    it('should return 404 for nonexistent date', async () => {
+      const res = await authenticatedApi(
+        '/api/dates/00000000-0000-0000-0000-000000000000',
+        authToken,
+      );
+      await expectStatus(res, 404);
     });
   });
 });

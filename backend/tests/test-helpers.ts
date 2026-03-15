@@ -36,17 +36,17 @@ export async function authenticatedApi(
 /**
  * Assert response status code(s)
  */
-export async function expectStatus(res: Response, ...statuses: number[]): Promise<void> {
-  if (!statuses.includes(res.status)) {
+export async function expectStatus(res: Response, expectedStatus: number): Promise<void> {
+  if (res.status !== expectedStatus) {
     let body = '';
     try {
       body = await res.clone().text();
     } catch {
       // ignore
     }
-    console.error(`Expected status ${statuses.join(' or ')}, got ${res.status}`);
+    console.error(`Expected status ${expectedStatus}, got ${res.status}`);
     if (body) console.error(`Response body: ${body}`);
-    expect(res.status).toBeOneOf(statuses);
+    expect(res.status).toBe(expectedStatus);
   }
 }
 
