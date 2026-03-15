@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,11 +39,81 @@ interface Analytics {
   };
 }
 
+const DATING_MENU_ITEMS = [
+  {
+    id: 'have-date',
+    title: 'I Have a Date',
+    subtitle: 'Schedule & track your date',
+    iosIcon: 'calendar',
+    androidIcon: 'calendar-today' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#E91E8C',
+    route: '/dating/schedule',
+  },
+  {
+    id: 'plan-date',
+    title: 'Plan a Date',
+    subtitle: 'Get AI-powered suggestions',
+    iosIcon: 'sparkles',
+    androidIcon: 'auto-awesome' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#9C27B0',
+    route: '/dating/plan',
+  },
+  {
+    id: 'on-date',
+    title: "I'm On a Date",
+    subtitle: 'Safety check-in & tracking',
+    iosIcon: 'location.fill',
+    androidIcon: 'location-on' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#F44336',
+    route: '/dating/safety',
+  },
+  {
+    id: 'dating-coach',
+    title: 'Dating Coach',
+    subtitle: 'AI advice & conversation help',
+    iosIcon: 'bubble.left.fill',
+    androidIcon: 'chat' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#2196F3',
+    route: '/dating/coach',
+  },
+  {
+    id: 'my-dates',
+    title: 'My Dates',
+    subtitle: 'View your date history',
+    iosIcon: 'clock.fill',
+    androidIcon: 'history' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#4CAF50',
+    route: '/dating/history',
+  },
+];
+
 export default function DatingScreen() {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const slideAnim = useRef(new Animated.Value(400)).current;
+
+  const openMenu = () => {
+    console.log('[Dating] User tapped menu button');
+    setShowMenu(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  };
+
+  const closeMenu = () => {
+    console.log('[Dating] User closed dating menu');
+    Animated.spring(slideAnim, {
+      toValue: 400,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start(() => setShowMenu(false));
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -60,7 +131,6 @@ export default function DatingScreen() {
       setAnalytics(data);
     } catch (error: any) {
       console.error('[Dating] Error loading analytics:', error);
-      // Set empty analytics if error (e.g., no roster profiles yet)
       setAnalytics({
         totalProfiles: 0,
         totalDates: 0,
@@ -74,74 +144,6 @@ export default function DatingScreen() {
       setLoading(false);
     }
   };
-
-  const menuItems = [
-    {
-      id: 'have-date',
-      title: 'I have a date',
-      icon: 'calendar-today' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-      iosIcon: 'calendar',
-      description: 'Schedule an upcoming date',
-      colors: MENU_COLORS['have-date'],
-      action: () => {
-        console.log('[Dating] User tapped "I have a date"');
-        setShowMenu(false);
-        router.push('/dating/schedule' as any);
-      },
-    },
-    {
-      id: 'plan-date',
-      title: 'Plan a date',
-      icon: 'edit' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-      iosIcon: 'pencil',
-      description: 'Get AI-powered date ideas',
-      colors: MENU_COLORS['plan-date'],
-      action: () => {
-        console.log('[Dating] User tapped "Plan a date"');
-        setShowMenu(false);
-        router.push('/dating/plan' as any);
-      },
-    },
-    {
-      id: 'on-date',
-      title: "I'm on a date",
-      icon: 'security' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-      iosIcon: 'shield.fill',
-      description: 'Safety features for your date',
-      colors: MENU_COLORS['on-date'],
-      action: () => {
-        console.log('[Dating] User tapped "I\'m on a date"');
-        setShowMenu(false);
-        router.push('/dating/safety' as any);
-      },
-    },
-    {
-      id: 'dating-coach',
-      title: 'Dating Coach',
-      icon: 'person' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-      iosIcon: 'person.fill',
-      description: 'Get advice and tips',
-      colors: MENU_COLORS['dating-coach'],
-      action: () => {
-        console.log('[Dating] User tapped "Dating Coach"');
-        setShowMenu(false);
-        router.push('/dating/coach' as any);
-      },
-    },
-    {
-      id: 'my-dates',
-      title: 'My dates',
-      icon: 'favorite' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
-      iosIcon: 'heart.fill',
-      description: 'View your date history',
-      colors: MENU_COLORS['my-dates'],
-      action: () => {
-        console.log('[Dating] User tapped "My dates"');
-        setShowMenu(false);
-        router.push('/dating/history' as any);
-      },
-    },
-  ];
 
   const totalDates = analytics?.totalDates ?? 0;
   const completedDates = analytics?.completedDates ?? 0;
@@ -162,10 +164,7 @@ export default function DatingScreen() {
           </View>
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => {
-              console.log('[Dating] User tapped menu button');
-              setShowMenu(true);
-            }}
+            onPress={openMenu}
           >
             <IconSymbol
               ios_icon_name="line.3.horizontal"
@@ -279,72 +278,63 @@ export default function DatingScreen() {
         </ScrollView>
       )}
 
-      {/* Dating Submenu Modal - Opens from BOTTOM */}
+      {/* Dating Submenu Modal - Premium Dark Design */}
       <Modal
         visible={showMenu}
-        animationType="slide"
+        animationType="none"
         transparent
-        onRequestClose={() => setShowMenu(false)}
+        onRequestClose={closeMenu}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
             style={styles.modalBackdrop} 
             activeOpacity={1} 
-            onPress={() => setShowMenu(false)}
+            onPress={closeMenu}
           />
-          <View style={styles.modalContent}>
+          <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Dating</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => {
-                  console.log('[Dating] User closed dating menu');
-                  setShowMenu(false);
-                }}
-              >
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalTitle}>Dating</Text>
             <ScrollView 
               style={styles.modalScroll} 
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {menuItems.map((item, index) => (
+              {DATING_MENU_ITEMS.map((item, index) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
-                  onPress={item.action}
+                  style={[styles.menuItem, index === DATING_MENU_ITEMS.length - 1 && styles.menuItemLast]}
+                  onPress={() => {
+                    console.log('[Dating] User tapped menu item:', item.title);
+                    closeMenu();
+                    setTimeout(() => router.push(item.route as any), 300);
+                  }}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.menuIconContainer}>
+                  <View style={[styles.menuIconCircle, { backgroundColor: item.color }]}>
                     <IconSymbol
                       ios_icon_name={item.iosIcon}
-                      android_material_icon_name={item.icon}
+                      android_material_icon_name={item.androidIcon}
                       size={20}
-                      color={colors.primary}
+                      color="#FFFFFF"
                     />
                   </View>
                   <View style={styles.menuTextContainer}>
                     <Text style={styles.menuItemTitle}>{item.title}</Text>
-                    <Text style={styles.menuItemDescription}>{item.description}</Text>
+                    <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
                   </View>
                   <IconSymbol
                     ios_icon_name="chevron.right"
                     android_material_icon_name="chevron-right"
                     size={16}
-                    color={colors.textTertiary}
+                    color="#555555"
                   />
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+            <TouchableOpacity style={styles.cancelButton} onPress={closeMenu} activeOpacity={0.8}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -509,74 +499,58 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.85)',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalContent: {
-    backgroundColor: '#111111',
+    backgroundColor: '#1a1a1a',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
-    minHeight: '55%',
+    maxHeight: '85%',
+    paddingBottom: 34,
   },
   modalHandle: {
     width: 36,
     height: 4,
-    backgroundColor: '#333333',
+    backgroundColor: '#444444',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 12,
-    marginBottom: 4,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222222',
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.3,
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#222222',
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 8,
   },
   modalScroll: {
-    flex: 1,
+    flexShrink: 1,
   },
   modalScrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 40,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: '#2a2a2a',
   },
   menuItemLast: {
     borderBottomWidth: 0,
   },
-  menuIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#1E1E1E',
+  menuIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -586,13 +560,26 @@ const styles = StyleSheet.create({
   },
   menuItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 2,
   },
-  menuItemDescription: {
+  menuItemSubtitle: {
     fontSize: 13,
-    color: '#666666',
+    color: '#888888',
     fontWeight: '400',
+  },
+  cancelButton: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

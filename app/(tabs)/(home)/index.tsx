@@ -56,7 +56,7 @@ interface Analytics {
 export default function RosterScreen() {
   const router = useRouter();
   const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate, error, backendReady, retryLoading } = useRoster();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, profileIncomplete } = useAuth();
   const [showDatingMenu, setShowDatingMenu] = useState(false);
 
   useEffect(() => {
@@ -65,8 +65,6 @@ export default function RosterScreen() {
       router.replace('/auth');
     }
   }, [user, authLoading, router]);
-
-  const profileIncomplete = user && user.firstLoginCompleted === false;
 
   // Show loading only on initial load
   if (authLoading) {

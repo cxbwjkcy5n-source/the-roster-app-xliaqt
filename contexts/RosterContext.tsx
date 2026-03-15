@@ -13,7 +13,7 @@ interface RosterContextType {
   interactions: Interaction[];
   analytics: Analytics | null;
   nudges: Nudge[];
-  addPerson: (person: RosterPerson) => Promise<void>;
+  addPerson: (person: RosterPerson) => Promise<RosterPerson>;
   updatePerson: (person: RosterPerson) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   moveToBench: (id: string, reason: string) => Promise<void>;
@@ -408,13 +408,14 @@ export function RosterProvider({ children }: { children: ReactNode }) {
     };
   }, [backendReady, user, stopHealthRetry]);
 
-  const addPerson = async (person: RosterPerson) => {
+  const addPerson = async (person: RosterPerson): Promise<RosterPerson> => {
     try {
       const profileData = mapRosterPersonToProfileData(person);
       console.log('[RosterContext] Adding person to backend:', profileData.name);
       const response = await authenticatedPost('/api/profiles', profileData);
       console.log('[RosterContext] Person added successfully with ID:', response.id);
       await refreshProfiles();
+      return mapProfileToRosterPerson(response);
     } catch (err) {
       console.error('[RosterContext] Failed to add person:', err);
       Alert.alert('Error', 'Failed to add person. Please try again.');

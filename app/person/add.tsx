@@ -322,7 +322,7 @@ export default function AddPersonScreen() {
           try {
             await authenticatedPost(`/api/profiles/${person.id}/flags`, {
               flagText,
-              flagType: 'red',
+              type: 'red',
             });
             console.log('[AddPerson] Red flag saved:', flagText);
           } catch (error) {
@@ -335,7 +335,7 @@ export default function AddPersonScreen() {
           try {
             await authenticatedPost(`/api/profiles/${person.id}/flags`, {
               flagText,
-              flagType: 'green',
+              type: 'green',
             });
             console.log('[AddPerson] Green flag saved:', flagText);
           } catch (error) {
@@ -347,24 +347,12 @@ export default function AddPersonScreen() {
         router.back();
       } else {
         console.log('[AddPerson] Adding new person');
-        await addPerson(person);
+        const newPerson = await addPerson(person);
         
-        // Wait for the person to be created and get the backend ID
-        console.log('[AddPerson] Waiting for backend to process...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('[AddPerson] New person created with ID:', newPerson.id);
         
-        // Refresh profiles to get the new person with backend ID
-        console.log('[AddPerson] Refreshing profiles...');
-        await refreshProfiles();
-        
-        // Find the newly created person
-        const allPeople = [...roster, ...bench];
-        const newPerson = allPeople.find(p => p.name === person.name);
-        
-        if (newPerson) {
-          console.log('[AddPerson] Found newly created person with ID:', newPerson.id);
-          
-          // Save flags separately using the backend API directly
+        // Save flags using the returned profile's ID directly (no stale closure)
+        if ((redFlags.length > 0 || greenFlags.length > 0) && newPerson.id) {
           console.log('[AddPerson] Saving flags for new person:', newPerson.id);
           const { authenticatedPost } = await import('@/utils/api');
           
@@ -373,7 +361,7 @@ export default function AddPersonScreen() {
             try {
               await authenticatedPost(`/api/profiles/${newPerson.id}/flags`, {
                 flagText,
-                flagType: 'red',
+                type: 'red',
               });
               console.log('[AddPerson] Red flag saved:', flagText);
             } catch (error) {
@@ -386,7 +374,7 @@ export default function AddPersonScreen() {
             try {
               await authenticatedPost(`/api/profiles/${newPerson.id}/flags`, {
                 flagText,
-                flagType: 'green',
+                type: 'green',
               });
               console.log('[AddPerson] Green flag saved:', flagText);
             } catch (error) {
@@ -396,7 +384,6 @@ export default function AddPersonScreen() {
         }
         
         console.log('[AddPerson] Save complete, navigating to home');
-        // FIX: Use replace instead of push to avoid white screen
         router.replace('/(tabs)/(home)');
       }
     } catch (error: any) {

@@ -24,6 +24,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
+import { uploadImage } from "@/utils/imageUpload";
+import { logSaveError } from "@/utils/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,7 +40,7 @@ const FOOD_TYPES = [
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { user, signOut, markFirstLoginComplete } = useAuth();
+  const { user, signOut, markFirstLoginComplete, markProfileComplete } = useAuth();
   const router = useRouter();
 
   const isFirstLogin = user?.firstLoginCompleted === false;
@@ -105,56 +107,26 @@ export default function ProfileScreen() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.5,
+        quality: 1.0,
       });
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        console.log('[Profile] Image selected, uploading...');
+        console.log('[Profile] Image selected, uploading with compression and retry...');
         
-        const formData = new FormData();
-        const filename = uri.split('/').pop() || 'profile-image.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        const uploadResult = await uploadImage(uri, 'profile');
         
-        formData.append('file', {
-          uri,
-          name: filename,
-          type,
-        } as any);
-
-        const { supabase } = await import('@/lib/supabase');
-        const { BACKEND_URL } = await import('@/utils/api');
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session?.access_token) {
-          throw new Error('No access token found');
-        }
-        
-        // FIX: Use correct endpoint /api/upload/profile-image
-        const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text();
-          console.error('[Profile] Upload failed:', errorText);
-          throw new Error(`Failed to upload image: ${errorText}`);
-        }
-
-        const uploadData = await uploadResponse.json();
-        console.log('[Profile] Image uploaded successfully:', uploadData.url);
-        
-        setProfileImageKey(uploadData.key);
-        setProfileImage(uploadData.url);
+        console.log('[Profile] Image uploaded successfully:', uploadResult.url);
+        setProfileImageKey(uploadResult.key);
+        setProfileImage(uploadResult.url);
       }
     } catch (error: any) {
       console.error('[Profile] Image upload failed:', error);
-      Alert.alert('Error', error.message || 'Failed to upload image. Please try again.');
+      Alert.alert(
+        'Upload Failed',
+        error.message || 'Failed to upload image. Please try again.',
+        [{ text: 'OK' }]
+      );
       setProfileImage(null);
     } finally {
       setUploadingImage(false);
@@ -217,6 +189,9 @@ export default function ProfileScreen() {
         await authenticatedPost('/api/user/complete-profile', {});
         
         await markFirstLoginComplete();
+        if (name.trim()) {
+          await markProfileComplete();
+        }
         
         Alert.alert(
           'Profile Complete!',
@@ -234,8 +209,9 @@ export default function ProfileScreen() {
         setIsEditing(false);
         Alert.alert('Success', 'Profile updated successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Profile] Error saving profile:', error);
+      await logSaveError(error.message || 'Failed to save profile');
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
@@ -629,6 +605,34 @@ export default function ProfileScreen() {
                 color="#fff"
               />
               <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          )}
+
+          {isEditing && (
+            <TouchableOpacity
+              style={[styles.saveProfileButton, (loading || uploadingImage) && styles.saveProfileButtonDisabled]}
+              onPress={() => {
+                console.log('[Profile] User tapped bottom Save Profile button');
+                handleSave();
+              }}
+              disabled={loading || uploadingImage}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={22}
+                    color="#fff"
+                  />
+                  <Text style={styles.saveProfileButtonText}>
+                    {isFirstLogin ? 'Complete Profile' : 'Save Profile'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -1096,5 +1100,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  saveProfileButton: {
+    backgroundColor: colors.rosterRed,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    borderRadius: 14,
+    gap: 10,
+    marginTop: 24,
+    shadowColor: colors.rosterRed,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  saveProfileButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveProfileButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

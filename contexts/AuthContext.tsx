@@ -66,6 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
+      // Profile is not complete — persist this so banner shows on next app start
+      console.log('[AuthContext] Profile incomplete — persisting to AsyncStorage');
+      await AsyncStorage.setItem(`profile_incomplete_${userId}`, 'true');
       return false;
     } catch (error) {
       console.log('[AuthContext] Error checking profile complete:', error);
@@ -168,6 +171,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       } else if (session?.user) {
         console.log('[AuthContext] User authenticated:', session.user.email);
+        // Pre-load persisted profileIncomplete from AsyncStorage so banner shows immediately
+        try {
+          const persisted = await AsyncStorage.getItem(`profile_incomplete_${session.user.id}`);
+          const completedStored = await AsyncStorage.getItem(PROFILE_COMPLETE_KEY(session.user.id));
+          if (completedStored !== 'true' && persisted === 'true') {
+            console.log('[AuthContext] Restoring profileIncomplete=true from AsyncStorage');
+            setProfileIncomplete(true);
+          }
+        } catch (e) {
+          // non-critical
+        }
         const mappedUser = await mapSupabaseUser(session.user);
         setUser(mappedUser);
       } else {
@@ -252,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[AuthContext] Marking profile as complete in AsyncStorage');
       await AsyncStorage.setItem(PROFILE_COMPLETE_KEY(user.id), 'true');
+      await AsyncStorage.removeItem(`profile_incomplete_${user.id}`);
       setProfileIncomplete(false);
       console.log('[AuthContext] Profile marked complete');
     } catch (error) {
