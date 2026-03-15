@@ -8,7 +8,7 @@
     },
     "icon": "./assets/icon.png",
     "ios": {
-      "bundleIdentifier": "com.rostercollective.theroster"
+      "bundleIdentifier": "com.rostercollective.therosterapp"
     },
     "splash": {
       "image": "./assets/splash-icon.png"
