@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import type { App } from '../index.js';
 import * as schema from '../db/schema.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
@@ -27,11 +27,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching user profile');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const profile = await app.db.query.userProfiles.findFirst({
           where: eq(schema.userProfiles.userId, userId),
@@ -91,11 +89,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Upserting user profile');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const body = request.body as Record<string, any>;
         const existingProfile = await app.db.query.userProfiles.findFirst({
@@ -105,43 +101,29 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         const profileImageUrl = body.profileImageUrl || body.image;
 
         if (existingProfile) {
-          const updated = await app.db
-            .update(schema.userProfiles)
-            .set({
-              name: body.name ?? existingProfile.name,
-              age: body.age ?? existingProfile.age,
-              location: body.location ?? existingProfile.location,
-              phoneNumber: body.phoneNumber ?? existingProfile.phoneNumber,
-              favoriteColor: body.favoriteColor ?? existingProfile.favoriteColor,
-              favoriteFoodType: body.favoriteFoodType ?? existingProfile.favoriteFoodType,
-              instagram: body.instagram ?? existingProfile.instagram,
-              twitter: body.twitter ?? existingProfile.twitter,
-              notes: body.notes ?? existingProfile.notes,
-              profileImageUrl: profileImageUrl ?? existingProfile.profileImageUrl,
-              updatedAt: new Date(),
-            })
-            .where(eq(schema.userProfiles.userId, userId))
-            .returning();
+          await app.db.execute(
+            sql`UPDATE "user_profiles" SET
+              name = ${body.name ?? existingProfile.name},
+              age = ${body.age ?? existingProfile.age},
+              location = ${body.location ?? existingProfile.location},
+              phone_number = ${body.phoneNumber ?? existingProfile.phoneNumber},
+              favorite_color = ${body.favoriteColor ?? existingProfile.favoriteColor},
+              favorite_food_type = ${body.favoriteFoodType ?? existingProfile.favoriteFoodType},
+              instagram = ${body.instagram ?? existingProfile.instagram},
+              twitter = ${body.twitter ?? existingProfile.twitter},
+              notes = ${body.notes ?? existingProfile.notes},
+              profile_image_url = ${profileImageUrl ?? existingProfile.profileImageUrl},
+              updated_at = ${new Date()}
+            WHERE user_id = ${userId}`
+          );
           app.logger.info({ userId, profileId: existingProfile.id }, 'User profile updated successfully');
           return { success: true };
         } else {
-          const created = await app.db
-            .insert(schema.userProfiles)
-            .values({
-              userId,
-              name: body.name,
-              age: body.age,
-              location: body.location,
-              phoneNumber: body.phoneNumber,
-              favoriteColor: body.favoriteColor,
-              favoriteFoodType: body.favoriteFoodType,
-              instagram: body.instagram,
-              twitter: body.twitter,
-              notes: body.notes,
-              profileImageUrl,
-            })
-            .returning();
-          app.logger.info({ userId, profileId: created[0].id }, 'User profile created successfully');
+          await app.db.execute(
+            sql`INSERT INTO "user_profiles" (user_id, name, age, location, phone_number, favorite_color, favorite_food_type, instagram, twitter, notes, profile_image_url)
+            VALUES (${userId}, ${body.name}, ${body.age}, ${body.location}, ${body.phoneNumber}, ${body.favoriteColor}, ${body.favoriteFoodType}, ${body.instagram}, ${body.twitter}, ${body.notes}, ${profileImageUrl})`
+          );
+          app.logger.info({ userId }, 'User profile created successfully');
           return { success: true };
         }
       } catch (error) {
@@ -175,11 +157,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Completing user profile');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         app.logger.info({ userId }, 'User profile completed successfully');
         return { success: true };
@@ -214,11 +194,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching roster profiles');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, userId),
@@ -289,44 +267,18 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Creating roster profile');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const body = request.body as Record<string, any>;
-        const created = await app.db
-          .insert(schema.rosterProfiles)
-          .values({
-            userId,
-            name: body.name,
-            age: body.age,
-            birthdayMonth: body.birthdayMonth,
-            birthdayDay: body.birthdayDay,
-            zodiacSign: body.zodiacSign,
-            favoriteColor: body.favoriteColor,
-            favoriteFood: body.favoriteFood,
-            relationshipType: body.relationshipType,
-            customRelationshipType: body.customRelationshipType,
-            howYouMet: body.howYouMet,
-            location: body.location,
-            phoneNumber: body.phoneNumber,
-            instagram: body.instagram,
-            twitter: body.twitter,
-            facebook: body.facebook,
-            snapchat: body.snapchat,
-            notes: body.notes,
-            interestLevel: body.interestLevel,
-            profileImageUrl: body.profileImageUrl,
-            status: body.status,
-            benchReason: body.benchReason,
-            sortOrder: body.sortOrder,
-          })
-          .returning();
+        await app.db.execute(
+          sql`INSERT INTO "roster_profiles" (user_id, name, age, birthday_month, birthday_day, zodiac_sign, favorite_color, favorite_food, relationship_type, custom_relationship_type, how_you_met, location, phone_number, instagram, twitter, facebook, snapchat, notes, interest_level, profile_image_url, status, bench_reason, sort_order)
+          VALUES (${userId}, ${body.name}, ${body.age}, ${body.birthdayMonth}, ${body.birthdayDay}, ${body.zodiacSign}, ${body.favoriteColor}, ${body.favoriteFood}, ${body.relationshipType}, ${body.customRelationshipType}, ${body.howYouMet}, ${body.location}, ${body.phoneNumber}, ${body.instagram}, ${body.twitter}, ${body.facebook}, ${body.snapchat}, ${body.notes}, ${body.interestLevel}, ${body.profileImageUrl}, ${body.status}, ${body.benchReason}, ${body.sortOrder})`
+        );
 
-        app.logger.info({ userId, profileId: created[0].id }, 'Roster profile created successfully');
-        return reply.status(201).send(created[0]);
+        app.logger.info({ userId }, 'Roster profile created successfully');
+        return reply.status(201).send({ success: true });
       } catch (error) {
         app.logger.error({ err: error, userId, message: String(error) }, 'Failed to create roster profile');
         return reply.status(500).send({
@@ -363,7 +315,6 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         const codeLower = code.toLowerCase();
-        // Match against first 6 alphanumeric characters of user id
         const allUsers = await app.db.query.users.findMany();
 
         const user = allUsers.find((u: any) => u.id.substring(0, 6).toLowerCase() === codeLower);
@@ -520,38 +471,36 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         }
 
         const body = request.body as Record<string, any>;
-        const updated = await app.db
-          .update(schema.rosterProfiles)
-          .set({
-            name: body.name ?? profile.name,
-            age: body.age ?? profile.age,
-            birthdayMonth: body.birthdayMonth ?? profile.birthdayMonth,
-            birthdayDay: body.birthdayDay ?? profile.birthdayDay,
-            zodiacSign: body.zodiacSign ?? profile.zodiacSign,
-            favoriteColor: body.favoriteColor ?? profile.favoriteColor,
-            favoriteFood: body.favoriteFood ?? profile.favoriteFood,
-            relationshipType: body.relationshipType ?? profile.relationshipType,
-            customRelationshipType: body.customRelationshipType ?? profile.customRelationshipType,
-            howYouMet: body.howYouMet ?? profile.howYouMet,
-            location: body.location ?? profile.location,
-            phoneNumber: body.phoneNumber ?? profile.phoneNumber,
-            instagram: body.instagram ?? profile.instagram,
-            twitter: body.twitter ?? profile.twitter,
-            facebook: body.facebook ?? profile.facebook,
-            snapchat: body.snapchat ?? profile.snapchat,
-            notes: body.notes ?? profile.notes,
-            interestLevel: body.interestLevel ?? profile.interestLevel,
-            profileImageUrl: body.profileImageUrl ?? profile.profileImageUrl,
-            status: body.status ?? profile.status,
-            benchReason: body.benchReason ?? profile.benchReason,
-            sortOrder: body.sortOrder ?? profile.sortOrder,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.rosterProfiles.id, id))
-          .returning();
+        await app.db.execute(
+          sql`UPDATE "roster_profiles" SET
+            name = ${body.name ?? profile.name},
+            age = ${body.age ?? profile.age},
+            birthday_month = ${body.birthdayMonth ?? profile.birthdayMonth},
+            birthday_day = ${body.birthdayDay ?? profile.birthdayDay},
+            zodiac_sign = ${body.zodiacSign ?? profile.zodiacSign},
+            favorite_color = ${body.favoriteColor ?? profile.favoriteColor},
+            favorite_food = ${body.favoriteFood ?? profile.favoriteFood},
+            relationship_type = ${body.relationshipType ?? profile.relationshipType},
+            custom_relationship_type = ${body.customRelationshipType ?? profile.customRelationshipType},
+            how_you_met = ${body.howYouMet ?? profile.howYouMet},
+            location = ${body.location ?? profile.location},
+            phone_number = ${body.phoneNumber ?? profile.phoneNumber},
+            instagram = ${body.instagram ?? profile.instagram},
+            twitter = ${body.twitter ?? profile.twitter},
+            facebook = ${body.facebook ?? profile.facebook},
+            snapchat = ${body.snapchat ?? profile.snapchat},
+            notes = ${body.notes ?? profile.notes},
+            interest_level = ${body.interestLevel ?? profile.interestLevel},
+            profile_image_url = ${body.profileImageUrl ?? profile.profileImageUrl},
+            status = ${body.status ?? profile.status},
+            bench_reason = ${body.benchReason ?? profile.benchReason},
+            sort_order = ${body.sortOrder ?? profile.sortOrder},
+            updated_at = ${new Date()}
+          WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, profileId: id }, 'Roster profile updated successfully');
-        return updated[0];
+        return { success: true };
       } catch (error) {
         app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to update roster profile');
         return reply.status(500).send({
@@ -613,18 +562,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        const updated = await app.db
-          .update(schema.rosterProfiles)
-          .set({
-            status: 'bench',
-            benchReason: body.benchReason,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.rosterProfiles.id, id))
-          .returning();
+        await app.db.execute(
+          sql`UPDATE "roster_profiles" SET status = 'bench', bench_reason = ${body.benchReason}, updated_at = ${new Date()} WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, profileId: id }, 'Profile moved to bench successfully');
-        return updated[0];
+        return { success: true };
       } catch (error) {
         app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to move profile to bench');
         return reply.status(500).send({
@@ -679,18 +622,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        const updated = await app.db
-          .update(schema.rosterProfiles)
-          .set({
-            status: 'roster',
-            benchReason: null,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.rosterProfiles.id, id))
-          .returning();
+        await app.db.execute(
+          sql`UPDATE "roster_profiles" SET status = 'roster', bench_reason = NULL, updated_at = ${new Date()} WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, profileId: id }, 'Profile moved to roster successfully');
-        return updated[0];
+        return { success: true };
       } catch (error) {
         app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to move profile to roster');
         return reply.status(500).send({
@@ -744,9 +681,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        await app.db
-          .delete(schema.rosterProfiles)
-          .where(eq(schema.rosterProfiles.id, id));
+        await app.db.execute(
+          sql`DELETE FROM "roster_profiles" WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, profileId: id }, 'Roster profile deleted successfully');
         return reply.status(204).send();
@@ -809,13 +746,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
             });
           }
 
-          await app.db
-            .update(schema.rosterProfiles)
-            .set({
-              sortOrder: update.sortOrder,
-              updatedAt: new Date(),
-            })
-            .where(eq(schema.rosterProfiles.id, update.id));
+          await app.db.execute(
+            sql`UPDATE "roster_profiles" SET sort_order = ${update.sortOrder}, updated_at = ${new Date()} WHERE id = ${update.id}`
+          );
         }
 
         app.logger.info({ userId, updateCount: updates.length }, 'Profiles reordered successfully');
@@ -883,18 +816,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        const created = await app.db
-          .insert(schema.profileFlags)
-          .values({
-            profileId: id,
-            userId,
-            flagText: body.flagText,
-            flagType: body.flagType || 'red',
-          })
-          .returning();
+        await app.db.execute(
+          sql`INSERT INTO "profile_flags" (profile_id, user_id, flag_text, flag_type) VALUES (${id}, ${userId}, ${body.flagText}, ${body.flagType || 'red'})`
+        );
 
-        app.logger.info({ userId, flagId: created[0].id }, 'Flag added successfully');
-        return reply.status(201).send(created[0]);
+        app.logger.info({ userId, profileId: id }, 'Flag added successfully');
+        return reply.status(201).send({ success: true });
       } catch (error) {
         app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to add flag');
         return reply.status(500).send({
@@ -949,9 +876,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        await app.db
-          .delete(schema.profileFlags)
-          .where(eq(schema.profileFlags.id, id));
+        await app.db.execute(
+          sql`DELETE FROM "profile_flags" WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, flagId: id }, 'Flag deleted successfully');
         return { success: true };
@@ -986,11 +913,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching dates');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const dates = await app.db.query.dates.findMany({
           where: eq(schema.dates.userId, userId),
@@ -1044,31 +969,18 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Creating date');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const body = request.body as Record<string, any>;
-        const created = await app.db
-          .insert(schema.dates)
-          .values({
-            userId,
-            profileId: body.profileId,
-            status: body.status || 'upcoming',
-            type: body.type || 'casual',
-            dateTime: body.dateTime ? new Date(body.dateTime) : null,
-            location: body.locationName,
-            locationCoords: body.locationCoordinates,
-            notes: body.notes,
-            rating: body.rating,
-            wouldGoAgain: body.wouldGoAgain,
-          })
-          .returning();
+        await app.db.execute(
+          sql`INSERT INTO "dates" (user_id, profile_id, status, type, date_time, location, location_coords, notes, rating, would_go_again)
+          VALUES (${userId}, ${body.profileId}, ${body.status || 'upcoming'}, ${body.type || 'casual'}, ${body.dateTime ? new Date(body.dateTime) : null}, ${body.locationName}, ${body.locationCoordinates}, ${body.notes}, ${body.rating}, ${body.wouldGoAgain})`
+        );
 
-        app.logger.info({ userId, dateId: created[0].id }, 'Date created successfully');
-        return reply.status(201).send(created[0]);
+        app.logger.info({ userId }, 'Date created successfully');
+        return reply.status(201).send({ success: true });
       } catch (error) {
         app.logger.error({ err: error, userId, message: String(error) }, 'Failed to create date');
         return reply.status(500).send({
@@ -1137,25 +1049,23 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         }
 
         const body = request.body as Record<string, any>;
-        const updated = await app.db
-          .update(schema.dates)
-          .set({
-            profileId: body.profileId ?? date.profileId,
-            status: body.status ?? date.status,
-            type: body.type ?? date.type,
-            dateTime: body.dateTime ? new Date(body.dateTime) : date.dateTime,
-            location: body.locationName ?? date.location,
-            locationCoords: body.locationCoordinates ?? date.locationCoords,
-            notes: body.notes ?? date.notes,
-            rating: body.rating ?? date.rating,
-            wouldGoAgain: body.wouldGoAgain ?? date.wouldGoAgain,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.dates.id, id))
-          .returning();
+        await app.db.execute(
+          sql`UPDATE "dates" SET
+            profile_id = ${body.profileId ?? date.profileId},
+            status = ${body.status ?? date.status},
+            type = ${body.type ?? date.type},
+            date_time = ${body.dateTime ? new Date(body.dateTime) : date.dateTime},
+            location = ${body.locationName ?? date.location},
+            location_coords = ${body.locationCoordinates ?? date.locationCoords},
+            notes = ${body.notes ?? date.notes},
+            rating = ${body.rating ?? date.rating},
+            would_go_again = ${body.wouldGoAgain ?? date.wouldGoAgain},
+            updated_at = ${new Date()}
+          WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, dateId: id }, 'Date updated successfully');
-        return updated[0];
+        return { success: true };
       } catch (error) {
         app.logger.error({ err: error, userId, dateId: id, message: String(error) }, 'Failed to update date');
         return reply.status(500).send({
@@ -1209,9 +1119,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        await app.db
-          .delete(schema.dates)
-          .where(eq(schema.dates.id, id));
+        await app.db.execute(
+          sql`DELETE FROM "dates" WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, dateId: id }, 'Date deleted successfully');
         return reply.status(204).send();
@@ -1246,11 +1156,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching reminders');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const reminders = await app.db.query.reminders.findMany({
           where: eq(schema.reminders.userId, userId),
@@ -1298,26 +1206,17 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Creating reminder');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const body = request.body as Record<string, any>;
-        const created = await app.db
-          .insert(schema.reminders)
-          .values({
-            userId,
-            profileId: body.profileId,
-            type: body.type,
-            scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : null,
-            message: body.message,
-          })
-          .returning();
+        await app.db.execute(
+          sql`INSERT INTO "reminders" (user_id, profile_id, type, scheduled_for, message) VALUES (${userId}, ${body.profileId}, ${body.type}, ${body.scheduledFor ? new Date(body.scheduledFor) : null}, ${body.message})`
+        );
 
-        app.logger.info({ userId, reminderId: created[0].id }, 'Reminder created successfully');
-        return reply.status(201).send(created[0]);
+        app.logger.info({ userId }, 'Reminder created successfully');
+        return reply.status(201).send({ success: true });
       } catch (error) {
         app.logger.error({ err: error, userId, message: String(error) }, 'Failed to create reminder');
         return reply.status(500).send({
@@ -1382,21 +1281,19 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         }
 
         const body = request.body as Record<string, any>;
-        const updated = await app.db
-          .update(schema.reminders)
-          .set({
-            profileId: body.profileId ?? reminder.profileId,
-            type: body.type ?? reminder.type,
-            scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : reminder.scheduledFor,
-            message: body.message ?? reminder.message,
-            sent: body.sent ?? reminder.sent,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.reminders.id, id))
-          .returning();
+        await app.db.execute(
+          sql`UPDATE "reminders" SET
+            profile_id = ${body.profileId ?? reminder.profileId},
+            type = ${body.type ?? reminder.type},
+            scheduled_for = ${body.scheduledFor ? new Date(body.scheduledFor) : reminder.scheduledFor},
+            message = ${body.message ?? reminder.message},
+            sent = ${body.sent ?? reminder.sent},
+            updated_at = ${new Date()}
+          WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, reminderId: id }, 'Reminder updated successfully');
-        return updated[0];
+        return { success: true };
       } catch (error) {
         app.logger.error({ err: error, userId, reminderId: id, message: String(error) }, 'Failed to update reminder');
         return reply.status(500).send({
@@ -1451,9 +1348,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        await app.db
-          .delete(schema.reminders)
-          .where(eq(schema.reminders.id, id));
+        await app.db.execute(
+          sql`DELETE FROM "reminders" WHERE id = ${id}`
+        );
 
         app.logger.info({ userId, reminderId: id }, 'Reminder deleted successfully');
         return { success: true };
@@ -1488,11 +1385,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching analytics');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, userId),
@@ -1542,11 +1437,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching nudges');
 
       try {
-        await app.db.insert(schema.users).values({
-          id: userId,
-          email: session.user.email,
-          name: session.user.name,
-        }).onConflictDoNothing();
+        await app.db.execute(
+          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
+        );
 
         app.logger.info({ userId }, 'Nudges retrieved successfully (empty)');
         return [];
