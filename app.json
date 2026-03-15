@@ -6,6 +6,9 @@
     "extra": {
       "backendUrl": "https://svuaszgx5v6c3k9w6qqku44nfpjn3782.app.specular.dev"
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.rostercollective.theroster"
+    }
   }
 }
