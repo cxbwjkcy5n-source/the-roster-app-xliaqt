@@ -25,7 +25,7 @@ import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, InterestLevel, RelationshipType } from '@/types/roster';
 import { getZodiacFromBirthday, getZodiacEmoji } from '@/utils/zodiac';
 
-const PREFILL_BANNER_TEXT = 'Profile scanned! Review and save to add to your roster.';
+
 
 const { width } = Dimensions.get('window');
 
@@ -76,6 +76,8 @@ export default function AddPersonScreen() {
   const isEditing = !!id;
   const [saving, setSaving] = useState(false);
   const [hasPrefill, setHasPrefill] = useState(false);
+  const [prefillImageUrl, setPrefillImageUrl] = useState<string | null>(null);
+  const [scannedName, setScannedName] = useState<string>('their');
   const [photoUri, setPhotoUri] = useState<string>();
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -123,7 +125,8 @@ export default function AddPersonScreen() {
         if (profile.twitter) setTwitter(profile.twitter);
         if (profile.favoriteColor) setFavoriteColor(profile.favoriteColor);
         if (profile.favoriteFoodType) setFavoriteFoodType(profile.favoriteFoodType);
-        if (profile.image) setPhotoUri(profile.image);
+        if (profile.image) setPrefillImageUrl(profile.image);
+        setScannedName(profile.name || 'their');
         setHasPrefill(true);
         console.log('[AddPerson] Prefill applied for:', profile.name);
       } catch (e) {
@@ -221,8 +224,8 @@ export default function AddPersonScreen() {
   const handleSave = async () => {
     console.log('[AddPerson] User tapped Save button');
     
-    // VALIDATION: Require picture and name
-    if (!photoUri) {
+    // VALIDATION: Require picture and name (prefillImageUrl satisfies photo requirement)
+    if (!photoUri && !prefillImageUrl) {
       Alert.alert('Picture Required', 'Please add a picture before saving');
       return;
     }
@@ -247,9 +250,14 @@ export default function AddPersonScreen() {
       console.log('[AddPerson] Starting save process...');
       
       // Upload image to backend if selected and changed
-      let uploadedImageUrl: string | undefined = photoUri;
+      let uploadedImageUrl: string | undefined;
       let uploadedImageKey: string | undefined;
       
+      // For editing: if photoUri is a remote URL (not a local file), carry it forward as-is
+      if (isEditing && photoUri && !photoUri.startsWith('file://')) {
+        uploadedImageUrl = photoUri;
+      }
+
       if (photoUri && (!isEditing || photoUri.startsWith('file://'))) {
         try {
           console.log('[AddPerson] Uploading image to backend...');
@@ -306,6 +314,13 @@ export default function AddPersonScreen() {
           setSaving(false);
           return; // Stop the save process
         }
+      }
+
+      // If no local photo was picked but we have a prefill image URL, use it directly
+      if (!uploadedImageUrl && prefillImageUrl) {
+        console.log('[AddPerson] Using prefill image URL directly:', prefillImageUrl);
+        uploadedImageUrl = prefillImageUrl;
+        uploadedImageKey = undefined;
       }
 
       const person: RosterPerson = {
@@ -485,13 +500,22 @@ export default function AddPersonScreen() {
         >
           {hasPrefill && (
             <View style={styles.prefillBanner}>
-              <Text style={styles.prefillBannerText}>{PREFILL_BANNER_TEXT}</Text>
+              <Text style={styles.prefillBannerText}>
+                {'✓ Scanned from ' + scannedName + "'s profile — review and save to add them to your roster."}
+              </Text>
             </View>
           )}
 
           <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photo} />
+            ) : prefillImageUrl ? (
+              <View>
+                <Image source={{ uri: prefillImageUrl }} style={styles.photo} />
+                <View style={styles.qrBadge}>
+                  <Text style={styles.qrBadgeText}>From QR</Text>
+                </View>
+              </View>
             ) : (
               <View style={styles.photoPlaceholder}>
                 <IconSymbol
@@ -1242,5 +1266,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  qrBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 0,
+    backgroundColor: '#2d8b4e',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  qrBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

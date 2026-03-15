@@ -6,16 +6,26 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Image,
+  ImageSourcePropType,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
+function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
+  if (!source) return { uri: '' };
+  if (typeof source === 'string') return { uri: source };
+  return source as ImageSourcePropType;
+}
+
 export default function ScanScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [scanned, setScanned] = useState(false);
+  const [scannedProfile, setScannedProfile] = useState<any>(null);
   const [permission, requestPermission] = useCameraPermissions();
 
   const handleScan = ({ data }: { data: string }) => {
@@ -36,17 +46,26 @@ export default function ScanScreen() {
       const profile = JSON.parse(json);
       console.log('[Scan] Successfully parsed profile:', profile.name);
 
-      router.replace({
-        pathname: '/person/add',
-        params: {
-          prefill: JSON.stringify(profile),
-        },
-      });
+      setScannedProfile(profile);
     } catch (e) {
       console.error('[Scan] Failed to parse QR code:', e);
       Alert.alert('Scan Error', 'Could not read this QR code. Please try again.');
       setScanned(false);
     }
+  };
+
+  const handleAddToRoster = () => {
+    console.log('[Scan] User tapped Add to Roster for:', scannedProfile?.name);
+    router.replace({
+      pathname: '/person/add',
+      params: { prefill: JSON.stringify(scannedProfile) },
+    });
+  };
+
+  const handleScanAgain = () => {
+    console.log('[Scan] User tapped Scan Again');
+    setScanned(false);
+    setScannedProfile(null);
   };
 
   if (!permission) {
@@ -95,6 +114,28 @@ export default function ScanScreen() {
 
   const scannedText = scanned ? 'Code Scanned!' : "Point at someone's Roster QR code";
 
+  const profileName = scannedProfile?.name ?? '';
+  const profileAge = scannedProfile?.age;
+  const profileLocation = scannedProfile?.location ?? '';
+  const profileImage = scannedProfile?.image;
+  const profilePhone = scannedProfile?.phoneNumber;
+  const profileInstagram = scannedProfile?.instagram;
+  const profileFavoriteColor = scannedProfile?.favoriteColor;
+
+  const ageLocationText = profileAge || profileLocation
+    ? `${profileAge ? profileAge + ' · ' : ''}${profileLocation}`
+    : null;
+
+  const detailChips: string[] = [];
+  if (profilePhone) detailChips.push(profilePhone);
+  if (profileInstagram) detailChips.push('@' + profileInstagram);
+  if (profileFavoriteColor) detailChips.push(profileFavoriteColor);
+  const visibleChips = detailChips.slice(0, 3);
+
+  const addButtonLabel = 'Add ' + profileName + ' to Roster';
+
+  const confirmationBottomPadding = insets.bottom + 16;
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -128,30 +169,101 @@ export default function ScanScreen() {
           <View style={styles.topSpacer} />
         </SafeAreaView>
 
-        {/* Center scan frame */}
-        <View style={styles.centerArea} pointerEvents="none">
-          <View style={[styles.scanFrame, scanned && styles.scanFrameSuccess]}>
-            {/* Corner accents */}
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
+        {/* Center scan frame — hide when confirmation is showing */}
+        {!scannedProfile && (
+          <View style={styles.centerArea} pointerEvents="none">
+            <View style={[styles.scanFrame, scanned && styles.scanFrameSuccess]}>
+              {/* Corner accents */}
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
 
-            {scanned && (
-              <View style={styles.scannedOverlay}>
+              {scanned && (
+                <View style={styles.scannedOverlay}>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={64}
+                    color="#4CAF50"
+                  />
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.scanHint}>{scannedText}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Confirmation bottom sheet */}
+      {scannedProfile && (
+        <View
+          style={[
+            styles.confirmationSheet,
+            { paddingBottom: confirmationBottomPadding },
+          ]}
+          pointerEvents="box-none"
+        >
+          {/* Profile row */}
+          <View style={styles.profileRow}>
+            {profileImage ? (
+              <Image
+                source={resolveImageSource(profileImage)}
+                style={styles.profileImage}
+              />
+            ) : (
+              <View style={styles.profileImagePlaceholder}>
                 <IconSymbol
-                  ios_icon_name="checkmark.circle.fill"
-                  android_material_icon_name="check-circle"
-                  size={64}
-                  color="#4CAF50"
+                  ios_icon_name="person.fill"
+                  android_material_icon_name="person"
+                  size={32}
+                  color="#555"
                 />
               </View>
             )}
+            <View style={styles.profileInfo}>
+              <Text style={styles.addToRosterLabel}>Add to Your Roster?</Text>
+              <Text style={styles.profileName}>{profileName}</Text>
+              {ageLocationText && (
+                <Text style={styles.profileMeta}>{ageLocationText}</Text>
+              )}
+            </View>
           </View>
 
-          <Text style={styles.scanHint}>{scannedText}</Text>
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Detail chips */}
+          {visibleChips.length > 0 && (
+            <View style={styles.chipsRow}>
+              {visibleChips.map((chip, index) => (
+                <View key={`chip-${index}`} style={styles.chip}>
+                  <Text style={styles.chipText}>{chip}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Add button */}
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddToRoster}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.addButtonText}>{addButtonLabel}</Text>
+          </TouchableOpacity>
+
+          {/* Scan again button */}
+          <TouchableOpacity
+            style={styles.scanAgainButton}
+            onPress={handleScanAgain}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.scanAgainButtonText}>Scan Again</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -297,5 +409,95 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
     paddingHorizontal: 32,
+  },
+  // Confirmation sheet
+  confirmationSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 28,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  profileImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  profileImagePlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  addToRosterLabel: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 4,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  profileMeta: {
+    fontSize: 14,
+    color: '#aaa',
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#2a2a2a',
+    marginVertical: 20,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  chip: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipText: {
+    color: '#fff',
+    fontSize: 13,
+  },
+  addButton: {
+    backgroundColor: colors.rosterRed,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  scanAgainButton: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  scanAgainButtonText: {
+    color: '#fff',
+    fontSize: 15,
   },
 });
