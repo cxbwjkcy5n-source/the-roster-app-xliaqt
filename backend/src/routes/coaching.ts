@@ -155,7 +155,8 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
   fastify.post<{
     Body: {
       message: string;
-      conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+      history?: Array<{ role: string; content: string }>;
+      context?: string;
     };
   }>(
     '/api/coaching/chat',
@@ -167,52 +168,64 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             message: { type: 'string' },
-            conversationHistory: {
+            history: {
               type: 'array',
               items: {
                 type: 'object',
                 properties: {
-                  role: { type: 'string', enum: ['user', 'assistant'] },
+                  role: { type: 'string' },
                   content: { type: 'string' },
                 },
                 required: ['role', 'content'],
               },
             },
+            context: { type: 'string' },
           },
           required: ['message'],
         },
-        response: { 200: { type: 'object', properties: { response: { type: 'string' } } } },
+        response: { 200: { type: 'object', properties: { reply: { type: 'string' } } } },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      const { message, conversationHistory = [] } = request.body as {
+      const { message, history = [], context } = request.body as {
         message: string;
-        conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+        history?: Array<{ role: string; content: string }>;
+        context?: string;
       };
 
-      app.logger.info({ userId: session.user.id, messageLength: message.length }, 'Dating coach chat request');
+      app.logger.info(
+        { userId: session.user.id, messageLength: message.length, hasContext: !!context },
+        'Dating coach chat request'
+      );
 
       try {
+        // Determine the system prompt based on whether context is provided
+        let systemPrompt: string;
+        if (context && context.trim().length > 0) {
+          systemPrompt = `You are a personal dating coach. Be supportive, practical, and direct. Use the user's actual dating data below to give personalized advice.\n\n${context}`;
+        } else {
+          systemPrompt = 'You are a personal dating coach. Be supportive, practical, and direct.';
+        }
+
         // Build messages array with conversation history
-        const messages = [
-          ...conversationHistory,
-          { role: 'user' as const, content: message },
+        const messages: Array<{ role: string; content: string }> = [
+          ...history,
+          { role: 'user', content: message },
         ];
 
-        // Call the AI model with coaching system prompt
+        // Call the AI model with the appropriate system prompt
         const { text } = await generateText({
           model: gateway('openai/gpt-5.2'),
-          system:
-            'You are a helpful and empathetic dating coach. You provide practical, thoughtful advice about dating, relationships, conversation tips, date ideas, and emotional support. Keep responses concise (2-4 sentences) and actionable.',
-          messages,
+          system: systemPrompt,
+          messages: messages as any,
         });
 
         app.logger.info({ userId: session.user.id, responseLength: text.length }, 'Dating coach response generated');
 
-        return { response: text };
+        return { reply: text };
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id }, 'Failed to generate coaching response');
         return reply.status(500).send({ error: 'Failed to generate coaching response. Please try again.' });
