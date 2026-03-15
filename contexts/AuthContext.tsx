@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { Platform, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useRouter, useSegments } from "expo-router";
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
@@ -16,6 +17,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  profileIncomplete: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -23,6 +25,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   fetchUser: () => Promise<void>;
   markFirstLoginComplete: () => Promise<void>;
+  markProfileComplete: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,13 +38,40 @@ export function useAuth() {
   return context;
 }
 
+const PROFILE_COMPLETE_KEY = (userId: string) => `profile_complete_${userId}`;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
   const router = useRouter();
   const segments = useSegments();
   const isNavigatingRef = useRef(false);
   const profileCacheRef = useRef<{ [key: string]: any }>({});
+
+  // Check if profile is complete using AsyncStorage cache + backend
+  const checkProfileComplete = useCallback(async (userId: string, profileName?: string): Promise<boolean> => {
+    try {
+      // Check AsyncStorage first
+      const stored = await AsyncStorage.getItem(PROFILE_COMPLETE_KEY(userId));
+      if (stored === 'true') {
+        console.log('[AuthContext] Profile marked complete in AsyncStorage');
+        return true;
+      }
+
+      // If we already have a name from the profile data, consider it complete
+      if (profileName && profileName.trim().length > 0) {
+        console.log('[AuthContext] Profile has name, marking complete in AsyncStorage');
+        await AsyncStorage.setItem(PROFILE_COMPLETE_KEY(userId), 'true');
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.log('[AuthContext] Error checking profile complete:', error);
+      return false;
+    }
+  }, []);
 
   // Convert Supabase user to our User type with caching
   const mapSupabaseUser = useCallback(async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
@@ -109,11 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstLoginCompleted,
     };
 
+    // Check profile completeness and update state
+    const isComplete = await checkProfileComplete(supabaseUser.id, profileData.name);
+    setProfileIncomplete(!isComplete);
+    console.log('[AuthContext] Profile incomplete:', !isComplete);
+
     // Cache the result
     profileCacheRef.current[cacheKey] = mappedUser;
 
     return mappedUser;
-  }, []);
+  }, [checkProfileComplete]);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -211,6 +246,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.replace('/(tabs)/(home)/');
     }
   }, [user, loading, segments, router]);
+
+  const markProfileComplete = async () => {
+    if (!user?.id) return;
+    try {
+      console.log('[AuthContext] Marking profile as complete in AsyncStorage');
+      await AsyncStorage.setItem(PROFILE_COMPLETE_KEY(user.id), 'true');
+      setProfileIncomplete(false);
+      console.log('[AuthContext] Profile marked complete');
+    } catch (error) {
+      console.error('[AuthContext] Error marking profile complete:', error);
+    }
+  };
 
   const markFirstLoginComplete = async () => {
     try {
@@ -439,6 +486,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(null);
+      setProfileIncomplete(false);
       profileCacheRef.current = {};
       router.replace('/auth/login');
       console.log('[AuthContext] Sign out successful');
@@ -453,6 +501,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        profileIncomplete,
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,
@@ -460,6 +509,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         fetchUser,
         markFirstLoginComplete,
+        markProfileComplete,
       }}
     >
       {children}

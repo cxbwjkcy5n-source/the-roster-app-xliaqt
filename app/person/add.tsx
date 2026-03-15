@@ -248,7 +248,7 @@ export default function AddPersonScreen() {
             throw new Error('Not authenticated');
           }
           
-          const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/profile-image`, {
+          const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/roster-image`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
@@ -531,6 +531,7 @@ export default function AddPersonScreen() {
               onChangeText={setLocation}
               placeholder="Enter location"
               placeholderTextColor={colors.grey}
+              autoCapitalize="words"
             />
           </View>
 

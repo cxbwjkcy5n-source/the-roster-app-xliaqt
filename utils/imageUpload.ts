@@ -53,6 +53,7 @@ async function uploadWithRetry(
 ): Promise<UploadResult> {
   try {
     console.log('[ImageUpload] Upload attempt', retryCount + 1, 'of', MAX_RETRY_ATTEMPTS);
+    console.log('[ImageUpload] Uploading to:', `${BACKEND_URL}${endpoint}`);
     
     // Get auth token
     const { data: { session } } = await supabase.auth.getSession();
@@ -98,7 +99,7 @@ async function uploadWithRetry(
       
       return {
         url: result.url,
-        key: result.key,
+        key: result.key || '',
       };
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
@@ -138,9 +139,9 @@ export async function uploadImage(
     // Step 1: Compress image
     const compressedUri = await compressImage(uri);
     
-    // Step 2: Upload with retry
-    const endpoint = type === 'profile' 
-      ? '/api/upload/profile-image'
+    // Step 2: Choose correct endpoint based on type
+    const endpoint = type === 'roster'
+      ? '/api/upload/roster-image'
       : '/api/upload/profile-image';
     
     const result = await uploadWithRetry(compressedUri, endpoint);

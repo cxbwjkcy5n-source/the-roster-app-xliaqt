@@ -3,7 +3,10 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
-export const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || 'https://e5t37cpd78kyyr4rpqkxse5t4eh3mvw3.app.specular.dev';
+export const BACKEND_URL =
+  Constants.expoConfig?.extra?.backendUrl ||
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  'https://svuaszgx5v6c3k9w6qqku44nfpjn3782.app.specular.dev';
 
 console.log('[API] Backend URL:', BACKEND_URL);
 console.log('[API] Platform:', Platform.OS);

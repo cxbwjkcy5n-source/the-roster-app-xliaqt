@@ -40,7 +40,7 @@ const FOOD_TYPES = [
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { user, signOut, markFirstLoginComplete } = useAuth();
+  const { user, signOut, markFirstLoginComplete, markProfileComplete } = useAuth();
   const router = useRouter();
 
   const isFirstLogin = user?.firstLoginCompleted === false;
@@ -197,6 +197,9 @@ export default function ProfileScreen() {
         await authenticatedPost('/api/user/complete-profile', {});
         
         await markFirstLoginComplete();
+        if (name.trim()) {
+          await markProfileComplete();
+        }
         
         Alert.alert(
           'Profile Complete!',

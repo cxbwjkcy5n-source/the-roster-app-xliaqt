@@ -17,15 +17,6 @@ import { useRouter } from 'expo-router';
 import { authenticatedGet } from '@/utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 
-// FIX: Update menu colors to be sophisticated and sleek
-const MENU_COLORS = {
-  'have-date': [colors.rosterGreen, '#1F6B3A'],
-  'plan-date': ['#4A90E2', '#3A7BC8'],
-  'on-date': [colors.rosterRed, colors.darkRed],
-  'dating-coach': [colors.gold, colors.bronze],
-  'my-dates': ['#8B5CF6', '#7C3AED'],
-};
-
 interface Analytics {
   totalProfiles: number;
   totalDates: number;
@@ -304,13 +295,19 @@ export default function DatingScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Dating Menu</Text>
-              <TouchableOpacity onPress={() => setShowMenu(false)}>
+              <Text style={styles.modalTitle}>Dating</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => {
+                  console.log('[Dating] User closed dating menu');
+                  setShowMenu(false);
+                }}
+              >
                 <IconSymbol
                   ios_icon_name="xmark"
                   android_material_icon_name="close"
-                  size={24}
-                  color={colors.darkText}
+                  size={18}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -319,38 +316,31 @@ export default function DatingScreen() {
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {menuItems.map((item) => (
+              {menuItems.map((item, index) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={styles.menuItem}
+                  style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
                   onPress={item.action}
-                  activeOpacity={0.85}
+                  activeOpacity={0.7}
                 >
-                  <LinearGradient
-                    colors={item.colors}
-                    style={styles.menuItemGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <View style={styles.menuIconBubble}>
-                      <IconSymbol
-                        ios_icon_name={item.iosIcon}
-                        android_material_icon_name={item.icon}
-                        size={28}
-                        color={colors.white}
-                      />
-                    </View>
-                    <View style={styles.menuTextContainer}>
-                      <Text style={styles.menuItemTitle}>{item.title}</Text>
-                      <Text style={styles.menuItemDescription}>{item.description}</Text>
-                    </View>
+                  <View style={styles.menuIconContainer}>
                     <IconSymbol
-                      ios_icon_name="chevron.right"
-                      android_material_icon_name="chevron-right"
-                      size={24}
-                      color="rgba(255,255,255,0.9)"
+                      ios_icon_name={item.iosIcon}
+                      android_material_icon_name={item.icon}
+                      size={20}
+                      color={colors.primary}
                     />
-                  </LinearGradient>
+                  </View>
+                  <View style={styles.menuTextContainer}>
+                    <Text style={styles.menuItemTitle}>{item.title}</Text>
+                    <Text style={styles.menuItemDescription}>{item.description}</Text>
+                  </View>
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="chevron-right"
+                    size={16}
+                    color={colors.textTertiary}
+                  />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -522,89 +512,87 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#111111',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
-    minHeight: '60%',
+    minHeight: '55%',
   },
   modalHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: colors.border,
-    borderRadius: 3,
+    width: 36,
+    height: 4,
+    backgroundColor: '#333333',
+    borderRadius: 2,
     alignSelf: 'center',
     marginTop: 12,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#222222',
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.darkText,
-    letterSpacing: -0.5,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#222222',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalScroll: {
     flex: 1,
   },
   modalScrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 40,
   },
   menuItem: {
-    marginBottom: 16,
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  menuItemGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E1E1E',
   },
-  menuIconBubble: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    marginRight: 14,
   },
   menuTextContainer: {
     flex: 1,
   },
   menuItemTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: colors.white,
-    marginBottom: 4,
-    letterSpacing: -0.3,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
   menuItemDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.95)',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#666666',
+    fontWeight: '400',
   },
 });
