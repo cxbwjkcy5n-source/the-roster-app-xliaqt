@@ -1,35 +1,20 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import type { App } from '../index.js';
 import * as schema from '../db/schema.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
 
 export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
-  // GET /api/profile - Get user's own profile
+  // GET /api/user/profile - Get authenticated user's own profile
   fastify.get(
-    '/api/profile',
+    '/api/user/profile',
     {
       schema: {
         description: 'Get user\'s own profile',
-        tags: ['profile'],
+        tags: ['user'],
         response: {
           200: {
             type: 'object',
-            properties: {
-              id: { type: 'string' },
-              userId: { type: 'string' },
-              name: { type: 'string' },
-              age: { type: 'integer' },
-              phone: { type: 'string' },
-              favoriteColor: { type: 'string' },
-              favoriteFood: { type: 'string' },
-              instagram: { type: 'string' },
-              twitter: { type: 'string' },
-              notes: { type: 'string' },
-              photoUrl: { type: 'string' },
-              createdAt: { type: 'string' },
-              updatedAt: { type: 'string' },
-            },
           },
         },
       },
@@ -53,10 +38,8 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         });
 
         if (!profile) {
-          app.logger.info({ userId }, 'User profile not found');
-          return reply.status(404).send({
-            error: { message: 'Profile not found' },
-          });
+          app.logger.info({ userId }, 'User profile not found, returning empty object');
+          return {};
         }
 
         app.logger.info({ userId, profileId: profile.id }, 'User profile retrieved successfully');
@@ -70,25 +53,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
-  // PUT /api/profile - Upsert user's profile
+  // PUT /api/user/profile - Upsert user's profile
   fastify.put(
-    '/api/profile',
+    '/api/user/profile',
     {
       schema: {
         description: 'Update or create user\'s profile',
-        tags: ['profile'],
+        tags: ['user'],
         body: {
           type: 'object',
           properties: {
             name: { type: 'string' },
             age: { type: 'integer' },
-            phone: { type: 'string' },
+            location: { type: 'string' },
+            phoneNumber: { type: 'string' },
             favoriteColor: { type: 'string' },
-            favoriteFood: { type: 'string' },
+            favoriteFoodType: { type: 'string' },
             instagram: { type: 'string' },
             twitter: { type: 'string' },
             notes: { type: 'string' },
-            photoUrl: { type: 'string' },
+            profileImageUrl: { type: 'string' },
+            image: { type: 'string' },
           },
         },
         response: {
@@ -112,56 +97,96 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           name: session.user.name,
         }).onConflictDoNothing();
 
+        const body = request.body as Record<string, any>;
         const existingProfile = await app.db.query.userProfiles.findFirst({
           where: eq(schema.userProfiles.userId, userId),
         });
 
-        let profile;
+        const profileImageUrl = body.profileImageUrl || body.image;
+
         if (existingProfile) {
-          const body = request.body as Record<string, any>;
           const updated = await app.db
             .update(schema.userProfiles)
             .set({
-              name: body.name,
-              age: body.age,
-              phone: body.phone,
-              favoriteColor: body.favoriteColor,
-              favoriteFood: body.favoriteFood,
-              instagram: body.instagram,
-              twitter: body.twitter,
-              notes: body.notes,
-              photoUrl: body.photoUrl,
+              name: body.name ?? existingProfile.name,
+              age: body.age ?? existingProfile.age,
+              location: body.location ?? existingProfile.location,
+              phoneNumber: body.phoneNumber ?? existingProfile.phoneNumber,
+              favoriteColor: body.favoriteColor ?? existingProfile.favoriteColor,
+              favoriteFoodType: body.favoriteFoodType ?? existingProfile.favoriteFoodType,
+              instagram: body.instagram ?? existingProfile.instagram,
+              twitter: body.twitter ?? existingProfile.twitter,
+              notes: body.notes ?? existingProfile.notes,
+              profileImageUrl: profileImageUrl ?? existingProfile.profileImageUrl,
               updatedAt: new Date(),
             })
             .where(eq(schema.userProfiles.userId, userId))
             .returning();
-          profile = updated[0];
+          app.logger.info({ userId, profileId: existingProfile.id }, 'User profile updated successfully');
+          return { success: true };
         } else {
-          const body = request.body as Record<string, any>;
           const created = await app.db
             .insert(schema.userProfiles)
             .values({
               userId,
               name: body.name,
               age: body.age,
-              phone: body.phone,
+              location: body.location,
+              phoneNumber: body.phoneNumber,
               favoriteColor: body.favoriteColor,
-              favoriteFood: body.favoriteFood,
+              favoriteFoodType: body.favoriteFoodType,
               instagram: body.instagram,
               twitter: body.twitter,
               notes: body.notes,
-              photoUrl: body.photoUrl,
+              profileImageUrl,
             })
             .returning();
-          profile = created[0];
+          app.logger.info({ userId, profileId: created[0].id }, 'User profile created successfully');
+          return { success: true };
         }
-
-        app.logger.info({ userId, profileId: profile.id }, 'User profile upserted successfully');
-        return profile;
       } catch (error) {
         app.logger.error({ err: error, userId, message: String(error) }, 'Failed to upsert user profile');
         return reply.status(500).send({
           error: { message: 'Failed to upsert profile' },
+        });
+      }
+    }
+  );
+
+  // POST /api/user/complete-profile - Mark user's first login as completed
+  fastify.post(
+    '/api/user/complete-profile',
+    {
+      schema: {
+        description: 'Mark user\'s first login as completed',
+        tags: ['user'],
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      app.logger.info({ userId }, 'Completing user profile');
+
+      try {
+        await app.db.insert(schema.users).values({
+          id: userId,
+          email: session.user.email,
+          name: session.user.name,
+        }).onConflictDoNothing();
+
+        app.logger.info({ userId }, 'User profile completed successfully');
+        return { success: true };
+      } catch (error) {
+        app.logger.error({ err: error, userId, message: String(error) }, 'Failed to complete user profile');
+        return reply.status(500).send({
+          error: { message: 'Failed to complete profile' },
         });
       }
     }
@@ -198,6 +223,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, userId),
           orderBy: desc(schema.rosterProfiles.createdAt),
+          with: {
+            flags: true,
+          },
         });
 
         app.logger.info({ userId, count: profiles.length }, 'Roster profiles retrieved successfully');
@@ -222,21 +250,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             name: { type: 'string' },
-            location: { type: 'string' },
             age: { type: 'integer' },
             birthdayMonth: { type: 'string' },
             birthdayDay: { type: 'integer' },
             zodiacSign: { type: 'string' },
+            favoriteColor: { type: 'string' },
             favoriteFood: { type: 'string' },
             relationshipType: { type: 'string' },
-            howWeMet: { type: 'string' },
-            phone: { type: 'string' },
+            customRelationshipType: { type: 'string' },
+            howYouMet: { type: 'string' },
+            location: { type: 'string' },
+            phoneNumber: { type: 'string' },
             instagram: { type: 'string' },
             twitter: { type: 'string' },
+            facebook: { type: 'string' },
+            snapchat: { type: 'string' },
             notes: { type: 'string' },
-            photoUrl: { type: 'string' },
-            priority: { type: 'string' },
+            interestLevel: { type: 'string' },
+            profileImageUrl: { type: 'string' },
             status: { type: 'string' },
+            benchReason: { type: 'string' },
+            sortOrder: { type: 'integer' },
           },
           required: ['name'],
         },
@@ -267,21 +301,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           .values({
             userId,
             name: body.name,
-            location: body.location,
             age: body.age,
             birthdayMonth: body.birthdayMonth,
             birthdayDay: body.birthdayDay,
             zodiacSign: body.zodiacSign,
+            favoriteColor: body.favoriteColor,
             favoriteFood: body.favoriteFood,
             relationshipType: body.relationshipType,
-            howWeMet: body.howWeMet,
-            phone: body.phone,
+            customRelationshipType: body.customRelationshipType,
+            howYouMet: body.howYouMet,
+            location: body.location,
+            phoneNumber: body.phoneNumber,
             instagram: body.instagram,
             twitter: body.twitter,
+            facebook: body.facebook,
+            snapchat: body.snapchat,
             notes: body.notes,
-            photoUrl: body.photoUrl,
-            priority: body.priority,
+            interestLevel: body.interestLevel,
+            profileImageUrl: body.profileImageUrl,
             status: body.status,
+            benchReason: body.benchReason,
+            sortOrder: body.sortOrder,
           })
           .returning();
 
@@ -291,6 +331,60 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         app.logger.error({ err: error, userId, message: String(error) }, 'Failed to create roster profile');
         return reply.status(500).send({
           error: { message: 'Failed to create profile' },
+        });
+      }
+    }
+  );
+
+  // GET /api/profiles/by-code - Look up a user by 6-character code
+  fastify.get(
+    '/api/profiles/by-code',
+    {
+      schema: {
+        description: 'Look up a user by 6-character code',
+        tags: ['profiles'],
+        querystring: {
+          type: 'object',
+          properties: {
+            code: { type: 'string' },
+          },
+          required: ['code'],
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { code } = request.query as { code: string };
+      app.logger.info({ code }, 'Looking up user by code');
+
+      try {
+        const codeLower = code.toLowerCase();
+        // Match against first 6 alphanumeric characters of user id
+        const allUsers = await app.db.query.users.findMany();
+
+        const user = allUsers.find((u: any) => u.id.substring(0, 6).toLowerCase() === codeLower);
+
+        if (!user) {
+          app.logger.warn({ code }, 'User not found by code');
+          return reply.status(404).send({
+            error: { message: 'User not found' },
+          });
+        }
+
+        const profile = await app.db.query.rosterProfiles.findFirst({
+          where: eq(schema.rosterProfiles.userId, (user as any).id),
+        });
+
+        app.logger.info({ code, userId: user.id }, 'User found by code');
+        return profile || {};
+      } catch (error) {
+        app.logger.error({ err: error, code, message: String(error) }, 'Failed to look up user by code');
+        return reply.status(500).send({
+          error: { message: 'Failed to look up user' },
         });
       }
     }
@@ -306,7 +400,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string', format: 'uuid' },
+            id: { type: 'string' },
           },
           required: ['id'],
         },
@@ -331,6 +425,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
             eq(schema.rosterProfiles.id, id),
             eq(schema.rosterProfiles.userId, userId)
           ),
+          with: {
+            flags: true,
+          },
         });
 
         if (!profile) {
@@ -361,7 +458,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string', format: 'uuid' },
+            id: { type: 'string' },
           },
           required: ['id'],
         },
@@ -369,21 +466,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             name: { type: 'string' },
-            location: { type: 'string' },
             age: { type: 'integer' },
             birthdayMonth: { type: 'string' },
             birthdayDay: { type: 'integer' },
             zodiacSign: { type: 'string' },
+            favoriteColor: { type: 'string' },
             favoriteFood: { type: 'string' },
             relationshipType: { type: 'string' },
-            howWeMet: { type: 'string' },
-            phone: { type: 'string' },
+            customRelationshipType: { type: 'string' },
+            howYouMet: { type: 'string' },
+            location: { type: 'string' },
+            phoneNumber: { type: 'string' },
             instagram: { type: 'string' },
             twitter: { type: 'string' },
+            facebook: { type: 'string' },
+            snapchat: { type: 'string' },
             notes: { type: 'string' },
-            photoUrl: { type: 'string' },
-            priority: { type: 'string' },
+            interestLevel: { type: 'string' },
+            profileImageUrl: { type: 'string' },
             status: { type: 'string' },
+            benchReason: { type: 'string' },
+            sortOrder: { type: 'integer' },
           },
         },
         response: {
@@ -421,21 +524,27 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           .update(schema.rosterProfiles)
           .set({
             name: body.name ?? profile.name,
-            location: body.location ?? profile.location,
             age: body.age ?? profile.age,
             birthdayMonth: body.birthdayMonth ?? profile.birthdayMonth,
             birthdayDay: body.birthdayDay ?? profile.birthdayDay,
             zodiacSign: body.zodiacSign ?? profile.zodiacSign,
+            favoriteColor: body.favoriteColor ?? profile.favoriteColor,
             favoriteFood: body.favoriteFood ?? profile.favoriteFood,
             relationshipType: body.relationshipType ?? profile.relationshipType,
-            howWeMet: body.howWeMet ?? profile.howWeMet,
-            phone: body.phone ?? profile.phone,
+            customRelationshipType: body.customRelationshipType ?? profile.customRelationshipType,
+            howYouMet: body.howYouMet ?? profile.howYouMet,
+            location: body.location ?? profile.location,
+            phoneNumber: body.phoneNumber ?? profile.phoneNumber,
             instagram: body.instagram ?? profile.instagram,
             twitter: body.twitter ?? profile.twitter,
+            facebook: body.facebook ?? profile.facebook,
+            snapchat: body.snapchat ?? profile.snapchat,
             notes: body.notes ?? profile.notes,
-            photoUrl: body.photoUrl ?? profile.photoUrl,
-            priority: body.priority ?? profile.priority,
+            interestLevel: body.interestLevel ?? profile.interestLevel,
+            profileImageUrl: body.profileImageUrl ?? profile.profileImageUrl,
             status: body.status ?? profile.status,
+            benchReason: body.benchReason ?? profile.benchReason,
+            sortOrder: body.sortOrder ?? profile.sortOrder,
             updatedAt: new Date(),
           })
           .where(eq(schema.rosterProfiles.id, id))
@@ -452,6 +561,145 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
+  // PUT /api/profiles/:id/bench - Move profile to bench
+  fastify.put(
+    '/api/profiles/:id/bench',
+    {
+      schema: {
+        description: 'Move profile to bench',
+        tags: ['profiles'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          type: 'object',
+          properties: {
+            benchReason: { type: 'string' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const { id } = request.params as { id: string };
+      const body = request.body as Record<string, any>;
+
+      app.logger.info({ userId, profileId: id, benchReason: body.benchReason }, 'Moving profile to bench');
+
+      try {
+        const profile = await app.db.query.rosterProfiles.findFirst({
+          where: and(
+            eq(schema.rosterProfiles.id, id),
+            eq(schema.rosterProfiles.userId, userId)
+          ),
+        });
+
+        if (!profile) {
+          app.logger.warn({ userId, profileId: id }, 'Profile not found or unauthorized');
+          return reply.status(404).send({
+            error: { message: 'Profile not found' },
+          });
+        }
+
+        const updated = await app.db
+          .update(schema.rosterProfiles)
+          .set({
+            status: 'bench',
+            benchReason: body.benchReason,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.rosterProfiles.id, id))
+          .returning();
+
+        app.logger.info({ userId, profileId: id }, 'Profile moved to bench successfully');
+        return updated[0];
+      } catch (error) {
+        app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to move profile to bench');
+        return reply.status(500).send({
+          error: { message: 'Failed to move profile to bench' },
+        });
+      }
+    }
+  );
+
+  // PUT /api/profiles/:id/roster - Move profile back to roster
+  fastify.put(
+    '/api/profiles/:id/roster',
+    {
+      schema: {
+        description: 'Move profile back to roster',
+        tags: ['profiles'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const { id } = request.params as { id: string };
+
+      app.logger.info({ userId, profileId: id }, 'Moving profile to roster');
+
+      try {
+        const profile = await app.db.query.rosterProfiles.findFirst({
+          where: and(
+            eq(schema.rosterProfiles.id, id),
+            eq(schema.rosterProfiles.userId, userId)
+          ),
+        });
+
+        if (!profile) {
+          app.logger.warn({ userId, profileId: id }, 'Profile not found or unauthorized');
+          return reply.status(404).send({
+            error: { message: 'Profile not found' },
+          });
+        }
+
+        const updated = await app.db
+          .update(schema.rosterProfiles)
+          .set({
+            status: 'roster',
+            benchReason: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.rosterProfiles.id, id))
+          .returning();
+
+        app.logger.info({ userId, profileId: id }, 'Profile moved to roster successfully');
+        return updated[0];
+      } catch (error) {
+        app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to move profile to roster');
+        return reply.status(500).send({
+          error: { message: 'Failed to move profile to roster' },
+        });
+      }
+    }
+  );
+
   // DELETE /api/profiles/:id - Delete roster profile
   fastify.delete(
     '/api/profiles/:id',
@@ -462,7 +710,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string', format: 'uuid' },
+            id: { type: 'string' },
           },
           required: ['id'],
         },
@@ -511,6 +759,211 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
+  // PUT /api/profiles/reorder - Reorder profiles
+  fastify.put(
+    '/api/profiles/reorder',
+    {
+      schema: {
+        description: 'Reorder profiles',
+        tags: ['profiles'],
+        body: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              sortOrder: { type: 'integer' },
+            },
+            required: ['id', 'sortOrder'],
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const updates = request.body as Array<{ id: string; sortOrder: number }>;
+
+      app.logger.info({ userId, updateCount: updates.length }, 'Reordering profiles');
+
+      try {
+        for (const update of updates) {
+          const profile = await app.db.query.rosterProfiles.findFirst({
+            where: and(
+              eq(schema.rosterProfiles.id, update.id),
+              eq(schema.rosterProfiles.userId, userId)
+            ),
+          });
+
+          if (!profile) {
+            app.logger.warn({ userId, profileId: update.id }, 'Profile not found or unauthorized');
+            return reply.status(404).send({
+              error: { message: 'Profile not found' },
+            });
+          }
+
+          await app.db
+            .update(schema.rosterProfiles)
+            .set({
+              sortOrder: update.sortOrder,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.rosterProfiles.id, update.id));
+        }
+
+        app.logger.info({ userId, updateCount: updates.length }, 'Profiles reordered successfully');
+        return { success: true };
+      } catch (error) {
+        app.logger.error({ err: error, userId, message: String(error) }, 'Failed to reorder profiles');
+        return reply.status(500).send({
+          error: { message: 'Failed to reorder profiles' },
+        });
+      }
+    }
+  );
+
+  // POST /api/profiles/:id/flags - Add a flag to a profile
+  fastify.post(
+    '/api/profiles/:id/flags',
+    {
+      schema: {
+        description: 'Add a flag to a profile',
+        tags: ['flags'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          type: 'object',
+          properties: {
+            flagText: { type: 'string' },
+            flagType: { type: 'string' },
+          },
+          required: ['flagText'],
+        },
+        response: {
+          201: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const { id } = request.params as { id: string };
+      const body = request.body as Record<string, any>;
+
+      app.logger.info({ userId, profileId: id, flagText: body.flagText }, 'Adding flag to profile');
+
+      try {
+        const profile = await app.db.query.rosterProfiles.findFirst({
+          where: and(
+            eq(schema.rosterProfiles.id, id),
+            eq(schema.rosterProfiles.userId, userId)
+          ),
+        });
+
+        if (!profile) {
+          app.logger.warn({ userId, profileId: id }, 'Profile not found or unauthorized');
+          return reply.status(404).send({
+            error: { message: 'Profile not found' },
+          });
+        }
+
+        const created = await app.db
+          .insert(schema.profileFlags)
+          .values({
+            profileId: id,
+            userId,
+            flagText: body.flagText,
+            flagType: body.flagType || 'red',
+          })
+          .returning();
+
+        app.logger.info({ userId, flagId: created[0].id }, 'Flag added successfully');
+        return reply.status(201).send(created[0]);
+      } catch (error) {
+        app.logger.error({ err: error, userId, profileId: id, message: String(error) }, 'Failed to add flag');
+        return reply.status(500).send({
+          error: { message: 'Failed to add flag' },
+        });
+      }
+    }
+  );
+
+  // DELETE /api/flags/:id - Delete a flag
+  fastify.delete(
+    '/api/flags/:id',
+    {
+      schema: {
+        description: 'Delete a flag',
+        tags: ['flags'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const { id } = request.params as { id: string };
+
+      app.logger.info({ userId, flagId: id }, 'Deleting flag');
+
+      try {
+        const flag = await app.db.query.profileFlags.findFirst({
+          where: and(
+            eq(schema.profileFlags.id, id),
+            eq(schema.profileFlags.userId, userId)
+          ),
+        });
+
+        if (!flag) {
+          app.logger.warn({ userId, flagId: id }, 'Flag not found or unauthorized');
+          return reply.status(404).send({
+            error: { message: 'Flag not found' },
+          });
+        }
+
+        await app.db
+          .delete(schema.profileFlags)
+          .where(eq(schema.profileFlags.id, id));
+
+        app.logger.info({ userId, flagId: id }, 'Flag deleted successfully');
+        return { success: true };
+      } catch (error) {
+        app.logger.error({ err: error, userId, flagId: id, message: String(error) }, 'Failed to delete flag');
+        return reply.status(500).send({
+          error: { message: 'Failed to delete flag' },
+        });
+      }
+    }
+  );
+
   // GET /api/dates - Get all dates for user
   fastify.get(
     '/api/dates',
@@ -541,9 +994,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
         const dates = await app.db.query.dates.findMany({
           where: eq(schema.dates.userId, userId),
-          orderBy: [
-            desc(schema.dates.dateTime),
-          ],
+          orderBy: desc(schema.dates.dateTime),
         });
 
         app.logger.info({ userId, count: dates.length }, 'Dates retrieved successfully');
@@ -568,16 +1019,14 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             profileId: { type: 'string' },
-            status: { type: 'string' },
-            type: { type: 'string' },
             dateTime: { type: 'string' },
             locationName: { type: 'string' },
-            locationAddress: { type: 'string' },
             locationCoordinates: { type: 'string' },
             notes: { type: 'string' },
+            status: { type: 'string' },
+            type: { type: 'string' },
             rating: { type: 'integer' },
             wouldGoAgain: { type: 'boolean' },
-            reminderSettings: { type: 'string' },
           },
         },
         response: {
@@ -607,16 +1056,14 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           .values({
             userId,
             profileId: body.profileId,
-            status: body.status,
-            type: body.type,
+            status: body.status || 'upcoming',
+            type: body.type || 'casual',
             dateTime: body.dateTime ? new Date(body.dateTime) : null,
-            locationName: body.locationName,
-            locationAddress: body.locationAddress,
-            locationCoordinates: body.locationCoordinates,
+            location: body.locationName,
+            locationCoords: body.locationCoordinates,
             notes: body.notes,
             rating: body.rating,
             wouldGoAgain: body.wouldGoAgain,
-            reminderSettings: body.reminderSettings,
           })
           .returning();
 
@@ -641,7 +1088,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string', format: 'uuid' },
+            id: { type: 'string' },
           },
           required: ['id'],
         },
@@ -649,16 +1096,14 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             profileId: { type: 'string' },
-            status: { type: 'string' },
-            type: { type: 'string' },
             dateTime: { type: 'string' },
             locationName: { type: 'string' },
-            locationAddress: { type: 'string' },
             locationCoordinates: { type: 'string' },
             notes: { type: 'string' },
+            status: { type: 'string' },
+            type: { type: 'string' },
             rating: { type: 'integer' },
             wouldGoAgain: { type: 'boolean' },
-            reminderSettings: { type: 'string' },
           },
         },
         response: {
@@ -691,7 +1136,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           });
         }
 
-        const body = request.body as any;
+        const body = request.body as Record<string, any>;
         const updated = await app.db
           .update(schema.dates)
           .set({
@@ -699,13 +1144,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
             status: body.status ?? date.status,
             type: body.type ?? date.type,
             dateTime: body.dateTime ? new Date(body.dateTime) : date.dateTime,
-            locationName: body.locationName ?? date.locationName,
-            locationAddress: body.locationAddress ?? date.locationAddress,
-            locationCoordinates: body.locationCoordinates ?? date.locationCoordinates,
+            location: body.locationName ?? date.location,
+            locationCoords: body.locationCoordinates ?? date.locationCoords,
             notes: body.notes ?? date.notes,
             rating: body.rating ?? date.rating,
             wouldGoAgain: body.wouldGoAgain ?? date.wouldGoAgain,
-            reminderSettings: body.reminderSettings ?? date.reminderSettings,
+            updatedAt: new Date(),
           })
           .where(eq(schema.dates.id, id))
           .returning();
@@ -731,7 +1175,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string', format: 'uuid' },
+            id: { type: 'string' },
           },
           required: ['id'],
         },
@@ -780,6 +1224,248 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
+  // GET /api/reminders - Get all reminders for user
+  fastify.get(
+    '/api/reminders',
+    {
+      schema: {
+        description: 'Get all reminders for user',
+        tags: ['reminders'],
+        response: {
+          200: {
+            type: 'array',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      app.logger.info({ userId }, 'Fetching reminders');
+
+      try {
+        await app.db.insert(schema.users).values({
+          id: userId,
+          email: session.user.email,
+          name: session.user.name,
+        }).onConflictDoNothing();
+
+        const reminders = await app.db.query.reminders.findMany({
+          where: eq(schema.reminders.userId, userId),
+        });
+
+        app.logger.info({ userId, count: reminders.length }, 'Reminders retrieved successfully');
+        return reminders;
+      } catch (error) {
+        app.logger.error({ err: error, userId, message: String(error) }, 'Failed to fetch reminders');
+        return reply.status(500).send({
+          error: { message: 'Failed to fetch reminders' },
+        });
+      }
+    }
+  );
+
+  // POST /api/reminders - Create a reminder
+  fastify.post(
+    '/api/reminders',
+    {
+      schema: {
+        description: 'Create a reminder',
+        tags: ['reminders'],
+        body: {
+          type: 'object',
+          properties: {
+            profileId: { type: 'string' },
+            type: { type: 'string' },
+            scheduledFor: { type: 'string' },
+            message: { type: 'string' },
+          },
+        },
+        response: {
+          201: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      app.logger.info({ userId, body: request.body }, 'Creating reminder');
+
+      try {
+        await app.db.insert(schema.users).values({
+          id: userId,
+          email: session.user.email,
+          name: session.user.name,
+        }).onConflictDoNothing();
+
+        const body = request.body as Record<string, any>;
+        const created = await app.db
+          .insert(schema.reminders)
+          .values({
+            userId,
+            profileId: body.profileId,
+            type: body.type,
+            scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : null,
+            message: body.message,
+          })
+          .returning();
+
+        app.logger.info({ userId, reminderId: created[0].id }, 'Reminder created successfully');
+        return reply.status(201).send(created[0]);
+      } catch (error) {
+        app.logger.error({ err: error, userId, message: String(error) }, 'Failed to create reminder');
+        return reply.status(500).send({
+          error: { message: 'Failed to create reminder' },
+        });
+      }
+    }
+  );
+
+  // PUT /api/reminders/:id - Update a reminder
+  fastify.put(
+    '/api/reminders/:id',
+    {
+      schema: {
+        description: 'Update a reminder',
+        tags: ['reminders'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          type: 'object',
+          properties: {
+            profileId: { type: 'string' },
+            type: { type: 'string' },
+            scheduledFor: { type: 'string' },
+            message: { type: 'string' },
+            sent: { type: 'boolean' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const { id } = request.params as { id: string };
+      app.logger.info({ userId, reminderId: id, body: request.body }, 'Updating reminder');
+
+      try {
+        const reminder = await app.db.query.reminders.findFirst({
+          where: and(
+            eq(schema.reminders.id, id),
+            eq(schema.reminders.userId, userId)
+          ),
+        });
+
+        if (!reminder) {
+          app.logger.warn({ userId, reminderId: id }, 'Reminder not found or unauthorized');
+          return reply.status(404).send({
+            error: { message: 'Reminder not found' },
+          });
+        }
+
+        const body = request.body as Record<string, any>;
+        const updated = await app.db
+          .update(schema.reminders)
+          .set({
+            profileId: body.profileId ?? reminder.profileId,
+            type: body.type ?? reminder.type,
+            scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : reminder.scheduledFor,
+            message: body.message ?? reminder.message,
+            sent: body.sent ?? reminder.sent,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.reminders.id, id))
+          .returning();
+
+        app.logger.info({ userId, reminderId: id }, 'Reminder updated successfully');
+        return updated[0];
+      } catch (error) {
+        app.logger.error({ err: error, userId, reminderId: id, message: String(error) }, 'Failed to update reminder');
+        return reply.status(500).send({
+          error: { message: 'Failed to update reminder' },
+        });
+      }
+    }
+  );
+
+  // DELETE /api/reminders/:id - Delete a reminder
+  fastify.delete(
+    '/api/reminders/:id',
+    {
+      schema: {
+        description: 'Delete a reminder',
+        tags: ['reminders'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        response: {
+          200: {
+            type: 'object',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      const { id } = request.params as { id: string };
+
+      app.logger.info({ userId, reminderId: id }, 'Deleting reminder');
+
+      try {
+        const reminder = await app.db.query.reminders.findFirst({
+          where: and(
+            eq(schema.reminders.id, id),
+            eq(schema.reminders.userId, userId)
+          ),
+        });
+
+        if (!reminder) {
+          app.logger.warn({ userId, reminderId: id }, 'Reminder not found or unauthorized');
+          return reply.status(404).send({
+            error: { message: 'Reminder not found' },
+          });
+        }
+
+        await app.db
+          .delete(schema.reminders)
+          .where(eq(schema.reminders.id, id));
+
+        app.logger.info({ userId, reminderId: id }, 'Reminder deleted successfully');
+        return { success: true };
+      } catch (error) {
+        app.logger.error({ err: error, userId, reminderId: id, message: String(error) }, 'Failed to delete reminder');
+        return reply.status(500).send({
+          error: { message: 'Failed to delete reminder' },
+        });
+      }
+    }
+  );
+
   // GET /api/analytics - Get analytics data
   fastify.get(
     '/api/analytics',
@@ -790,12 +1476,6 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         response: {
           200: {
             type: 'object',
-            properties: {
-              total_roster: { type: 'integer' },
-              total_dates: { type: 'integer' },
-              active_roster: { type: 'integer' },
-              this_month_dates: { type: 'integer' },
-            },
           },
         },
       },
@@ -814,45 +1494,19 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           name: session.user.name,
         }).onConflictDoNothing();
 
-        // Total roster profiles
-        const totalRoster = await app.db.query.rosterProfiles.findMany({
+        const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, userId),
         });
 
-        // Total dates
-        const totalDates = await app.db.query.dates.findMany({
+        const dates = await app.db.query.dates.findMany({
           where: eq(schema.dates.userId, userId),
         });
 
-        // Active roster (status = 'active')
-        const activeRoster = await app.db.query.rosterProfiles.findMany({
-          where: and(
-            eq(schema.rosterProfiles.userId, userId),
-            eq(schema.rosterProfiles.status, 'active')
-          ),
-        });
-
-        // This month's dates
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
-        const thisMonthDates = await app.db.query.dates.findMany({
-          where: and(
-            eq(schema.dates.userId, userId),
-          ),
-        });
-
-        const thisMonthCount = thisMonthDates.filter(d => {
-          if (!d.dateTime) return false;
-          return d.dateTime >= startOfMonth && d.dateTime <= endOfMonth;
-        }).length;
-
         const analytics = {
-          total_roster: totalRoster.length,
-          total_dates: totalDates.length,
-          active_roster: activeRoster.length,
-          this_month_dates: thisMonthCount,
+          totalProfiles: profiles.length,
+          totalDates: dates.length,
+          activeProfiles: profiles.filter(p => p.status === 'roster').length,
+          benchedProfiles: profiles.filter(p => p.status === 'bench').length,
         };
 
         app.logger.info({ userId, analytics }, 'Analytics retrieved successfully');
@@ -861,6 +1515,45 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         app.logger.error({ err: error, userId, message: String(error) }, 'Failed to fetch analytics');
         return reply.status(500).send({
           error: { message: 'Failed to fetch analytics' },
+        });
+      }
+    }
+  );
+
+  // GET /api/nudges - Get nudge suggestions
+  fastify.get(
+    '/api/nudges',
+    {
+      schema: {
+        description: 'Get nudge suggestions',
+        tags: ['nudges'],
+        response: {
+          200: {
+            type: 'array',
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const userId = session.user.id;
+      app.logger.info({ userId }, 'Fetching nudges');
+
+      try {
+        await app.db.insert(schema.users).values({
+          id: userId,
+          email: session.user.email,
+          name: session.user.name,
+        }).onConflictDoNothing();
+
+        app.logger.info({ userId }, 'Nudges retrieved successfully (empty)');
+        return [];
+      } catch (error) {
+        app.logger.error({ err: error, userId, message: String(error) }, 'Failed to fetch nudges');
+        return reply.status(500).send({
+          error: { message: 'Failed to fetch nudges' },
         });
       }
     }
