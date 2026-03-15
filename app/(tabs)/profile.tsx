@@ -139,7 +139,14 @@ export default function ProfileScreen() {
   };
 
   const pickImage = async () => {
+    console.log('[Profile] User tapped profile photo to change it');
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant photo library access to change your profile photo.');
+        return;
+      }
+
       setUploadingImage(true);
       setUploadProgress(0);
       console.log('[Profile] Opening image picker...');
@@ -147,8 +154,8 @@ export default function ProfileScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [16, 9],
-        quality: 1.0,
+        aspect: [1, 1],
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -358,8 +365,8 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           style={styles.imageContainer}
-          onPress={isEditing ? pickImage : undefined}
-          disabled={!isEditing || uploadingImage}
+          onPress={pickImage}
+          disabled={uploadingImage}
         >
           {profileImage || user?.image ? (
             <Image
@@ -379,30 +386,28 @@ export default function ProfileScreen() {
               )}
             </View>
           )}
-          {isEditing && (
-            <View style={styles.imageOverlay}>
-              {uploadingImage ? (
-                <>
-                  <ActivityIndicator color="#fff" size="large" />
-                  <Text style={styles.imageOverlayText}>
-                    {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Compressing...'}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <IconSymbol
-                    ios_icon_name="camera.fill"
-                    android_material_icon_name="camera"
-                    size={32}
-                    color="#fff"
-                  />
-                  <Text style={styles.imageOverlayText}>
-                    {isFirstLogin ? 'Tap to add photo (Required)' : 'Tap to change'}
-                  </Text>
-                </>
-              )}
-            </View>
-          )}
+          <View style={[styles.imageOverlay, !uploadingImage && styles.imageOverlaySubtle]}>
+            {uploadingImage ? (
+              <>
+                <ActivityIndicator color="#fff" size="large" />
+                <Text style={styles.imageOverlayText}>
+                  {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Compressing...'}
+                </Text>
+              </>
+            ) : (
+              <>
+                <IconSymbol
+                  ios_icon_name="camera.fill"
+                  android_material_icon_name="camera"
+                  size={28}
+                  color="#fff"
+                />
+                <Text style={styles.imageOverlayText}>
+                  {isFirstLogin ? 'Tap to add photo (Required)' : 'Tap to change photo'}
+                </Text>
+              </>
+            )}
+          </View>
         </TouchableOpacity>
 
         <View style={styles.fieldsContainer}>
@@ -1046,6 +1051,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  imageOverlaySubtle: {
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   imageOverlayText: {
     color: '#fff',

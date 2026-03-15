@@ -6,6 +6,22 @@ import { BACKEND_URL } from './api';
 import { supabase } from '@/lib/supabase';
 import { addToUploadQueue, removeFromUploadQueue, incrementUploadRetry, logUploadError, getUploadQueue } from './storage';
 
+// Get the Bearer token using the same auth system as the rest of the app (Supabase)
+async function getBearerToken(): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      console.log('[ImageUpload] Got Bearer token from Supabase session');
+      return session.access_token;
+    }
+    console.warn('[ImageUpload] No active Supabase session found');
+    return null;
+  } catch (error) {
+    console.error('[ImageUpload] Error retrieving session token:', error);
+    return null;
+  }
+}
+
 const MAX_IMAGE_WIDTH = 800;
 const MAX_IMAGE_HEIGHT = 1000;
 const JPEG_QUALITY = 0.7;
@@ -62,8 +78,8 @@ async function uploadWithRetry(
     console.log('[ImageUpload] Upload attempt', retryCount + 1, 'of', MAX_RETRY_ATTEMPTS);
     console.log('[ImageUpload] Uploading to:', `${BACKEND_URL}${endpoint}`);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    const token = await getBearerToken();
+    if (!token) {
       throw new Error('Not authenticated');
     }
 
@@ -74,7 +90,7 @@ async function uploadWithRetry(
       const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ image: imageData }),
