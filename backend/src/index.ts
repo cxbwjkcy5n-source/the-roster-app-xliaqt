@@ -5,21 +5,10 @@ import * as authSchema from './db/auth-schema.js';
 // Import route registration functions
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
-import { registerUserProfileRoutes } from './routes/user-profile.js';
-import { registerProfileRoutes } from './routes/profiles.js';
-import { registerFlagsRoutes } from './routes/flags.js';
-import { registerDatesRoutes } from './routes/dates.js';
-import { registerUploadRoutes } from './routes/upload.js';
-import { registerAnalyticsRoutes } from './routes/analytics.js';
-import { registerRemindersRoutes } from './routes/reminders.js';
-import { registerInteractionsRoutes } from './routes/interactions.js';
-import { registerSafetyDatesRoutes } from './routes/safety-dates.js';
-import { registerPrivacyPolicyRoutes } from './routes/privacy-policy.js';
-import { registerCoachingRoutes } from './routes/coaching.js';
-import { registerLocationsRoutes } from './routes/locations.js';
+import { registerProfileRoutes } from './routes/api.js';
+import { registerSupabaseRoutes } from './routes/supabase-api.js';
 
 // Add delay before application creation to allow WASM modules to initialize
-// Increased delay to allow PGlite WASM to fully initialize
 await new Promise(resolve => setTimeout(resolve, 2000));
 
 // Handle uncaught exceptions to prevent WASM abort errors from crashing
@@ -32,7 +21,7 @@ process.on('uncaughtException', (error) => {
   }
 });
 
-// Combine schemas for Better Auth
+// Combine schemas
 const schema = { ...appSchema, ...authSchema };
 
 // Log the number of tables being registered
@@ -46,131 +35,107 @@ export const app = await createApplication(schema);
 export type App = typeof app;
 
 // Run database migrations on startup
-// Skip migrations if DATABASE_URL is not set (local PGlite development)
 const shouldSkipMigrations = !process.env.DATABASE_URL && process.env.SKIP_DB_MIGRATIONS !== 'false';
 
 app.logger.info({ shouldSkip: shouldSkipMigrations }, 'Starting database migration process');
 
 let migrationAttempts = 0;
-const maxMigrationAttempts = 2; // Reduced to 2 for faster startup
-let migrationsSuccessful = !shouldSkipMigrations; // Skip if in local dev mode
+const maxMigrationAttempts = 2;
+let migrationsSuccessful = !shouldSkipMigrations;
 
 if (!shouldSkipMigrations) {
   while (migrationAttempts < maxMigrationAttempts && !migrationsSuccessful) {
     try {
       migrationAttempts++;
 
-      // Add delay between attempts - increase delay for each attempt
       if (migrationAttempts > 1) {
         const delayMs = Math.min(5000, 1000 * migrationAttempts);
         app.logger.info({ attempt: migrationAttempts, delayMs }, 'Waiting before retry...');
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
 
-    app.logger.info({ attempt: migrationAttempts, maxAttempts: maxMigrationAttempts }, 'Executing database migrations');
-    try {
-      await runMigrations({ logger: app.logger });
-      app.logger.info('✓ Database migrations completed successfully');
-      migrationsSuccessful = true;
-    } catch (migrationError) {
-      // Handle migration errors - don't let them crash startup
-      throw migrationError;
-    }
-  } catch (error) {
-    // Log but don't fail startup - the framework may have already initialized the schema
-    // and this error might be about the drizzle schema which is optional
-    let errorMessage = "";
-    let errorStack = "";
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorStack = error.stack || "";
-    } else if (typeof error === "string") {
-      errorMessage = error;
-    } else {
-      errorMessage = JSON.stringify(error);
-    }
-
-    app.logger.warn(
-      { err: errorMessage, attempt: migrationAttempts, maxAttempts: maxMigrationAttempts },
-      'Migration attempt failed'
-    );
-
-    // Check if this is a WASM/initialization error that can be retried
-    const isWasmInitError =
-      errorMessage.includes('Aborted') ||
-      errorMessage.includes('RuntimeError') ||
-      errorMessage.includes('WASM') ||
-      errorMessage.includes('_pg_initdb') ||
-      errorMessage.includes('CREATE SCHEMA') ||
-      errorMessage.includes('Failed query');
-
-    // Check if tables already exist (migrations already applied)
-    const isAlreadyApplied = errorMessage.includes('already exists');
-
-    if (isWasmInitError || isAlreadyApplied) {
-      if (isAlreadyApplied) {
-        app.logger.info(
-          { err: errorMessage },
-          'Database tables already exist - migrations previously applied.'
-        );
+      app.logger.info({ attempt: migrationAttempts, maxAttempts: maxMigrationAttempts }, 'Executing database migrations');
+      try {
+        await runMigrations({ logger: app.logger });
+        app.logger.info('✓ Database migrations completed successfully');
         migrationsSuccessful = true;
-      } else {
-        // WASM initialization issue - this is expected during local development
-        // The framework may initialize the schema differently
-        app.logger.warn(
-          { err: errorMessage },
-          'WASM initialization issue detected - this is expected during PGlite startup'
-        );
-        // Allow startup after just 2 attempts when WASM errors occur
-        if (migrationAttempts >= 2) {
-          app.logger.info(
-            'WASM initialization issue detected. Database schema will be initialized by framework on demand. Server starting now.'
-          );
-          migrationsSuccessful = true; // Allow startup to continue - framework handles schema
-        }
+      } catch (migrationError) {
+        throw migrationError;
       }
-    } else {
-      // Unknown error - log but try again
+    } catch (error) {
+      let errorMessage = "";
+      let errorStack = "";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorStack = error.stack || "";
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+
       app.logger.warn(
-        { err: errorMessage, stack: errorStack },
-        'Unexpected migration error - retrying...'
+        { err: errorMessage, attempt: migrationAttempts, maxAttempts: maxMigrationAttempts },
+        'Migration attempt failed'
       );
-      if (migrationAttempts >= maxMigrationAttempts) {
+
+      const isWasmInitError =
+        errorMessage.includes('Aborted') ||
+        errorMessage.includes('RuntimeError') ||
+        errorMessage.includes('WASM') ||
+        errorMessage.includes('_pg_initdb') ||
+        errorMessage.includes('CREATE SCHEMA') ||
+        errorMessage.includes('Failed query');
+
+      const isAlreadyApplied = errorMessage.includes('already exists');
+
+      if (isWasmInitError || isAlreadyApplied) {
+        if (isAlreadyApplied) {
+          app.logger.info(
+            { err: errorMessage },
+            'Database tables already exist - migrations previously applied.'
+          );
+          migrationsSuccessful = true;
+        } else {
+          app.logger.warn(
+            { err: errorMessage },
+            'WASM initialization issue detected - this is expected during PGlite startup'
+          );
+          if (migrationAttempts >= 2) {
+            app.logger.info(
+              'WASM initialization issue detected. Database schema will be initialized by framework on demand. Server starting now.'
+            );
+            migrationsSuccessful = true;
+          }
+        }
+      } else {
         app.logger.warn(
-          'Migration retries exhausted. Continuing with startup - framework may handle initialization.'
+          { err: errorMessage, stack: errorStack },
+          'Unexpected migration error - retrying...'
         );
-        migrationsSuccessful = true; // Allow startup to continue
+        if (migrationAttempts >= maxMigrationAttempts) {
+          app.logger.warn(
+            'Migration retries exhausted. Continuing with startup - framework may handle initialization.'
+          );
+          migrationsSuccessful = true;
+        }
       }
     }
   }
 }
-}
 
 // Enable authentication with Better Auth configuration
-// Support email/password, Google OAuth, and Apple OAuth through proxy
-app.withAuth({
-  // The proxy handles OAuth credentials automatically via Better Auth's managed OAuth
-  // No need to provide credentials - they're handled by the framework
-});
+app.withAuth({});
 
 app.withStorage();
 
 // Register routes
 registerAuthRoutes(app, app.fastify);
 registerHealthRoutes(app, app.fastify);
-registerUserProfileRoutes(app, app.fastify);
-registerProfileRoutes(app, app.fastify);
-registerFlagsRoutes(app, app.fastify);
-registerDatesRoutes(app, app.fastify);
-registerUploadRoutes(app, app.fastify);
-registerAnalyticsRoutes(app, app.fastify);
-registerRemindersRoutes(app, app.fastify);
-registerInteractionsRoutes(app, app.fastify);
-registerSafetyDatesRoutes(app, app.fastify);
-registerPrivacyPolicyRoutes(app, app.fastify);
-registerCoachingRoutes(app, app.fastify);
-registerLocationsRoutes(app, app.fastify);
+// Use Supabase routes instead of old profile routes
+// registerProfileRoutes(app, app.fastify);
+registerSupabaseRoutes(app.fastify);
 
 await app.run();
 app.logger.info('Application running');

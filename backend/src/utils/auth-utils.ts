@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { verifyAndExtractUser } from '../middleware/dual-auth.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { App } from '../index.js';
 import * as authSchema from '../db/auth-schema.js';
 
@@ -84,9 +84,14 @@ export function isAuthenticated(request: FastifyRequest, app: App): boolean {
 
 /**
  * Ensure user row exists to prevent foreign key violations
- * Uses a safe SELECT-first, INSERT-if-missing pattern
+ * Uses a safe SELECT-first, INSERT-if-missing pattern with raw SQL
  */
-export async function ensureUserExists(app: App, userId: string): Promise<void> {
+export async function ensureUserExists(
+  app: App,
+  userId: string,
+  email: string,
+  name: string
+): Promise<void> {
   try {
     // Check if user already exists
     const existingUser = await app.db.query.user.findFirst({
@@ -98,12 +103,10 @@ export async function ensureUserExists(app: App, userId: string): Promise<void> 
       return;
     }
 
-    // User doesn't exist, insert with minimal required fields
-    await app.db.insert(authSchema.user).values({
-      id: userId,
-      email: `${userId}@placeholder.local`,
-      name: userId,
-    });
+    // User doesn't exist, insert with the provided email and name using raw SQL
+    await app.db.execute(
+      sql`INSERT INTO "user" (id, email, name) VALUES (${userId}, ${email}, ${name})`
+    );
   } catch (error) {
     app.logger.warn({ userId, err: error }, 'Failed to ensure user row exists');
     // Don't throw - just log and continue
