@@ -108,6 +108,73 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
+  // Bulk update display order (for drag-to-reorder) - MUST be before /api/profiles/:id
+  fastify.put<{
+    Body: { profiles: Array<{ id: string; displayOrder: number }> };
+  }>(
+    '/api/profiles/reorder',
+    {
+      schema: {
+        description: 'Bulk update profile display order for reordering',
+        tags: ['profiles'],
+        body: {
+          type: 'object',
+          properties: {
+            profiles: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  displayOrder: { type: 'integer' },
+                },
+                required: ['id', 'displayOrder'],
+              },
+            },
+          },
+          required: ['profiles'],
+        },
+        response: { 200: { type: 'object', properties: { success: { type: 'boolean' } } } },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      const body = request.body as { profiles: Array<{ id: string; displayOrder: number }> };
+
+      app.logger.info({ userId: session.user.id, count: body.profiles.length }, 'Reordering profiles');
+
+      let updated = 0;
+
+      try {
+        // Update each profile's display order
+        for (const item of body.profiles) {
+          const existing = await app.db.query.rosterProfiles.findFirst({
+            where: and(
+              eq(schema.rosterProfiles.id, item.id),
+              eq(schema.rosterProfiles.userId, session.user.id)
+            ),
+          });
+
+          if (existing) {
+            await app.db
+              .update(schema.rosterProfiles)
+              .set({ displayOrder: item.displayOrder, updatedAt: new Date() })
+              .where(eq(schema.rosterProfiles.id, item.id));
+            updated++;
+          }
+        }
+
+        app.logger.info({ userId: session.user.id, updated }, 'Profiles reordered successfully');
+        return { success: true };
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, count: body.profiles.length }, 'Failed to reorder profiles');
+        return reply.status(500).send({ error: 'Failed to reorder profiles. Please try again.' });
+      }
+    }
+  );
+
   // Get all profiles for authenticated user
   fastify.get(
     '/api/profiles',
@@ -420,10 +487,10 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
-  // Add flag to profile (red or green)
+  // Add flag to profile (red or green) - accepts both 'type' and 'flagType' field names
   fastify.post<{
     Params: { id: string };
-    Body: { flagText: string; type: 'red' | 'green' };
+    Body: { flagText: string; type?: 'red' | 'green'; flagType?: 'red' | 'green' };
   }>(
     '/api/profiles/:id/flags',
     {
@@ -436,8 +503,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
           properties: {
             flagText: { type: 'string' },
             type: { type: 'string', enum: ['red', 'green'] },
+            flagType: { type: 'string', enum: ['red', 'green'] },
           },
-          required: ['flagText', 'type'],
+          required: ['flagText'],
         },
         response: { 200: { type: 'object' } },
       },
@@ -447,9 +515,16 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       if (!session) return;
 
       const { id } = request.params as { id: string };
-      const { flagText, type } = request.body as { flagText: string; type: 'red' | 'green' };
+      const body = request.body as { flagText: string; type?: 'red' | 'green'; flagType?: 'red' | 'green' };
 
-      app.logger.info({ userId: session.user.id, profileId: id, flagType: type }, 'Adding flag to profile');
+      // Accept both 'type' and 'flagType' field names
+      const flagType = body.type || body.flagType;
+
+      if (!flagType || (flagType !== 'red' && flagType !== 'green')) {
+        return reply.status(400).send({ error: 'Flag type must be "red" or "green"' });
+      }
+
+      app.logger.info({ userId: session.user.id, profileId: id, flagType }, 'Adding flag to profile');
 
       // Verify ownership
       const profile = await app.db.query.rosterProfiles.findFirst({
@@ -465,20 +540,20 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       }
 
       try {
-        if (type === 'red') {
+        if (flagType === 'red') {
           const [flag] = await app.db
             .insert(schema.redFlags)
-            .values({ profileId: id, flagText })
+            .values({ profileId: id, flagText: body.flagText })
             .returning();
           app.logger.info({ userId: session.user.id, profileId: id, flagId: flag.id }, 'Red flag added successfully');
-          return flag;
+          return { id: flag.id, flagText: flag.flagText, type: 'red' };
         } else {
           const [flag] = await app.db
             .insert(schema.greenFlags)
-            .values({ profileId: id, flagText })
+            .values({ profileId: id, flagText: body.flagText })
             .returning();
           app.logger.info({ userId: session.user.id, profileId: id, flagId: flag.id }, 'Green flag added successfully');
-          return flag;
+          return { id: flag.id, flagText: flag.flagText, type: 'green' };
         }
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id, profileId: id }, 'Failed to add flag');
@@ -487,70 +562,4 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
-  // Bulk update display order (for drag-to-reorder)
-  fastify.put<{
-    Body: { profiles: Array<{ id: string; displayOrder: number }> };
-  }>(
-    '/api/profiles/reorder',
-    {
-      schema: {
-        description: 'Bulk update profile display order for reordering',
-        tags: ['profiles'],
-        body: {
-          type: 'object',
-          properties: {
-            profiles: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  displayOrder: { type: 'integer' },
-                },
-                required: ['id', 'displayOrder'],
-              },
-            },
-          },
-          required: ['profiles'],
-        },
-        response: { 200: { type: 'object', properties: { updated: { type: 'integer' } } } },
-      },
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const session = await requireDualAuth(request, reply, app);
-      if (!session) return;
-
-      const body = request.body as { profiles: Array<{ id: string; displayOrder: number }> };
-
-      app.logger.info({ userId: session.user.id, count: body.profiles.length }, 'Reordering profiles');
-
-      let updated = 0;
-
-      try {
-        // Update each profile's display order
-        for (const item of body.profiles) {
-          const existing = await app.db.query.rosterProfiles.findFirst({
-            where: and(
-              eq(schema.rosterProfiles.id, item.id),
-              eq(schema.rosterProfiles.userId, session.user.id)
-            ),
-          });
-
-          if (existing) {
-            await app.db
-              .update(schema.rosterProfiles)
-              .set({ displayOrder: item.displayOrder, updatedAt: new Date() })
-              .where(eq(schema.rosterProfiles.id, item.id));
-            updated++;
-          }
-        }
-
-        app.logger.info({ userId: session.user.id, updated }, 'Profiles reordered successfully');
-        return { updated };
-      } catch (error) {
-        app.logger.error({ err: error, userId: session.user.id, count: body.profiles.length }, 'Failed to reorder profiles');
-        return reply.status(500).send({ error: 'Failed to reorder profiles. Please try again.' });
-      }
-    }
-  );
 }
