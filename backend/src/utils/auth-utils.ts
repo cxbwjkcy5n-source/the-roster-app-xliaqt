@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { verifyAndExtractUser } from '../middleware/dual-auth.js';
+import { eq } from 'drizzle-orm';
 import type { App } from '../index.js';
 import * as authSchema from '../db/auth-schema.js';
 
@@ -82,18 +83,29 @@ export function isAuthenticated(request: FastifyRequest, app: App): boolean {
 }
 
 /**
- * Auto-upsert user row to prevent foreign key violations
- * Ensures the user row exists before any queries that reference it
- * Only inserts id, using default/placeholder values for required columns
+ * Ensure user row exists to prevent foreign key violations
+ * Uses a safe SELECT-first, INSERT-if-missing pattern
  */
 export async function ensureUserExists(app: App, userId: string): Promise<void> {
   try {
-    await app.db
-      .insert(authSchema.user)
-      .values({ id: userId, email: `${userId}@placeholder.local`, name: userId })
-      .onConflictDoNothing();
+    // Check if user already exists
+    const existingUser = await app.db.query.user.findFirst({
+      where: eq(authSchema.user.id, userId),
+    });
+
+    if (existingUser) {
+      // User exists, return immediately
+      return;
+    }
+
+    // User doesn't exist, insert with minimal required fields
+    await app.db.insert(authSchema.user).values({
+      id: userId,
+      email: `${userId}@placeholder.local`,
+      name: userId,
+    });
   } catch (error) {
-    app.logger.warn({ userId, err: error }, 'Failed to auto-upsert user row');
-    // Don't throw - the row may already exist or user may have data issues
+    app.logger.warn({ userId, err: error }, 'Failed to ensure user row exists');
+    // Don't throw - just log and continue
   }
 }

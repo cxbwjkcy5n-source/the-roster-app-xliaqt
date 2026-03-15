@@ -165,20 +165,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
   // Update user profile (name and basic info) - creates profile if it doesn't exist
   fastify.put<{
-    Body: {
-      name?: string;
-      age?: string;
-      location?: string;
-      phoneNumber?: string;
-      favoriteColor?: string;
-      favoriteFoodType?: string;
-      instagram?: string;
-      twitter?: string;
-      notes?: string;
-      image?: string;
-      imageKey?: string;
-      profileCompleted?: boolean;
-    };
+    Body: { [key: string]: any };
   }>(
     '/api/user/profile',
     {
@@ -188,17 +175,20 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
         body: {
           type: 'object',
           properties: {
-            name: { type: 'string', minLength: 1 },
-            age: { type: 'string' },
+            name: { type: 'string' },
+            age: { type: ['number', 'string'] },
             location: { type: 'string' },
+            phone_number: { type: 'string' },
             phoneNumber: { type: 'string' },
+            favorite_color: { type: 'string' },
             favoriteColor: { type: 'string' },
+            favorite_food_type: { type: 'string' },
             favoriteFoodType: { type: 'string' },
             instagram: { type: 'string' },
             twitter: { type: 'string' },
             notes: { type: 'string' },
             image: { type: 'string' },
-            imageKey: { type: 'string' },
+            profile_completed: { type: 'boolean' },
             profileCompleted: { type: 'boolean' },
           },
         },
@@ -209,22 +199,11 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      const body = request.body as {
-        name?: string;
-        age?: string;
-        location?: string;
-        phoneNumber?: string;
-        favoriteColor?: string;
-        favoriteFoodType?: string;
-        instagram?: string;
-        twitter?: string;
-        notes?: string;
-        image?: string;
-        imageKey?: string;
-        profileCompleted?: boolean;
-      };
+      await ensureUserExists(app, session.user.id);
 
-      app.logger.info({ userId: session.user.id }, 'Updating user profile (upsert)');
+      const body = request.body as { [key: string]: any };
+
+      app.logger.info({ userId: session.user.id }, 'Updating user profile');
 
       try {
         // Validate name if provided
@@ -233,34 +212,51 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'Name cannot be empty' });
         }
 
-        // Build upsert data - only include fields that are provided
-        const upsertData: any = {
-          id: session.user.id,
-          email: session.user.email,
-          name: body.name || session.user.name || 'User',
-          emailVerified: true,
-        };
+        // Build update data - map both snake_case and camelCase field names
+        const updateData: any = { updatedAt: new Date() };
 
-        if (body.age !== undefined) upsertData.age = body.age;
-        if (body.location !== undefined) upsertData.location = body.location;
-        if (body.phoneNumber !== undefined) upsertData.phoneNumber = body.phoneNumber;
-        if (body.favoriteColor !== undefined) upsertData.favoriteColor = body.favoriteColor;
-        if (body.favoriteFoodType !== undefined) upsertData.favoriteFoodType = body.favoriteFoodType;
-        if (body.instagram !== undefined) upsertData.instagram = body.instagram;
-        if (body.twitter !== undefined) upsertData.twitter = body.twitter;
-        if (body.notes !== undefined) upsertData.notes = body.notes;
-        if (body.image !== undefined) upsertData.image = body.image;
-        if (body.imageKey !== undefined) upsertData.imageKey = body.imageKey;
-        if (body.profileCompleted !== undefined) upsertData.profileCompleted = body.profileCompleted;
+        // Handle name
+        if (body.name !== undefined) updateData.name = body.name;
 
-        // Use INSERT...ON CONFLICT to upsert
+        // Handle age
+        if (body.age !== undefined) updateData.age = String(body.age);
+
+        // Handle location
+        if (body.location !== undefined) updateData.location = body.location;
+
+        // Handle phone_number (support both snake_case and camelCase)
+        if (body.phone_number !== undefined) updateData.phoneNumber = body.phone_number;
+        if (body.phoneNumber !== undefined) updateData.phoneNumber = body.phoneNumber;
+
+        // Handle favorite_color (support both snake_case and camelCase)
+        if (body.favorite_color !== undefined) updateData.favoriteColor = body.favorite_color;
+        if (body.favoriteColor !== undefined) updateData.favoriteColor = body.favoriteColor;
+
+        // Handle favorite_food_type (support both snake_case and camelCase)
+        if (body.favorite_food_type !== undefined) updateData.favoriteFoodType = body.favorite_food_type;
+        if (body.favoriteFoodType !== undefined) updateData.favoriteFoodType = body.favoriteFoodType;
+
+        // Handle instagram
+        if (body.instagram !== undefined) updateData.instagram = body.instagram;
+
+        // Handle twitter
+        if (body.twitter !== undefined) updateData.twitter = body.twitter;
+
+        // Handle notes
+        if (body.notes !== undefined) updateData.notes = body.notes;
+
+        // Handle image
+        if (body.image !== undefined) updateData.image = body.image;
+
+        // Handle profile_completed (support both snake_case and camelCase)
+        if (body.profile_completed !== undefined) updateData.profileCompleted = body.profile_completed;
+        if (body.profileCompleted !== undefined) updateData.profileCompleted = body.profileCompleted;
+
+        // Use UPDATE with WHERE to update existing user
         const [updatedUser] = await app.db
-          .insert(authSchema.user)
-          .values(upsertData)
-          .onConflictDoUpdate({
-            target: authSchema.user.id,
-            set: { ...upsertData, updatedAt: new Date() },
-          })
+          .update(authSchema.user)
+          .set(updateData)
+          .where(eq(authSchema.user.id, session.user.id))
           .returning();
 
         app.logger.info({ userId: session.user.id }, 'User profile updated successfully');
@@ -278,7 +274,6 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
           twitter: updatedUser.twitter,
           notes: updatedUser.notes,
           image: updatedUser.image,
-          imageKey: updatedUser.imageKey,
           profileCompleted: updatedUser.profileCompleted,
           emailVerified: updatedUser.emailVerified,
           createdAt: updatedUser.createdAt,

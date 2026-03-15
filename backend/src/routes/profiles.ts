@@ -51,48 +51,77 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      const body = request.body as { name: string; [key: string]: any };
-      app.logger.info({ userId: session.user.id, name: body.name }, 'Creating new profile');
+      const body = request.body as { [key: string]: any };
+      const name = body.name || body.name;
+
+      app.logger.info({ userId: session.user.id, name }, 'Creating new profile');
 
       try {
         // Auto-upsert user row to prevent foreign key violations
         await ensureUserExists(app, session.user.id);
 
+        if (!name) {
+          return reply.status(400).send({ error: 'name is required' });
+        }
+
+        // Helper to get value from either snake_case or camelCase keys
+        const getValue = (snakeKey: string, camelKey: string, defaultVal?: any) => {
+          if (body[snakeKey] !== undefined) return body[snakeKey];
+          if (body[camelKey] !== undefined) return body[camelKey];
+          return defaultVal;
+        };
+
+        // Map status: 'active'/'benched'/'archived' -> 'roster'/'bench'
+        let status = getValue('status', 'status', 'roster');
+        if (status === 'active' || status === 'roster') status = 'roster';
+        if (status === 'benched' || status === 'bench') status = 'bench';
+
+        // Map interest_level: number (1-10) or string -> 'low'/'medium'/'high'
+        let interestLevel = getValue('interest_level', 'interestLevel');
+        if (typeof interestLevel === 'number') {
+          if (interestLevel <= 3) interestLevel = 'low';
+          else if (interestLevel <= 7) interestLevel = 'medium';
+          else interestLevel = 'high';
+        } else if (!['low', 'medium', 'high'].includes(interestLevel)) {
+          interestLevel = 'medium';
+        }
+
         const [profile] = await app.db
           .insert(schema.rosterProfiles)
           .values({
-            name: body.name,
+            name,
             userId: session.user.id,
-            age: body.age,
-            birthdayMonth: body.birthdayMonth,
-            birthdayDay: body.birthdayDay,
-            birthdayYear: body.birthdayYear,
-            zodiacSign: body.zodiacSign,
-            favoriteColor: body.favoriteColor,
-            favoriteFood: body.favoriteFood || body.favoriteFoodType,
-            relationshipType: body.relationshipType,
-            location: body.location,
-            phoneNumber: body.phoneNumber,
-            instagram: body.instagram,
-            twitter: body.twitter,
-            facebook: body.facebook,
-            snapchat: body.snapchat,
-            notes: body.notes,
-            hobbies: body.hobbies,
-            interests: body.interests,
-            howYouMet: body.howYouMet,
-            interestLevel: body.interestLevel || 'medium',
-            profileImageUrl: body.profileImageUrl,
-            profileImageKey: body.profileImageKey,
-            status: body.status || 'roster',
-            benchReason: body.benchReason,
-            displayOrder: body.displayOrder || 0,
+            age: getValue('age', 'age'),
+            birthdayMonth: getValue('birthday_month', 'birthdayMonth'),
+            birthdayDay: getValue('birthday_day', 'birthdayDay'),
+            birthdayYear: getValue('birthday_year', 'birthdayYear'),
+            zodiacSign: getValue('zodiac_sign', 'zodiacSign'),
+            favoriteColor: getValue('favorite_color', 'favoriteColor'),
+            favoriteFood: getValue('favorite_food', 'favoriteFood'),
+            relationshipType: getValue('relationship_type', 'relationshipType'),
+            location: getValue('location', 'location'),
+            phoneNumber: getValue('phone_number', 'phoneNumber'),
+            instagram: getValue('instagram', 'instagram'),
+            twitter: getValue('twitter', 'twitter'),
+            facebook: getValue('facebook', 'facebook'),
+            snapchat: getValue('snapchat', 'snapchat'),
+            notes: getValue('notes', 'notes'),
+            hobbies: getValue('hobbies', 'hobbies'),
+            interests: getValue('interests', 'interests'),
+            howYouMet: getValue('how_you_met', 'howYouMet'),
+            interestLevel,
+            profileImageUrl: getValue('profile_image_url', 'profileImageUrl'),
+            profileImageKey: getValue('profile_image_key', 'profileImageKey'),
+            status,
+            benchReason: getValue('bench_reason', 'benchReason'),
+            displayOrder: getValue('display_order', 'displayOrder', 0),
+            lastContactDate: getValue('last_contact_date', 'lastContactDate'),
           })
           .returning();
 
         app.logger.info({ profileId: profile.id, userId: session.user.id }, 'Profile created successfully');
 
-        // Return with nested empty arrays as per spec
+        // Return with nested empty arrays
         return {
           ...profile,
           redFlags: [],
@@ -101,7 +130,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         };
       } catch (error) {
         app.logger.error(
-          { err: error, userId: session.user.id, name: body.name },
+          { err: error, userId: session.user.id, name },
           'Failed to create profile'
         );
 
@@ -377,7 +406,62 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
-      const updateData: Record<string, any> = { ...body, updatedAt: new Date() };
+      // Helper to get value from either snake_case or camelCase keys
+      const getValue = (snakeKey: string, camelKey: string) => {
+        if (body[snakeKey] !== undefined) return body[snakeKey];
+        if (body[camelKey] !== undefined) return body[camelKey];
+        return undefined;
+      };
+
+      // Build update data with proper field mapping
+      const updateData: Record<string, any> = { updatedAt: new Date() };
+
+      if (body.name !== undefined) updateData.name = body.name;
+      if (getValue('age', 'age') !== undefined) updateData.age = getValue('age', 'age');
+      if (getValue('birthday_month', 'birthdayMonth') !== undefined) updateData.birthdayMonth = getValue('birthday_month', 'birthdayMonth');
+      if (getValue('birthday_day', 'birthdayDay') !== undefined) updateData.birthdayDay = getValue('birthday_day', 'birthdayDay');
+      if (getValue('birthday_year', 'birthdayYear') !== undefined) updateData.birthdayYear = getValue('birthday_year', 'birthdayYear');
+      if (getValue('zodiac_sign', 'zodiacSign') !== undefined) updateData.zodiacSign = getValue('zodiac_sign', 'zodiacSign');
+      if (getValue('favorite_color', 'favoriteColor') !== undefined) updateData.favoriteColor = getValue('favorite_color', 'favoriteColor');
+      if (getValue('favorite_food', 'favoriteFood') !== undefined) updateData.favoriteFood = getValue('favorite_food', 'favoriteFood');
+      if (getValue('relationship_type', 'relationshipType') !== undefined) updateData.relationshipType = getValue('relationship_type', 'relationshipType');
+      if (getValue('location', 'location') !== undefined) updateData.location = getValue('location', 'location');
+      if (getValue('phone_number', 'phoneNumber') !== undefined) updateData.phoneNumber = getValue('phone_number', 'phoneNumber');
+      if (getValue('instagram', 'instagram') !== undefined) updateData.instagram = getValue('instagram', 'instagram');
+      if (getValue('twitter', 'twitter') !== undefined) updateData.twitter = getValue('twitter', 'twitter');
+      if (getValue('facebook', 'facebook') !== undefined) updateData.facebook = getValue('facebook', 'facebook');
+      if (getValue('snapchat', 'snapchat') !== undefined) updateData.snapchat = getValue('snapchat', 'snapchat');
+      if (getValue('notes', 'notes') !== undefined) updateData.notes = getValue('notes', 'notes');
+      if (getValue('hobbies', 'hobbies') !== undefined) updateData.hobbies = getValue('hobbies', 'hobbies');
+      if (getValue('interests', 'interests') !== undefined) updateData.interests = getValue('interests', 'interests');
+      if (getValue('how_you_met', 'howYouMet') !== undefined) updateData.howYouMet = getValue('how_you_met', 'howYouMet');
+
+      // Map status: 'active'/'benched'/'archived' -> 'roster'/'bench'
+      if (getValue('status', 'status') !== undefined) {
+        let status = getValue('status', 'status');
+        if (status === 'active' || status === 'roster') status = 'roster';
+        if (status === 'benched' || status === 'bench') status = 'bench';
+        updateData.status = status;
+      }
+
+      // Map interest_level: number (1-10) or string -> 'low'/'medium'/'high'
+      if (getValue('interest_level', 'interestLevel') !== undefined) {
+        let interestLevel = getValue('interest_level', 'interestLevel');
+        if (typeof interestLevel === 'number') {
+          if (interestLevel <= 3) interestLevel = 'low';
+          else if (interestLevel <= 7) interestLevel = 'medium';
+          else interestLevel = 'high';
+        } else if (!['low', 'medium', 'high'].includes(interestLevel)) {
+          interestLevel = 'medium';
+        }
+        updateData.interestLevel = interestLevel;
+      }
+
+      if (getValue('profile_image_url', 'profileImageUrl') !== undefined) updateData.profileImageUrl = getValue('profile_image_url', 'profileImageUrl');
+      if (getValue('profile_image_key', 'profileImageKey') !== undefined) updateData.profileImageKey = getValue('profile_image_key', 'profileImageKey');
+      if (getValue('bench_reason', 'benchReason') !== undefined) updateData.benchReason = getValue('bench_reason', 'benchReason');
+      if (getValue('display_order', 'displayOrder') !== undefined) updateData.displayOrder = getValue('display_order', 'displayOrder');
+      if (getValue('last_contact_date', 'lastContactDate') !== undefined) updateData.lastContactDate = getValue('last_contact_date', 'lastContactDate');
 
       const [updated] = await app.db
         .update(schema.rosterProfiles)
