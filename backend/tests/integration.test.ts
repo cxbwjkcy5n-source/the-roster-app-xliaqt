@@ -585,13 +585,14 @@ describe('Integration Tests', () => {
       expect(token).toBeDefined();
     });
 
-    it('should upload profile image', async () => {
-      const form = new FormData();
-      form.append('file', createTestFile('profile.jpg', 'fake jpeg image data', 'image/jpeg'));
+    it('should upload profile image with base64 data URL', async () => {
+      const base64Image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       const res = await authenticatedApi('/api/upload/profile-image', authToken, {
         method: 'POST',
-        body: form,
+        body: JSON.stringify({
+          image: base64Image,
+        }),
       });
       await expectStatus(res, 200);
 
@@ -600,19 +601,64 @@ describe('Integration Tests', () => {
       expect(typeof data.url).toBe('string');
     });
 
-    it('should upload roster image', async () => {
-      const form = new FormData();
-      form.append('file', createTestFile('roster.png', 'fake png image data', 'image/png'));
-
-      const res = await authenticatedApi('/api/upload/roster-image', authToken, {
+    it('should upload profile image with HTTPS URL', async () => {
+      const res = await authenticatedApi('/api/upload/profile-image', authToken, {
         method: 'POST',
-        body: form,
+        body: JSON.stringify({
+          image: 'https://example.com/test-profile.jpg',
+        }),
       });
       await expectStatus(res, 200);
 
       const data = await res.json() as any;
       expect(data.url).toBeDefined();
       expect(typeof data.url).toBe('string');
+    });
+
+    it('should upload roster image with base64 data URL', async () => {
+      const base64Image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+      const res = await authenticatedApi('/api/upload/roster-image', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          image: base64Image,
+        }),
+      });
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.url).toBeDefined();
+      expect(typeof data.url).toBe('string');
+    });
+
+    it('should upload roster image with HTTPS URL', async () => {
+      const res = await authenticatedApi('/api/upload/roster-image', authToken, {
+        method: 'POST',
+        body: JSON.stringify({
+          image: 'https://example.com/test-roster.jpg',
+        }),
+      });
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.url).toBeDefined();
+      expect(typeof data.url).toBe('string');
+    });
+
+    it('should reject profile image upload without image field', async () => {
+      const res = await authenticatedApi('/api/upload/profile-image', authToken, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      await expectStatus(res, 400);
+    });
+
+    it('should reject roster image upload without image field', async () => {
+      const res = await authenticatedApi('/api/upload/roster-image', authToken, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      await expectStatus(res, 400);
     });
   });
 
