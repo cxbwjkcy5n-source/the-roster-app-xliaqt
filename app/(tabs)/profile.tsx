@@ -218,12 +218,9 @@ export default function ProfileScreen() {
       if (phoneNumber) profileData.phoneNumber = phoneNumber.trim();
       if (favoriteColor) profileData.favoriteColor = favoriteColor;
       if (favoriteFoodType) profileData.favoriteFoodType = favoriteFoodType;
-      if (instagram) profileData.instagram = instagram.trim();
-      if (twitter) profileData.twitter = twitter.trim();
-      if (notes) profileData.notes = notes.trim();
-      if (profileImage) profileData.image = profileImage;
-      if (profileImageKey) profileData.imageKey = profileImageKey;
+      if (profileImage) profileData.profileImageUrl = profileImage;
 
+      console.log('[Profile] Sending profile data to API:', JSON.stringify(profileData));
       const { authenticatedPut } = await import('@/utils/api');
       await authenticatedPut('/api/user/profile', profileData);
       console.log('[Profile] Profile data saved successfully');

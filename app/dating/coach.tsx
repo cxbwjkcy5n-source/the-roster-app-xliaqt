@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,12 @@ interface Message {
   timestamp: Date;
 }
 
+interface HistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
 const DEFAULT_GREETING = "Hi! I'm your dating coach. I'm here to help you with dating advice, conversation tips, date ideas, and relationship guidance. What would you like to talk about?";
 const PERSONALIZED_GREETING = "Hey! I'm your personal dating coach. I can see your roster and dating history, so I can give you personalized advice. What's on your mind?";
 
@@ -36,30 +42,65 @@ export default function DatingCoachScreen() {
   const router = useRouter();
   const { roster, bench } = useRoster();
   const [analytics, setAnalytics] = useState<any>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: DEFAULT_GREETING,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const historyLoadedRef = useRef(false);
 
+  // Load chat history and analytics on mount
   useEffect(() => {
-    console.log('[DatingCoach] Loading analytics on mount');
-    authenticatedGet('/api/analytics')
-      .then((data) => {
-        console.log('[DatingCoach] Analytics loaded');
-        setAnalytics(data);
-      })
-      .catch((err) => {
-        console.error('[DatingCoach] Failed to load analytics:', err);
-      });
+    console.log('[DatingCoach] Loading history and analytics on mount');
+
+    const loadInitialData = async () => {
+      try {
+        const [historyData, analyticsData] = await Promise.all([
+          authenticatedGet('/api/coaching/history').catch((err) => {
+            console.error('[DatingCoach] Failed to load history:', err);
+            return null;
+          }),
+          authenticatedGet('/api/analytics').catch((err) => {
+            console.error('[DatingCoach] Failed to load analytics:', err);
+            return null;
+          }),
+        ]);
+
+        if (analyticsData) {
+          console.log('[DatingCoach] Analytics loaded');
+          setAnalytics(analyticsData);
+        }
+
+        if (historyData?.messages && historyData.messages.length > 0) {
+          console.log('[DatingCoach] Chat history loaded, message count:', historyData.messages.length);
+          const loaded: Message[] = historyData.messages.map((m: HistoryMessage, i: number) => ({
+            id: `history-${i}`,
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.timestamp),
+          }));
+          setMessages(loaded);
+        } else {
+          console.log('[DatingCoach] No history found, showing default greeting');
+          setMessages([
+            {
+              id: '1',
+              role: 'assistant',
+              content: DEFAULT_GREETING,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+        historyLoadedRef.current = true;
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   useEffect(() => {
+    if (!historyLoadedRef.current) return;
     if (roster.length > 0 || bench.length > 0) {
       console.log('[DatingCoach] Roster data loaded - updating greeting to personalized version');
       setMessages((prev) => {
@@ -70,6 +111,52 @@ export default function DatingCoachScreen() {
       });
     }
   }, [roster, bench]);
+
+  const saveHistory = async (updatedMessages: Message[]) => {
+    const historyMessages: HistoryMessage[] = updatedMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp.toISOString(),
+    }));
+    try {
+      console.log('[DatingCoach] Saving chat history, message count:', historyMessages.length);
+      await authenticatedPost('/api/coaching/history', { messages: historyMessages });
+      console.log('[DatingCoach] Chat history saved successfully');
+    } catch (err) {
+      console.error('[DatingCoach] Failed to save chat history:', err);
+    }
+  };
+
+  const handleClearChat = () => {
+    console.log('[DatingCoach] User tapped Clear Chat button');
+    Alert.alert(
+      'Clear Chat',
+      'Are you sure you want to clear the chat history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('[DatingCoach] Clearing chat history');
+            const greeting: Message = {
+              id: '1',
+              role: 'assistant',
+              content: DEFAULT_GREETING,
+              timestamp: new Date(),
+            };
+            setMessages([greeting]);
+            try {
+              await authenticatedPost('/api/coaching/history', { messages: [] });
+              console.log('[DatingCoach] Chat history cleared on server');
+            } catch (err) {
+              console.error('[DatingCoach] Failed to clear chat history on server:', err);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -132,7 +219,11 @@ Common green flags: ${commonGreenFlags}`;
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => {
+        const updated = [...prev, assistantMessage];
+        saveHistory(updated);
+        return updated;
+      });
     } catch (error) {
       console.error('[DatingCoach] Error sending message:', error);
       Alert.alert('Error', 'Failed to get response from dating coach. Please try again.');
@@ -180,7 +271,14 @@ Common green flags: ${commonGreenFlags}`;
           />
           <Text style={styles.headerTitle}>Dating Coach</Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity style={styles.clearButton} onPress={handleClearChat}>
+          <IconSymbol
+            ios_icon_name="trash"
+            android_material_icon_name="delete"
+            size={20}
+            color="rgba(255,255,255,0.85)"
+          />
+        </TouchableOpacity>
       </LinearGradient>
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -189,6 +287,12 @@ Common green flags: ${commonGreenFlags}`;
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={0}
         >
+          {historyLoading ? (
+            <View style={styles.historyLoadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.historyLoadingText}>Loading chat history...</Text>
+            </View>
+          ) : null}
           <ScrollView
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
@@ -319,8 +423,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  headerSpacer: {
+  clearButton: {
     width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -428,5 +535,21 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  historyLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    zIndex: 10,
+  },
+  historyLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 });

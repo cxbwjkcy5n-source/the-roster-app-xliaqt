@@ -134,7 +134,7 @@ export async function uploadImage(
   type: 'profile' | 'roster' = 'profile'
 ): Promise<UploadResult> {
   try {
-    console.log('[ImageUpload] Starting upload process for:', type);
+    console.log('[ImageUpload] Starting upload process for type:', type, 'uri:', uri);
     
     // Step 1: Compress image
     const compressedUri = await compressImage(uri);
@@ -144,9 +144,10 @@ export async function uploadImage(
       ? '/api/upload/roster-image'
       : '/api/upload/profile-image';
     
+    console.log('[ImageUpload] Using endpoint:', endpoint);
     const result = await uploadWithRetry(compressedUri, endpoint);
     
-    console.log('[ImageUpload] Upload complete:', result.url);
+    console.log('[ImageUpload] Upload complete, url:', result.url);
     return result;
   } catch (error: any) {
     console.error('[ImageUpload] Upload failed:', error);

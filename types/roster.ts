@@ -23,7 +23,7 @@ export interface RosterPerson {
   favoriteFoodType: string;
   relationshipType: RelationshipType;
   customRelationshipType?: string;
-  howMet?: string; // NEW: How you met this person
+  howMet?: string;
   location: string;
   phoneNumber: string;
   instagram?: string;
@@ -38,7 +38,12 @@ export interface RosterPerson {
   status: ProfileStatus;
   benchReason?: string;
   sortOrder?: number;
-  createdAt?: string; // ISO date string when person was added
+  createdAt?: string;
+  // camelCase API fields
+  profileImageUrl?: string;
+  howYouMet?: string;
+  instagramHandle?: string;
+  snapchatHandle?: string;
 }
 
 export interface DateEvent {

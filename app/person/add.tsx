@@ -24,6 +24,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, InterestLevel, RelationshipType } from '@/types/roster';
 import { getZodiacFromBirthday, getZodiacEmoji } from '@/utils/zodiac';
+import { uploadImage } from '@/utils/imageUpload';
 
 
 
@@ -251,7 +252,6 @@ export default function AddPersonScreen() {
       
       // Upload image to backend if selected and changed
       let uploadedImageUrl: string | undefined;
-      let uploadedImageKey: string | undefined;
       
       // For editing: if photoUri is a remote URL (not a local file), carry it forward as-is
       if (isEditing && photoUri && !photoUri.startsWith('file://')) {
@@ -260,59 +260,19 @@ export default function AddPersonScreen() {
 
       if (photoUri && (!isEditing || photoUri.startsWith('file://'))) {
         try {
-          console.log('[AddPerson] Uploading image to backend...');
-          
-          // Create form data for image upload
-          const formData = new FormData();
-          const filename = photoUri.split('/').pop() || 'profile-image.jpg';
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : 'image/jpeg';
-          
-          formData.append('file', {
-            uri: photoUri,
-            name: filename,
-            type,
-          } as any);
-
-          // Upload to backend
-          const { supabase } = await import('@/lib/supabase');
-          const { data: { session } } = await supabase.auth.getSession();
-          const { BACKEND_URL } = await import('@/utils/api');
-          
-          if (!session?.access_token) {
-            console.error('[AddPerson] No access token found');
-            throw new Error('Not authenticated');
-          }
-          
-          const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/roster-image`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: formData,
-          });
-
-          if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            console.error('[AddPerson] Upload failed:', errorText);
-            throw new Error(`Failed to upload image: ${errorText}`);
-          }
-
-          const uploadData = await uploadResponse.json();
-          uploadedImageUrl = uploadData.url;
-          uploadedImageKey = uploadData.key;
-          
+          console.log('[AddPerson] Uploading image to backend via uploadImage utility...');
+          const uploadResult = await uploadImage(photoUri, 'roster');
+          uploadedImageUrl = uploadResult.url;
           console.log('[AddPerson] Image uploaded successfully:', uploadedImageUrl);
         } catch (uploadError: any) {
           console.error('[AddPerson] Image upload failed:', uploadError);
-          // CRITICAL: Don't save with local file path - show error to user
           Alert.alert(
             'Image Upload Failed',
             'Failed to upload the image. Please try again or choose a different image.',
             [{ text: 'OK' }]
           );
           setSaving(false);
-          return; // Stop the save process
+          return;
         }
       }
 
@@ -346,9 +306,15 @@ export default function AddPersonScreen() {
         greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' as const })),
         interestLevel,
         imageUrl: uploadedImageUrl,
+        // camelCase fields for API
+        profileImageUrl: uploadedImageUrl,
+        howYouMet: howMet.trim() || undefined,
+        instagramHandle: instagram.trim() || undefined,
+        snapchatHandle: snapchat.trim() || undefined,
         status: 'roster',
         createdAt: isEditing ? undefined : new Date().toISOString(),
       };
+      console.log('[AddPerson] Saving person with camelCase fields, profileImageUrl:', person.profileImageUrl);
 
       console.log('[AddPerson] Saving person:', person.name);
 
