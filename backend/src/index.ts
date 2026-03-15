@@ -6,6 +6,7 @@ import * as authSchema from './db/auth-schema.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProfileRoutes } from './routes/api.js';
+import { registerSupabaseRoutes } from './routes/supabase-api.js';
 
 // Add delay before application creation to allow WASM modules to initialize
 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -132,7 +133,9 @@ app.withStorage();
 // Register routes
 registerAuthRoutes(app, app.fastify);
 registerHealthRoutes(app, app.fastify);
-registerProfileRoutes(app, app.fastify);
+// Use Supabase routes instead of old profile routes
+// registerProfileRoutes(app, app.fastify);
+registerSupabaseRoutes(app.fastify);
 
 await app.run();
 app.logger.info('Application running');

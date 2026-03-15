@@ -8,6 +8,8 @@
     "build": "esbuild src/index.ts --bundle --outdir=dist --platform=node --target=node20 --format=esm --packages=external --sourcemap",
     "typecheck": "tsc --noEmit",
     "start": "node --import @specific-dev/framework/telemetry dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "tsx node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:push": "npm run db:generate && npm run db:migrate"
@@ -19,13 +21,15 @@
     "@fastify/swagger": "^9.5.2",
     "@neondatabase/serverless": "^1.0.2",
     "@specific-dev/framework": "1.20.2",
+    "@supabase/supabase-js": "^2.99.1",
     "better-auth": "1.4.5",
     "commander": "^12.1.0",
     "drizzle-orm": "^0.44.7",
     "fastify": "^5.2.1",
     "jwt-decode": "^4.0.0",
     "pino-pretty": "^13.1.2",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "vitest": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",
