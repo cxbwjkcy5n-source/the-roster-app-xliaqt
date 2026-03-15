@@ -38,7 +38,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         // Fetch user profile
         const userProfile = await app.db.query.user.findFirst({
@@ -386,7 +386,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         // Update profileCompleted
         const [updatedUser] = await app.db

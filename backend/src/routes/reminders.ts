@@ -48,7 +48,7 @@ export function registerRemindersRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         // Verify profile ownership if profileId is provided
         if (body.profileId) {

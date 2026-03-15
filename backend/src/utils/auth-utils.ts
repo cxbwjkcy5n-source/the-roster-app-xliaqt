@@ -84,12 +84,13 @@ export function isAuthenticated(request: FastifyRequest, app: App): boolean {
 /**
  * Auto-upsert user row to prevent foreign key violations
  * Ensures the user row exists before any queries that reference it
+ * Only inserts id, using default/placeholder values for required columns
  */
-export async function ensureUserExists(app: App, userId: string, email: string = 'unknown@example.com'): Promise<void> {
+export async function ensureUserExists(app: App, userId: string): Promise<void> {
   try {
     await app.db
       .insert(authSchema.user)
-      .values({ id: userId, email, name: userId })
+      .values({ id: userId, email: `${userId}@placeholder.local`, name: userId })
       .onConflictDoNothing();
   } catch (error) {
     app.logger.warn({ userId, err: error }, 'Failed to auto-upsert user row');

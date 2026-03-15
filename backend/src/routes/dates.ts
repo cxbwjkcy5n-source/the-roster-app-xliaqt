@@ -125,7 +125,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
 
       try {
         // Auto-upsert user row
-        await ensureUserExists(app, session.user.id, session.user.email);
+        await ensureUserExists(app, session.user.id);
 
         // Verify that the profile belongs to the user
         const profile = await app.db.query.rosterProfiles.findFirst({
@@ -204,69 +204,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, status }, 'Fetching dates');
 
       try {
-        // First, update any upcoming dates that have passed their dateTime to completed status
-        const now = new Date();
-        app.logger.debug({ userId: session.user.id, currentTime: now.toISOString() }, 'Checking for upcoming dates that need status update');
-
-        const upcomingDatesToUpdate = await app.db
-          .select()
-          .from(schema.dates)
-          .where(
-            and(
-              eq(schema.dates.userId, session.user.id),
-              eq(schema.dates.status, 'upcoming'),
-              lt(schema.dates.dateTime, now)
-            )
-          );
-
-        if (upcomingDatesToUpdate.length > 0) {
-          app.logger.info(
-            {
-              userId: session.user.id,
-              count: upcomingDatesToUpdate.length,
-              passedDates: upcomingDatesToUpdate.map(d => ({ id: d.id, scheduledTime: d.dateTime?.toISOString() }))
-            },
-            'Auto-updating passed upcoming dates to completed'
-          );
-
-          // Update all passed dates to completed
-          await app.db
-            .update(schema.dates)
-            .set({ status: 'completed' })
-            .where(
-              and(
-                eq(schema.dates.userId, session.user.id),
-                eq(schema.dates.status, 'upcoming'),
-                lt(schema.dates.dateTime, now)
-              )
-            );
-
-          app.logger.info(
-            { userId: session.user.id, count: upcomingDatesToUpdate.length },
-            'Successfully updated passed dates to completed status'
-          );
-        } else {
-          app.logger.debug(
-            { userId: session.user.id },
-            'No upcoming dates found that have passed their scheduled time'
-          );
-        }
-
-        // Status filtering
-        if (status) {
-          const filteredDates = await app.db
-            .select()
-            .from(schema.dates)
-            .where(
-              and(
-                eq(schema.dates.userId, session.user.id),
-                eq(schema.dates.status, status)
-              )
-            );
-          app.logger.info({ userId: session.user.id, status, count: filteredDates.length }, 'Filtered dates fetched successfully');
-          return filteredDates;
-        }
-
+        // Return all dates - frontend handles filtering and time-based updates
         const allDates = await app.db
           .query.dates.findMany({
             where: eq(schema.dates.userId, session.user.id),
@@ -275,7 +213,7 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
             },
           });
 
-        app.logger.info({ userId: session.user.id, count: allDates.length }, 'All dates fetched successfully');
+        app.logger.info({ userId: session.user.id, count: allDates.length }, 'Dates fetched successfully');
         return allDates;
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id, status }, 'Failed to fetch dates');

@@ -19,7 +19,7 @@ export function registerUploadRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       app.logger.info({ userId: session.user.id }, 'Profile image upload started');
 
@@ -79,7 +79,7 @@ export function registerUploadRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      await ensureUserExists(app, session.user.id, session.user.email);
+      await ensureUserExists(app, session.user.id);
 
       app.logger.info({ userId: session.user.id }, 'Roster image upload started');
 
