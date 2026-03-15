@@ -58,6 +58,7 @@ function getPlatform(): 'ios' | 'android' | 'web' | 'unknown' {
     }
     
     // Lazy import Platform only when needed for native
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require('react-native');
     if (Platform && Platform.OS) {
       return Platform.OS;

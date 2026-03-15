@@ -25,6 +25,8 @@ import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, InterestLevel, RelationshipType } from '@/types/roster';
 import { getZodiacFromBirthday, getZodiacEmoji } from '@/utils/zodiac';
 
+const PREFILL_BANNER_TEXT = 'Profile scanned! Review and save to add to your roster.';
+
 const { width } = Dimensions.get('window');
 
 const months = [
@@ -70,8 +72,10 @@ export default function AddPersonScreen() {
   const { id } = useLocalSearchParams();
   const { addPerson, updatePerson, roster, bench, refreshProfiles } = useRoster();
 
+  const params = useLocalSearchParams();
   const isEditing = !!id;
   const [saving, setSaving] = useState(false);
+  const [hasPrefill, setHasPrefill] = useState(false);
   const [photoUri, setPhotoUri] = useState<string>();
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -104,6 +108,30 @@ export default function AddPersonScreen() {
 
   // Carousel ref for relationship types
   const relationshipCarouselRef = useRef<FlatList>(null);
+
+  // Pre-fill from QR scan
+  useEffect(() => {
+    if (params.prefill) {
+      console.log('[AddPerson] Prefill data received from QR scan');
+      try {
+        const profile = JSON.parse(params.prefill as string);
+        if (profile.name) setName(profile.name);
+        if (profile.age) setAge(profile.age.toString());
+        if (profile.location) setLocation(profile.location);
+        if (profile.phoneNumber) setPhoneNumber(profile.phoneNumber);
+        if (profile.instagram) setInstagram(profile.instagram);
+        if (profile.twitter) setTwitter(profile.twitter);
+        if (profile.favoriteColor) setFavoriteColor(profile.favoriteColor);
+        if (profile.favoriteFoodType) setFavoriteFoodType(profile.favoriteFoodType);
+        if (profile.image) setPhotoUri(profile.image);
+        setHasPrefill(true);
+        console.log('[AddPerson] Prefill applied for:', profile.name);
+      } catch (e) {
+        console.error('[AddPerson] Failed to parse prefill data', e);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load existing person data if editing
   useEffect(() => {
@@ -455,6 +483,12 @@ export default function AddPersonScreen() {
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
         >
+          {hasPrefill && (
+            <View style={styles.prefillBanner}>
+              <Text style={styles.prefillBannerText}>{PREFILL_BANNER_TEXT}</Text>
+            </View>
+          )}
+
           <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photo} />
@@ -1194,5 +1228,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  prefillBanner: {
+    backgroundColor: '#1a3a1a',
+    borderWidth: 1,
+    borderColor: '#2d8b4e',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+  },
+  prefillBannerText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

@@ -149,6 +149,7 @@ export default function RootLayout() {
                 <Stack.Screen name="dating/safety" />
                 <Stack.Screen name="dating/analytics" />
                 <Stack.Screen name="dating/coach" />
+                <Stack.Screen name="scan" />
               </Stack>
               {Platform.OS !== 'web' && <SystemBars style="auto" />}
               

@@ -26,6 +26,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { uploadImage } from "@/utils/imageUpload";
 import { logSaveError } from "@/utils/storage";
+import QRCode from 'react-native-qrcode-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -59,21 +60,22 @@ export default function ProfileScreen() {
   const [instagram, setInstagram] = useState('');
   const [twitter, setTwitter] = useState('');
   const [notes, setNotes] = useState('');
-  
+
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   const loadProfileData = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       console.log('[Profile] Loading profile data from backend...');
       const { authenticatedGet } = await import('@/utils/api');
       const profileData = await authenticatedGet('/api/user/profile');
-      
+
       console.log('[Profile] Profile data loaded:', profileData);
-      
+
       if (profileData.name) setName(profileData.name);
       if (profileData.image) setProfileImage(profileData.image);
       if (profileData.age) setAge(profileData.age.toString());
@@ -99,31 +101,44 @@ export default function ProfileScreen() {
     }
   }, [isFirstLogin]);
 
+  const buildQRData = () => {
+    const data: any = { v: 1 };
+    if (name) data.name = name;
+    if (age) data.age = parseInt(age);
+    if (location) data.location = location;
+    if (phoneNumber) data.phoneNumber = phoneNumber;
+    if (instagram) data.instagram = instagram;
+    if (twitter) data.twitter = twitter;
+    if (favoriteColor) data.favoriteColor = favoriteColor;
+    if (favoriteFoodType) data.favoriteFoodType = favoriteFoodType;
+    if (profileImage) data.image = profileImage;
+    return 'roster://' + btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  };
+
   const pickImage = async () => {
     try {
       setUploadingImage(true);
       setUploadProgress(0);
       console.log('[Profile] Opening image picker...');
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 1.0, // Start with high quality, we'll compress it
+        quality: 1.0,
       });
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
         console.log('[Profile] Image selected, uploading with compression and retry...');
-        
+
         setUploadProgress(30);
-        
-        // Use the new robust upload utility
+
         const uploadResult = await uploadImage(uri, 'profile');
-        
+
         setUploadProgress(100);
         console.log('[Profile] Image uploaded successfully:', uploadResult.url);
-        
+
         setProfileImageKey(uploadResult.key);
         setProfileImage(uploadResult.url);
       }
@@ -143,10 +158,10 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     console.log('[Profile] User tapped Save button');
-    
+
     if (isFirstLogin) {
       const missingFields: string[] = [];
-      
+
       if (!name.trim()) {
         missingFields.push('Name');
       }
@@ -156,7 +171,7 @@ export default function ProfileScreen() {
       if (!profileImage) {
         missingFields.push('Photo');
       }
-      
+
       if (missingFields.length > 0) {
         Alert.alert(
           'Required Fields Missing',
@@ -166,15 +181,15 @@ export default function ProfileScreen() {
         return;
       }
     }
-    
+
     try {
       setLoading(true);
       console.log('[Profile] Saving profile data...');
-      
+
       const profileData: any = {
         name: name.trim(),
       };
-      
+
       if (age) profileData.age = parseInt(age);
       if (location) profileData.location = location.trim();
       if (phoneNumber) profileData.phoneNumber = phoneNumber.trim();
@@ -185,22 +200,22 @@ export default function ProfileScreen() {
       if (notes) profileData.notes = notes.trim();
       if (profileImage) profileData.image = profileImage;
       if (profileImageKey) profileData.imageKey = profileImageKey;
-      
+
       const { authenticatedPut } = await import('@/utils/api');
       await authenticatedPut('/api/user/profile', profileData);
       console.log('[Profile] Profile data saved successfully');
-      
+
       if (isFirstLogin) {
         console.log('[Profile] First login - marking as complete');
-        
+
         const { authenticatedPost } = await import('@/utils/api');
         await authenticatedPost('/api/user/complete-profile', {});
-        
+
         await markFirstLoginComplete();
         if (name.trim()) {
           await markProfileComplete();
         }
-        
+
         Alert.alert(
           'Profile Complete!',
           'Welcome to THE ROSTER! Your profile has been set up.',
@@ -260,6 +275,8 @@ export default function ProfileScreen() {
     };
     return colorMap[colorName] || colors.primary;
   };
+
+  const qrValue = buildQRData();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -565,6 +582,30 @@ export default function ProfileScreen() {
             )}
           </View>
 
+          {!isFirstLogin && (
+            <TouchableOpacity
+              style={styles.qrButton}
+              onPress={() => {
+                console.log('[Profile] User tapped Add to Roster QR button');
+                setShowQRModal(true);
+              }}
+            >
+              <IconSymbol
+                ios_icon_name="qrcode"
+                android_material_icon_name="qr-code-2"
+                size={22}
+                color="#fff"
+              />
+              <Text style={styles.qrButtonText}>Add to Roster</Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="chevron-right"
+                size={16}
+                color="#555"
+              />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.privacyButton}
             onPress={() => router.push('/privacy-policy')}
@@ -604,7 +645,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {!isFirstLogin && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.logoutButton}
               onPress={handleSignOut}
             >
@@ -647,6 +688,66 @@ export default function ProfileScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowQRModal(false)}>
+          <View style={styles.qrModalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.qrModalCard}>
+                <View style={styles.qrDragHandle} />
+                <Text style={styles.qrModalTitle}>Add Me to Your Roster</Text>
+                <Text style={styles.qrModalSubtitle}>{name}</Text>
+
+                <View style={styles.qrCodeContainer}>
+                  <QRCode
+                    value={qrValue}
+                    size={220}
+                    backgroundColor="#fff"
+                    color="#000"
+                  />
+                </View>
+
+                <Text style={styles.qrHintText}>
+                  Open The Roster app and tap Scan to add this person
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.qrScanButton}
+                  onPress={() => {
+                    console.log('[Profile] User tapped Scan Someone\'s Code from QR modal');
+                    setShowQRModal(false);
+                    router.push('/scan');
+                  }}
+                >
+                  <IconSymbol
+                    ios_icon_name="camera.fill"
+                    android_material_icon_name="camera"
+                    size={18}
+                    color="#fff"
+                  />
+                  <Text style={styles.qrScanButtonText}>Scan Someone's Code</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.qrCloseButton}
+                  onPress={() => {
+                    console.log('[Profile] User closed QR modal');
+                    setShowQRModal(false);
+                  }}
+                >
+                  <Text style={styles.qrCloseButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       <Modal
         visible={showColorPicker}
@@ -964,6 +1065,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  qrButton: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  qrButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
   privacyButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1014,6 +1131,85 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // QR Modal styles
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  qrModalCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+  },
+  qrDragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#444',
+    borderRadius: 2,
+    marginBottom: 16,
+  },
+  qrModalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  qrModalSubtitle: {
+    fontSize: 16,
+    color: colors.rosterRed,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  qrCodeContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginVertical: 24,
+  },
+  qrHintText: {
+    fontSize: 13,
+    color: '#888',
+    textAlign: 'center',
+  },
+  qrScanButton: {
+    backgroundColor: colors.rosterRed,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 50,
+    marginTop: 16,
+    width: '100%',
+  },
+  qrScanButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  qrCloseButton: {
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 50,
+    marginTop: 12,
+    marginBottom: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  qrCloseButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Picker modals
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

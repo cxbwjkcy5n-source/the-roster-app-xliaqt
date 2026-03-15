@@ -388,6 +388,7 @@ export function RosterProvider({ children }: { children: ReactNode }) {
       setBackendReady(true);
       setRetryCount(0);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, retryCount]);
 
   // When backend is not ready, auto-retry health check every 5 seconds
