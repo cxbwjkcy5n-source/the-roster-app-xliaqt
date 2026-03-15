@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +24,54 @@ import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { authenticatedGet } from '@/utils/api';
+
+const DATING_MENU_ITEMS = [
+  {
+    id: 'have-date',
+    title: 'I Have a Date',
+    subtitle: 'Schedule & track your date',
+    iosIcon: 'calendar',
+    androidIcon: 'calendar-today' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#E91E8C',
+    route: '/dating/schedule',
+  },
+  {
+    id: 'plan-date',
+    title: 'Plan a Date',
+    subtitle: 'Get AI-powered suggestions',
+    iosIcon: 'sparkles',
+    androidIcon: 'auto-awesome' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#9C27B0',
+    route: '/dating/plan',
+  },
+  {
+    id: 'on-date',
+    title: "I'm On a Date",
+    subtitle: 'Safety check-in & tracking',
+    iosIcon: 'location.fill',
+    androidIcon: 'location-on' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#F44336',
+    route: '/dating/safety',
+  },
+  {
+    id: 'dating-coach',
+    title: 'Dating Coach',
+    subtitle: 'AI advice & conversation help',
+    iosIcon: 'bubble.left.fill',
+    androidIcon: 'chat' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#2196F3',
+    route: '/dating/coach',
+  },
+  {
+    id: 'my-dates',
+    title: 'My Dates',
+    subtitle: 'View your date history',
+    iosIcon: 'clock.fill',
+    androidIcon: 'history' as keyof typeof import('@expo/vector-icons/MaterialIcons').glyphMap,
+    color: '#4CAF50',
+    route: '/dating/history',
+  },
+];
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 64) / 2;
@@ -46,6 +95,30 @@ interface Analytics {
 export default function BenchScreen() {
   const router = useRouter();
   const { bench, dates, roster, updateDate, rateDate, refreshDates } = useRoster();
+  const [showDatingMenu, setShowDatingMenu] = useState(false);
+  const slideAnim = useRef(new Animated.Value(400)).current;
+
+  const openDatingMenu = () => {
+    console.log('[Bench] User tapped dating menu button - opening submenu');
+    setShowDatingMenu(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  };
+
+  const closeDatingMenu = () => {
+    console.log('[Bench] User closed dating menu');
+    Animated.spring(slideAnim, {
+      toValue: 400,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start(() => setShowDatingMenu(false));
+  };
+
   const [showDatesModal, setShowDatesModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [datesTab, setDatesTab] = useState<'upcoming' | 'completed'>('upcoming');
@@ -416,6 +489,17 @@ export default function BenchScreen() {
               <IconSymbol
                 ios_icon_name="chart.bar.fill"
                 android_material_icon_name="insert-chart"
+                size={24}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={openDatingMenu}
+            >
+              <IconSymbol
+                ios_icon_name="line.3.horizontal"
+                android_material_icon_name="menu"
                 size={24}
                 color={colors.white}
               />
@@ -946,6 +1030,70 @@ export default function BenchScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Dating Menu Modal */}
+      <Modal
+        visible={showDatingMenu}
+        animationType="none"
+        transparent
+        onRequestClose={closeDatingMenu}
+      >
+        <View style={styles.datingMenuOverlay}>
+          <TouchableOpacity
+            style={styles.datingMenuBackdrop}
+            activeOpacity={1}
+            onPress={closeDatingMenu}
+          />
+          <Animated.View style={[styles.datingMenuContent, { transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.datingMenuHandle} />
+            <Text style={styles.datingMenuTitle}>Dating</Text>
+            <ScrollView
+              style={styles.datingMenuScroll}
+              contentContainerStyle={styles.datingMenuScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {DATING_MENU_ITEMS.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  <TouchableOpacity
+                    style={styles.datingMenuItem}
+                    onPress={() => {
+                      console.log('[Bench] User tapped dating menu item:', item.title);
+                      closeDatingMenu();
+                      setTimeout(() => router.push(item.route as any), 300);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.datingMenuIconCircle, { backgroundColor: item.color }]}>
+                      <IconSymbol
+                        ios_icon_name={item.iosIcon}
+                        android_material_icon_name={item.androidIcon}
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                    <View style={styles.datingMenuTextContainer}>
+                      <Text style={styles.datingMenuItemTitle}>{item.title}</Text>
+                      <Text style={styles.datingMenuItemSubtitle}>{item.subtitle}</Text>
+                    </View>
+                    <IconSymbol
+                      ios_icon_name="chevron.right"
+                      android_material_icon_name="chevron-right"
+                      size={16}
+                      color="#555555"
+                    />
+                  </TouchableOpacity>
+                  {index < DATING_MENU_ITEMS.length - 1 && (
+                    <View style={styles.datingMenuSeparator} />
+                  )}
+                </React.Fragment>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.datingMenuCancelButton} onPress={closeDatingMenu} activeOpacity={0.8}>
+              <Text style={styles.datingMenuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+
       {/* Rating Modal */}
       <Modal
         visible={showRatingModal}
@@ -1216,6 +1364,93 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.white,
     fontWeight: '600',
+  },
+  // Dating Menu Modal styles
+  datingMenuOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  datingMenuBackdrop: {
+    flex: 1,
+  },
+  datingMenuContent: {
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingBottom: 34,
+  },
+  datingMenuHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#444444',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  datingMenuTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  datingMenuScroll: {
+    flexShrink: 1,
+  },
+  datingMenuScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  datingMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 0,
+  },
+  datingMenuIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  datingMenuTextContainer: {
+    flex: 1,
+  },
+  datingMenuItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  datingMenuItemSubtitle: {
+    fontSize: 13,
+    color: '#888888',
+    marginTop: 2,
+  },
+  datingMenuSeparator: {
+    height: 1,
+    backgroundColor: '#2a2a2a',
+    marginLeft: 58,
+  },
+  datingMenuCancelButton: {
+    marginHorizontal: 16,
+    marginBottom: 32,
+    marginTop: 8,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  datingMenuCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   reasonBadge: {
     marginTop: 8,

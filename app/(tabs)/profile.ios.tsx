@@ -20,13 +20,14 @@ import {
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { uploadImage } from "@/utils/imageUpload";
 import { logSaveError } from "@/utils/storage";
-import QRCode from 'react-native-qrcode-svg';
+import { authenticatedGet } from "@/utils/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -63,7 +64,12 @@ export default function ProfileScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFoodPicker, setShowFoodPicker] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareCode, setShareCode] = useState('');
+  const [showEnterCode, setShowEnterCode] = useState(false);
+  const [enterCodeText, setEnterCodeText] = useState('');
+  const [lookingUpCode, setLookingUpCode] = useState(false);
+  const [codeError, setCodeError] = useState('');
 
   const loadProfileData = useCallback(async () => {
     if (!user) return;
@@ -100,18 +106,35 @@ export default function ProfileScreen() {
     }
   }, [isFirstLogin]);
 
-  const buildQRData = () => {
-    const data: any = { v: 1 };
-    if (name) data.name = name;
-    if (age) data.age = parseInt(age);
-    if (location) data.location = location;
-    if (phoneNumber) data.phoneNumber = phoneNumber;
-    if (instagram) data.instagram = instagram;
-    if (twitter) data.twitter = twitter;
-    if (favoriteColor) data.favoriteColor = favoriteColor;
-    if (favoriteFoodType) data.favoriteFoodType = favoriteFoodType;
-    if (profileImage) data.image = profileImage;
-    return 'roster://' + btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  useEffect(() => {
+    if (user?.id) {
+      setShareCode(user.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase());
+    }
+  }, [user?.id]);
+
+  const generateShareCode = (userId: string) => {
+    return userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
+  };
+
+  const handleLookupCode = async () => {
+    const code = enterCodeText.trim().toUpperCase();
+    if (code.length < 1) return;
+    console.log('[Profile] User tapped Find Profile with code:', code);
+    setLookingUpCode(true);
+    setCodeError('');
+    try {
+      const profile = await authenticatedGet('/api/profiles/by-code?code=' + code);
+      console.log('[Profile] Profile found for code:', code);
+      setShowShareModal(false);
+      setShowEnterCode(false);
+      setEnterCodeText('');
+      router.push(('/person/add?prefill=' + encodeURIComponent(JSON.stringify(profile))) as any);
+    } catch (error: any) {
+      console.error('[Profile] Code lookup failed:', error);
+      setCodeError('No profile found with that code.');
+    } finally {
+      setLookingUpCode(false);
+    }
   };
 
   const pickImage = async () => {
@@ -268,8 +291,6 @@ export default function ProfileScreen() {
     };
     return colorMap[colorName] || colors.primary;
   };
-
-  const qrValue = buildQRData();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -577,13 +598,13 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.qrButton}
               onPress={() => {
-                console.log('[Profile] User tapped Add to Roster QR button');
-                setShowQRModal(true);
+                console.log('[Profile] User tapped Add to Roster button');
+                setShowShareModal(true);
               }}
             >
               <IconSymbol
-                ios_icon_name="qrcode"
-                android_material_icon_name="qr-code-2"
+                ios_icon_name="person.badge.plus"
+                android_material_icon_name="person-add"
                 size={22}
                 color="#fff"
               />
@@ -680,56 +701,92 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* QR Code Modal */}
+      {/* Share Code Modal */}
       <Modal
-        visible={showQRModal}
+        visible={showShareModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowQRModal(false)}
+        onRequestClose={() => { setShowShareModal(false); setShowEnterCode(false); setEnterCodeText(''); setCodeError(''); }}
       >
-        <TouchableWithoutFeedback onPress={() => setShowQRModal(false)}>
+        <TouchableWithoutFeedback onPress={() => { setShowShareModal(false); setShowEnterCode(false); setEnterCodeText(''); setCodeError(''); }}>
           <View style={styles.qrModalOverlay}>
             <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
               <View style={styles.qrModalCard}>
                 <View style={styles.qrDragHandle} />
-                <Text style={styles.qrModalTitle}>Add Me to Your Roster</Text>
+                <Text style={styles.qrModalTitle}>Share Your Profile</Text>
                 <Text style={styles.qrModalSubtitle}>{name}</Text>
 
-                <View style={styles.qrCodeContainer}>
-                  <QRCode
-                    value={qrValue}
-                    size={220}
-                    backgroundColor="#fff"
-                    color="#000"
-                  />
+                <View style={styles.shareCodeBox}>
+                  <Text style={styles.shareCodeText}>{shareCode}</Text>
                 </View>
 
                 <Text style={styles.qrHintText}>
-                  Open The Roster app and tap Scan to add this person
+                  Share this code with someone to add you to their roster
                 </Text>
 
                 <TouchableOpacity
                   style={styles.qrScanButton}
-                  onPress={() => {
-                    console.log('[Profile] User tapped Scan Someone\'s Code from QR modal');
-                    setShowQRModal(false);
-                    router.push('/scan');
+                  onPress={async () => {
+                    console.log('[Profile] User tapped Copy Code button');
+                    await Clipboard.setStringAsync(shareCode);
+                    Alert.alert('Copied!', 'Your share code has been copied to clipboard.');
                   }}
                 >
                   <IconSymbol
-                    ios_icon_name="camera.fill"
-                    android_material_icon_name="camera"
+                    ios_icon_name="doc.on.doc.fill"
+                    android_material_icon_name="content-copy"
                     size={18}
                     color="#fff"
                   />
-                  <Text style={styles.qrScanButtonText}>Scan Someone's Code</Text>
+                  <Text style={styles.qrScanButtonText}>Copy Code</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.enterCodeButton}
+                  onPress={() => {
+                    console.log('[Profile] User tapped Enter Someone\'s Code button');
+                    setShowEnterCode(!showEnterCode);
+                    setCodeError('');
+                  }}
+                >
+                  <Text style={styles.enterCodeButtonText}>Enter Someone's Code</Text>
+                </TouchableOpacity>
+
+                {showEnterCode && (
+                  <View style={styles.enterCodeContainer}>
+                    <TextInput
+                      style={styles.enterCodeInput}
+                      value={enterCodeText}
+                      onChangeText={(t) => { setEnterCodeText(t.toUpperCase()); setCodeError(''); }}
+                      placeholder="XXXXXX"
+                      placeholderTextColor="#555"
+                      maxLength={6}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                    />
+                    {codeError ? <Text style={styles.codeErrorText}>{codeError}</Text> : null}
+                    <TouchableOpacity
+                      style={[styles.qrScanButton, { marginTop: 8 }]}
+                      onPress={handleLookupCode}
+                      disabled={lookingUpCode || enterCodeText.trim().length < 1}
+                    >
+                      {lookingUpCode ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.qrScanButtonText}>Find Profile</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 <TouchableOpacity
                   style={styles.qrCloseButton}
                   onPress={() => {
-                    console.log('[Profile] User closed QR modal');
-                    setShowQRModal(false);
+                    console.log('[Profile] User closed share modal');
+                    setShowShareModal(false);
+                    setShowEnterCode(false);
+                    setEnterCodeText('');
+                    setCodeError('');
                   }}
                 >
                   <Text style={styles.qrCloseButtonText}>Close</Text>
@@ -1157,11 +1214,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  qrCodeContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
+  shareCodeBox: {
+    backgroundColor: '#2a2a2a',
     borderRadius: 16,
+    padding: 24,
     marginVertical: 24,
+    alignItems: 'center',
+    width: '100%',
+  },
+  shareCodeText: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 8,
+    fontVariant: ['tabular-nums'],
+  },
+  enterCodeButton: {
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 50,
+    marginTop: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  enterCodeButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  enterCodeContainer: {
+    width: '100%',
+    marginTop: 8,
+  },
+  enterCodeInput: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 8,
+    textAlign: 'center',
+    width: '100%',
+  },
+  codeErrorText: {
+    color: '#FF6B6B',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
   },
   qrHintText: {
     fontSize: 13,

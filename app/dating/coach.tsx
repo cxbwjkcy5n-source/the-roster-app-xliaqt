@@ -11,6 +11,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -87,7 +89,6 @@ export default function DatingCoachScreen() {
     try {
       console.log('[DatingCoach] Sending message to AI:', messageToSend);
 
-      // Build system context from roster/analytics data
       const rosterSummary = roster.map(p => `${p.name} (age ${p.age || 'unknown'}, interest: ${p.interestLevel || 'medium'}, location: ${p.location || 'unknown'})`).join(', ') || 'none';
       const benchSummary = bench.map(p => `${p.name} (reason: ${p.benchReason || 'unspecified'})`).join(', ') || 'none';
       const commonRedFlags = analytics?.commonRedFlags?.slice(0, 3).map((f: any) => f.flag).join(', ') || 'none';
@@ -105,14 +106,12 @@ Common red flags: ${commonRedFlags}
 Common green flags: ${commonGreenFlags}`;
 
       console.log('[DatingCoach] System context built, roster size:', roster.length);
-      
-      // Prepare conversation history for API
+
       const conversationHistory = messages.map(msg => ({
         role: msg.role,
         content: msg.content,
       }));
-      
-      // Add the new user message to history
+
       conversationHistory.push({
         role: 'user',
         content: messageToSend,
@@ -125,7 +124,7 @@ Common green flags: ${commonGreenFlags}`;
       });
 
       console.log('[DatingCoach] Received AI response');
-      
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -137,8 +136,6 @@ Common green flags: ${commonGreenFlags}`;
     } catch (error) {
       console.error('[DatingCoach] Error sending message:', error);
       Alert.alert('Error', 'Failed to get response from dating coach. Please try again.');
-      
-      // Remove the user message if the request failed
       setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
@@ -154,12 +151,8 @@ Common green flags: ${commonGreenFlags}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen 
-        options={{
-          headerShown: false,
-        }} 
-      />
-      
+      <Stack.Screen options={{ headerShown: false }} />
+
       <LinearGradient
         colors={[colors.rosterGreen, '#1F6B3A']}
         style={styles.header}
@@ -190,100 +183,108 @@ Common green flags: ${commonGreenFlags}`;
         <View style={styles.headerSpacer} />
       </LinearGradient>
 
-      <KeyboardAvoidingView 
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <ScrollView 
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView
+          style={styles.content}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0}
         >
-          {messages.map((message) => (
-            <View
-              key={message.id}
-              style={[
-                styles.messageBubble,
-                message.role === 'user' ? styles.userBubble : styles.assistantBubble,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.messageText,
-                  message.role === 'user' ? styles.userText : styles.assistantText,
-                ]}
-              >
-                {message.content}
-              </Text>
-              <Text
-                style={[
-                  styles.messageTime,
-                  message.role === 'user' ? styles.userTime : styles.assistantTime,
-                ]}
-              >
-                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          ))}
-
-          {isLoading && (
-            <View style={[styles.messageBubble, styles.assistantBubble]}>
-              <ActivityIndicator size="small" color={colors.primary} />
-            </View>
-          )}
-
-          {messages.length === 1 && (
-            <View style={styles.quickPromptsContainer}>
-              <Text style={styles.quickPromptsTitle}>Quick questions:</Text>
-              {quickPrompts.map((prompt, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.quickPromptButton}
-                  onPress={() => {
-                    console.log('[DatingCoach] User selected quick prompt:', prompt);
-                    setInputText(prompt);
-                  }}
-                >
-                  <Text style={styles.quickPromptText}>{prompt}</Text>
-                  <IconSymbol
-                    ios_icon_name="chevron.right"
-                    android_material_icon_name="chevron-right"
-                    size={16}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Ask your dating coach..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-            onPress={() => {
-              console.log('[DatingCoach] User tapped send button');
-              handleSend();
-            }}
-            disabled={!inputText.trim() || isLoading}
+          <ScrollView
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
           >
-            <IconSymbol
-              ios_icon_name="arrow.up.circle.fill"
-              android_material_icon_name="send"
-              size={32}
-              color={inputText.trim() ? colors.primary : colors.textSecondary}
+            {messages.map((message) => (
+              <View
+                key={message.id}
+                style={[
+                  styles.messageBubble,
+                  message.role === 'user' ? styles.userBubble : styles.assistantBubble,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.messageText,
+                    message.role === 'user' ? styles.userText : styles.assistantText,
+                  ]}
+                >
+                  {message.content}
+                </Text>
+                <Text
+                  style={[
+                    styles.messageTime,
+                    message.role === 'user' ? styles.userTime : styles.assistantTime,
+                  ]}
+                >
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            ))}
+
+            {isLoading && (
+              <View style={[styles.messageBubble, styles.assistantBubble]}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            )}
+
+            {messages.length === 1 && (
+              <View style={styles.quickPromptsContainer}>
+                <Text style={styles.quickPromptsTitle}>Quick questions:</Text>
+                {quickPrompts.map((prompt, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.quickPromptButton}
+                    onPress={() => {
+                      console.log('[DatingCoach] User selected quick prompt:', prompt);
+                      setInputText(prompt);
+                    }}
+                  >
+                    <Text style={styles.quickPromptText}>{prompt}</Text>
+                    <IconSymbol
+                      ios_icon_name="chevron.right"
+                      android_material_icon_name="chevron-right"
+                      size={16}
+                      color={colors.primary}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Ask your dating coach..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={() => {
+                console.log('[DatingCoach] User pressed send key on keyboard');
+                handleSend();
+              }}
+              blurOnSubmit={false}
             />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+              onPress={() => {
+                console.log('[DatingCoach] User tapped send button');
+                handleSend();
+              }}
+              disabled={!inputText.trim() || isLoading}
+            >
+              <IconSymbol
+                ios_icon_name="arrow.up.circle.fill"
+                android_material_icon_name="send"
+                size={32}
+                color={inputText.trim() ? colors.primary : colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }
