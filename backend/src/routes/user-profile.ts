@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import * as appSchema from '../db/schema.js';
 import * as authSchema from '../db/auth-schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
@@ -37,63 +37,55 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id }, 'Fetching user profile');
 
       try {
-        let userProfile = await app.db.query.user.findFirst({
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
+
+        // Fetch user profile
+        const userProfile = await app.db.query.user.findFirst({
           where: eq(authSchema.user.id, session.user.id),
         });
 
-        // If user doesn't exist in database, create a record from the authenticated session
-        if (!userProfile) {
-          app.logger.info({ userId: session.user.id }, 'User profile not found, creating from session data');
-          try {
-            await app.db.insert(authSchema.user).values({
-              id: session.user.id,
-              email: session.user.email,
-              name: session.user.name || session.user.email.split('@')[0],
-              emailVerified: true,
-            });
-
-            // Fetch the newly created user
-            userProfile = await app.db.query.user.findFirst({
-              where: eq(authSchema.user.id, session.user.id),
-            });
-          } catch (error) {
-            app.logger.warn({ err: error, userId: session.user.id }, 'Failed to create user profile');
-            // Return a minimal profile with profileCompleted: false
-            return {
-              id: session.user.id,
-              email: session.user.email,
-              name: session.user.name || session.user.email.split('@')[0],
-              image: undefined,
-              profileCompleted: false,
-              emailVerified: true,
-              createdAt: new Date(),
-            };
-          }
-        }
-
-        if (!userProfile) {
-          app.logger.error({ userId: session.user.id }, 'User profile still not found after creation attempt');
+        // Return profile (should exist after upsert)
+        if (userProfile) {
+          app.logger.info({ userId: session.user.id }, 'User profile fetched successfully');
           return {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name || session.user.email.split('@')[0],
-            image: undefined,
-            profileCompleted: false,
-            emailVerified: true,
-            createdAt: new Date(),
+            id: userProfile.id,
+            email: userProfile.email,
+            name: userProfile.name,
+            age: userProfile.age,
+            location: userProfile.location,
+            phoneNumber: userProfile.phoneNumber,
+            favoriteColor: userProfile.favoriteColor,
+            favoriteFoodType: userProfile.favoriteFoodType,
+            instagram: userProfile.instagram,
+            twitter: userProfile.twitter,
+            notes: userProfile.notes,
+            image: userProfile.image,
+            imageKey: userProfile.imageKey,
+            profileCompleted: userProfile.profileCompleted || false,
+            emailVerified: userProfile.emailVerified,
+            createdAt: userProfile.createdAt,
+            updatedAt: userProfile.updatedAt,
           };
         }
 
-        app.logger.info({ userId: session.user.id }, 'User profile fetched successfully');
-
+        // Return default profile if somehow still not found
         return {
-          id: userProfile.id,
-          email: userProfile.email,
-          name: userProfile.name,
-          image: userProfile.image,
-          profileCompleted: userProfile.profileCompleted || false,
-          emailVerified: userProfile.emailVerified,
-          createdAt: userProfile.createdAt,
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name || 'User',
+          age: undefined,
+          location: undefined,
+          phoneNumber: undefined,
+          favoriteColor: undefined,
+          favoriteFoodType: undefined,
+          instagram: undefined,
+          twitter: undefined,
+          notes: undefined,
+          image: undefined,
+          imageKey: undefined,
+          profileCompleted: false,
+          emailVerified: true,
         };
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch user profile');
@@ -235,124 +227,40 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id }, 'Updating user profile (upsert)');
 
       try {
-        // Check if user exists
-        const existingUser = await app.db.query.user.findFirst({
-          where: eq(authSchema.user.id, session.user.id),
-        });
-
         // Validate name if provided
         if (body.name !== undefined && body.name.trim().length === 0) {
           app.logger.warn({ userId: session.user.id }, 'Update attempted with empty name');
           return reply.status(400).send({ error: 'Name cannot be empty' });
         }
 
-        // If user doesn't exist, create it
-        if (!existingUser) {
-          app.logger.info({ userId: session.user.id }, 'User profile does not exist, creating new profile');
-
-          const createData = {
-            id: session.user.id,
-            email: session.user.email,
-            name: body.name || session.user.name || 'User',
-            age: body.age,
-            location: body.location,
-            phoneNumber: body.phoneNumber,
-            favoriteColor: body.favoriteColor,
-            favoriteFoodType: body.favoriteFoodType,
-            instagram: body.instagram,
-            twitter: body.twitter,
-            notes: body.notes,
-            image: body.image,
-            imageKey: body.imageKey,
-            profileCompleted: body.profileCompleted ?? false,
-            emailVerified: true,
-          };
-
-          const [createdUser] = await app.db
-            .insert(authSchema.user)
-            .values(createData)
-            .returning();
-
-          app.logger.info({ userId: session.user.id }, 'User profile created successfully');
-
-          return {
-            id: createdUser.id,
-            email: createdUser.email,
-            name: createdUser.name,
-            age: createdUser.age,
-            location: createdUser.location,
-            phoneNumber: createdUser.phoneNumber,
-            favoriteColor: createdUser.favoriteColor,
-            favoriteFoodType: createdUser.favoriteFoodType,
-            instagram: createdUser.instagram,
-            twitter: createdUser.twitter,
-            notes: createdUser.notes,
-            image: createdUser.image,
-            imageKey: createdUser.imageKey,
-            profileCompleted: createdUser.profileCompleted,
-            emailVerified: createdUser.emailVerified,
-            createdAt: createdUser.createdAt,
-            updatedAt: createdUser.updatedAt,
-          };
-        }
-
-        // Update existing user
-        const updateData: Record<string, any> = {
-          updatedAt: new Date(),
+        // Build upsert data - only include fields that are provided
+        const upsertData: any = {
+          id: session.user.id,
+          email: session.user.email,
+          name: body.name || session.user.name || 'User',
+          emailVerified: true,
         };
 
-        if (body.name !== undefined) {
-          updateData.name = body.name;
-        }
+        if (body.age !== undefined) upsertData.age = body.age;
+        if (body.location !== undefined) upsertData.location = body.location;
+        if (body.phoneNumber !== undefined) upsertData.phoneNumber = body.phoneNumber;
+        if (body.favoriteColor !== undefined) upsertData.favoriteColor = body.favoriteColor;
+        if (body.favoriteFoodType !== undefined) upsertData.favoriteFoodType = body.favoriteFoodType;
+        if (body.instagram !== undefined) upsertData.instagram = body.instagram;
+        if (body.twitter !== undefined) upsertData.twitter = body.twitter;
+        if (body.notes !== undefined) upsertData.notes = body.notes;
+        if (body.image !== undefined) upsertData.image = body.image;
+        if (body.imageKey !== undefined) upsertData.imageKey = body.imageKey;
+        if (body.profileCompleted !== undefined) upsertData.profileCompleted = body.profileCompleted;
 
-        if (body.age !== undefined) {
-          updateData.age = body.age;
-        }
-
-        if (body.location !== undefined) {
-          updateData.location = body.location;
-        }
-
-        if (body.phoneNumber !== undefined) {
-          updateData.phoneNumber = body.phoneNumber;
-        }
-
-        if (body.favoriteColor !== undefined) {
-          updateData.favoriteColor = body.favoriteColor;
-        }
-
-        if (body.favoriteFoodType !== undefined) {
-          updateData.favoriteFoodType = body.favoriteFoodType;
-        }
-
-        if (body.instagram !== undefined) {
-          updateData.instagram = body.instagram;
-        }
-
-        if (body.twitter !== undefined) {
-          updateData.twitter = body.twitter;
-        }
-
-        if (body.notes !== undefined) {
-          updateData.notes = body.notes;
-        }
-
-        if (body.image !== undefined) {
-          updateData.image = body.image;
-        }
-
-        if (body.imageKey !== undefined) {
-          updateData.imageKey = body.imageKey;
-        }
-
-        if (body.profileCompleted !== undefined) {
-          updateData.profileCompleted = body.profileCompleted;
-        }
-
+        // Use INSERT...ON CONFLICT to upsert
         const [updatedUser] = await app.db
-          .update(authSchema.user)
-          .set(updateData)
-          .where(eq(authSchema.user.id, session.user.id))
+          .insert(authSchema.user)
+          .values(upsertData)
+          .onConflictDoUpdate({
+            target: authSchema.user.id,
+            set: { ...upsertData, updatedAt: new Date() },
+          })
           .returning();
 
         app.logger.info({ userId: session.user.id }, 'User profile updated successfully');
@@ -477,30 +385,32 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id }, 'Marking profile as completed');
 
       try {
-        // Verify user exists
-        const existingUser = await app.db.query.user.findFirst({
-          where: eq(authSchema.user.id, session.user.id),
-        });
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
 
-        if (!existingUser) {
-          app.logger.warn({ userId: session.user.id }, 'User not found for profile completion');
-          return reply.status(404).send({ error: 'User not found' });
-        }
-
+        // Update profileCompleted
         const [updatedUser] = await app.db
-          .update(authSchema.user)
-          .set({
+          .insert(authSchema.user)
+          .values({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || 'User',
             profileCompleted: true,
-            updatedAt: new Date(),
           })
-          .where(eq(authSchema.user.id, session.user.id))
+          .onConflictDoUpdate({
+            target: authSchema.user.id,
+            set: {
+              profileCompleted: true,
+              updatedAt: new Date(),
+            },
+          })
           .returning();
 
         app.logger.info({ userId: session.user.id }, 'Profile marked as completed successfully');
 
         return {
+          success: true,
           profileCompleted: updatedUser.profileCompleted,
-          message: 'Profile setup completed successfully',
         };
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id }, 'Failed to mark profile as completed');
