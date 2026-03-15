@@ -27,9 +27,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching user profile');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const profile = await app.db.query.userProfiles.findFirst({
           where: eq(schema.userProfiles.userId, userId),
@@ -89,9 +95,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Upserting user profile');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const body = request.body as Record<string, any>;
         const existingProfile = await app.db.query.userProfiles.findFirst({
@@ -157,9 +169,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Completing user profile');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         app.logger.info({ userId }, 'User profile completed successfully');
         return { success: true };
@@ -194,9 +212,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching roster profiles');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, userId),
@@ -267,9 +291,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Creating roster profile');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const body = request.body as Record<string, any>;
         await app.db.execute(
@@ -913,9 +943,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching dates');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const dates = await app.db.query.dates.findMany({
           where: eq(schema.dates.userId, userId),
@@ -969,9 +1005,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Creating date');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const body = request.body as Record<string, any>;
         await app.db.execute(
@@ -1156,9 +1198,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching reminders');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const reminders = await app.db.query.reminders.findMany({
           where: eq(schema.reminders.userId, userId),
@@ -1206,9 +1254,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, body: request.body }, 'Creating reminder');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const body = request.body as Record<string, any>;
         await app.db.execute(
@@ -1385,9 +1439,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching analytics');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, userId),
@@ -1437,9 +1497,15 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Fetching nudges');
 
       try {
-        await app.db.execute(
-          sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name}) ON CONFLICT DO NOTHING`
-        );
+        // Ensure user exists using SELECT-then-INSERT pattern
+        const existingUser = await app.db.query.users.findFirst({
+          where: eq(schema.users.id, userId),
+        });
+        if (!existingUser) {
+          await app.db.execute(
+            sql`INSERT INTO "users" (id, email, name) VALUES (${userId}, ${session.user.email}, ${session.user.name})`
+          );
+        }
 
         app.logger.info({ userId }, 'Nudges retrieved successfully (empty)');
         return [];
