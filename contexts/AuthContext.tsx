@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return profileCacheRef.current[cacheKey];
     }
 
-    // Try to fetch user profile from backend (non-blocking)
+    // Try to fetch user profile from backend (non-blocking, with timeout)
     let profileData: any = {};
     let firstLoginCompleted = true;
 
@@ -71,21 +71,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Authorization': `Bearer ${session.access_token}`,
         };
 
+        // Use a 5-second timeout so a slow backend never blocks sign-in
+        const withTimeout = (promise: Promise<any>, ms: number) =>
+          Promise.race([promise, new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+
         // Fetch profile status and full profile in parallel
         const [statusResponse, profileResponse] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/user/profile-status`, { headers }).catch(() => null),
-          fetch(`${BACKEND_URL}/api/user/profile`, { headers }).catch(() => null),
+          withTimeout(fetch(`${BACKEND_URL}/api/user/profile-status`, { headers }).catch(() => null), 5000).catch(() => null),
+          withTimeout(fetch(`${BACKEND_URL}/api/user/profile`, { headers }).catch(() => null), 5000).catch(() => null),
         ]);
 
         if (statusResponse?.ok) {
-          const statusData = await statusResponse.json();
-          console.log('[AuthContext] Profile status:', statusData);
-          firstLoginCompleted = statusData.profileCompleted !== false;
+          const statusData = await statusResponse.json().catch(() => null);
+          if (statusData) {
+            console.log('[AuthContext] Profile status:', statusData);
+            firstLoginCompleted = statusData.profileCompleted !== false;
+          }
         }
 
         if (profileResponse?.ok) {
-          profileData = await profileResponse.json();
-          console.log('[AuthContext] Profile data fetched successfully');
+          const pd = await profileResponse.json().catch(() => null);
+          if (pd) {
+            profileData = pd;
+            console.log('[AuthContext] Profile data fetched successfully');
+          }
         }
       }
     } catch (error) {

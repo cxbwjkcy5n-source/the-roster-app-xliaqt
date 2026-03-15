@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
@@ -18,61 +17,44 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { signInWithEmail, signInWithGoogle, signInWithApple } = useAuth();
   const router = useRouter();
 
   const handleLogin = async () => {
-    console.log('[Login] Login button pressed');
-    
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
-      return;
-    }
+    console.log('[Login] Sign in button pressed, email:', email);
+    setErrorMessage('');
 
-    if (!isSupabaseConfigured()) {
-      Alert.alert(
-        'Configuration Error',
-        'Supabase is not properly configured.\n\n' +
-        'Please follow these steps:\n\n' +
-        '1. Go to https://app.supabase.com/project/bbtvdhdfzkyhrodgclkd/settings/api\n\n' +
-        '2. Copy the "anon" key (NOT the "publishable" key)\n\n' +
-        '3. Update the .env file with:\n' +
-        'EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>\n\n' +
-        '4. Restart the Expo dev server',
-        [{ text: 'OK' }]
-      );
+    if (!email.trim() || !password) {
+      setErrorMessage('Please enter both email and password.');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('[Login] Attempting login with email:', email);
-      await signInWithEmail(email, password);
-      console.log('[Login] Login successful');
+      console.log('[Login] Calling signInWithEmail...');
+      await signInWithEmail(email.trim(), password);
+      console.log('[Login] signInWithEmail resolved successfully');
+      // Navigation is handled inside signInWithEmail in AuthContext
     } catch (error: any) {
-      console.error('[Login] Login error:', error);
-      
-      let errorMessage = 'Failed to sign in. Please check your credentials.';
-      
-      if (error.message?.includes('Invalid API key')) {
-        errorMessage = 
-          'Invalid Supabase API key.\n\n' +
-          'Please update your .env file with the correct "anon" key from:\n' +
-          'https://app.supabase.com/project/bbtvdhdfzkyhrodgclkd/settings/api\n\n' +
-          'Make sure to use the "anon" key, NOT the "publishable" key.';
-      } else if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Invalid email or password. Please try again.';
-      } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = 'Please verify your email address before signing in.';
+      console.error('[Login] Sign in error:', error);
+      const msg: string = error?.message || '';
+      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+        setErrorMessage('Invalid email or password. Please try again.');
+      } else if (msg.includes('Email not confirmed')) {
+        setErrorMessage('Please verify your email address before signing in.');
+      } else if (msg.includes('Invalid API key') || msg.includes('Invalid Supabase')) {
+        setErrorMessage('Authentication service is misconfigured. Please contact support.');
+      } else if (msg) {
+        setErrorMessage(msg);
+      } else {
+        setErrorMessage('Sign in failed. Please try again.');
       }
-      
-      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -80,22 +62,13 @@ export default function LoginScreen() {
 
   const handleGoogleSignIn = async () => {
     console.log('[Login] Google sign in button pressed');
-    
-    if (!isSupabaseConfigured()) {
-      Alert.alert(
-        'Configuration Error',
-        'Supabase is not properly configured. Please update your .env file with the correct Supabase credentials.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
+    setErrorMessage('');
     setLoading(true);
     try {
       await signInWithGoogle();
     } catch (error: any) {
       console.error('[Login] Google sign in error:', error);
-      Alert.alert('Error', error.message || 'Failed to sign in with Google');
+      setErrorMessage(error?.message || 'Failed to sign in with Google.');
     } finally {
       setLoading(false);
     }
@@ -103,22 +76,13 @@ export default function LoginScreen() {
 
   const handleAppleSignIn = async () => {
     console.log('[Login] Apple sign in button pressed');
-    
-    if (!isSupabaseConfigured()) {
-      Alert.alert(
-        'Configuration Error',
-        'Supabase is not properly configured. Please update your .env file with the correct Supabase credentials.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
+    setErrorMessage('');
     setLoading(true);
     try {
       await signInWithApple();
     } catch (error: any) {
       console.error('[Login] Apple sign in error:', error);
-      Alert.alert('Error', error.message || 'Failed to sign in with Apple');
+      setErrorMessage(error?.message || 'Failed to sign in with Apple.');
     } finally {
       setLoading(false);
     }
@@ -160,9 +124,10 @@ export default function LoginScreen() {
                 placeholder="Email"
                 placeholderTextColor={colors.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setErrorMessage(''); }}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                autoCorrect={false}
                 editable={!loading}
               />
             </View>
@@ -180,16 +145,23 @@ export default function LoginScreen() {
                 placeholder="Password"
                 placeholderTextColor={colors.textSecondary}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); setErrorMessage(''); }}
                 secureTextEntry
                 editable={!loading}
               />
             </View>
 
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={loading}
+              activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
@@ -208,6 +180,7 @@ export default function LoginScreen() {
               style={styles.socialButton}
               onPress={handleGoogleSignIn}
               disabled={loading}
+              activeOpacity={0.8}
             >
               <IconSymbol
                 ios_icon_name="g.circle.fill"
@@ -222,6 +195,7 @@ export default function LoginScreen() {
               style={styles.socialButton}
               onPress={handleAppleSignIn}
               disabled={loading}
+              activeOpacity={0.8}
             >
               <IconSymbol
                 ios_icon_name="apple.logo"
@@ -241,7 +215,8 @@ export default function LoginScreen() {
               disabled={loading}
             >
               <Text style={styles.signupLinkText}>
-                Don&apos;t have an account? <Text style={styles.signupLinkTextBold}>Sign Up</Text>
+                Don&apos;t have an account?{' '}
+                <Text style={styles.signupLinkTextBold}>Sign Up</Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -316,6 +291,18 @@ const styles = StyleSheet.create({
     height: 56,
     fontSize: 16,
     color: colors.text,
+  },
+  errorBox: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 14,
+    lineHeight: 20,
   },
   loginButton: {
     backgroundColor: colors.primary,

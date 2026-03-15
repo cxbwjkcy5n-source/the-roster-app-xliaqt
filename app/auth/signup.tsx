@@ -6,11 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +18,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function SignupScreen() {
   const [name, setName] = useState('');
@@ -26,65 +25,49 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { signUpWithEmail, signInWithGoogle, signInWithApple } = useAuth();
   const router = useRouter();
 
   const handleSignup = async () => {
-    console.log('[Signup] Signup button pressed');
-    
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+    console.log('[Signup] Sign up button pressed, email:', email);
+    setErrorMessage('');
+
+    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
+      setErrorMessage('Please fill in all fields.');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-
-    if (!isSupabaseConfigured()) {
-      Alert.alert(
-        'Configuration Error',
-        'Supabase is not properly configured.\n\n' +
-        'Please follow these steps:\n\n' +
-        '1. Go to https://app.supabase.com/project/bbtvdhdfzkyhrodgclkd/settings/api\n\n' +
-        '2. Copy the "anon" key (NOT the "publishable" key)\n\n' +
-        '3. Update the .env file with:\n' +
-        'EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>\n\n' +
-        '4. Restart the Expo dev server',
-        [{ text: 'OK' }]
-      );
+      setErrorMessage('Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('[Signup] Attempting signup with email:', email);
-      await signUpWithEmail(email, password, name);
-      console.log('[Signup] Signup successful');
+      console.log('[Signup] Calling signUpWithEmail...');
+      await signUpWithEmail(email.trim(), password, name.trim());
+      console.log('[Signup] signUpWithEmail resolved successfully');
+      // Navigation is handled inside signUpWithEmail in AuthContext
     } catch (error: any) {
-      console.error('[Signup] Signup error:', error);
-      
-      let errorMessage = 'Failed to create account. Please try again.';
-      
-      if (error.message?.includes('Invalid API key')) {
-        errorMessage = 
-          'Invalid Supabase API key.\n\n' +
-          'Please update your .env file with the correct "anon" key from:\n' +
-          'https://app.supabase.com/project/bbtvdhdfzkyhrodgclkd/settings/api\n\n' +
-          'Make sure to use the "anon" key, NOT the "publishable" key.';
-      } else if (error.message?.includes('User already registered')) {
-        errorMessage = 'An account with this email already exists. Please sign in instead.';
-      } else if (error.message?.includes('Password should be at least')) {
-        errorMessage = 'Password must be at least 6 characters long.';
+      console.error('[Signup] Sign up error:', error);
+      const msg: string = error?.message || '';
+      if (msg.includes('User already registered') || msg.includes('already registered')) {
+        setErrorMessage('An account with this email already exists. Please sign in instead.');
+      } else if (msg.includes('Password should be at least')) {
+        setErrorMessage('Password must be at least 6 characters long.');
+      } else if (msg.includes('Invalid API key') || msg.includes('Invalid Supabase')) {
+        setErrorMessage('Authentication service is misconfigured. Please contact support.');
+      } else if (msg) {
+        setErrorMessage(msg);
+      } else {
+        setErrorMessage('Failed to create account. Please try again.');
       }
-      
-      Alert.alert('Signup Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -92,22 +75,13 @@ export default function SignupScreen() {
 
   const handleGoogleSignIn = async () => {
     console.log('[Signup] Google sign in button pressed');
-    
-    if (!isSupabaseConfigured()) {
-      Alert.alert(
-        'Configuration Error',
-        'Supabase is not properly configured. Please update your .env file with the correct Supabase credentials.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
+    setErrorMessage('');
     setLoading(true);
     try {
       await signInWithGoogle();
     } catch (error: any) {
       console.error('[Signup] Google sign in error:', error);
-      Alert.alert('Error', error.message || 'Failed to sign in with Google');
+      setErrorMessage(error?.message || 'Failed to sign in with Google.');
     } finally {
       setLoading(false);
     }
@@ -115,22 +89,13 @@ export default function SignupScreen() {
 
   const handleAppleSignIn = async () => {
     console.log('[Signup] Apple sign in button pressed');
-    
-    if (!isSupabaseConfigured()) {
-      Alert.alert(
-        'Configuration Error',
-        'Supabase is not properly configured. Please update your .env file with the correct Supabase credentials.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
+    setErrorMessage('');
     setLoading(true);
     try {
       await signInWithApple();
     } catch (error: any) {
       console.error('[Signup] Apple sign in error:', error);
-      Alert.alert('Error', error.message || 'Failed to sign in with Apple');
+      setErrorMessage(error?.message || 'Failed to sign in with Apple.');
     } finally {
       setLoading(false);
     }
@@ -172,7 +137,7 @@ export default function SignupScreen() {
                 placeholder="Name"
                 placeholderTextColor={colors.textSecondary}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => { setName(t); setErrorMessage(''); }}
                 autoCapitalize="words"
                 editable={!loading}
               />
@@ -191,9 +156,10 @@ export default function SignupScreen() {
                 placeholder="Email"
                 placeholderTextColor={colors.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setErrorMessage(''); }}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                autoCorrect={false}
                 editable={!loading}
               />
             </View>
@@ -211,7 +177,7 @@ export default function SignupScreen() {
                 placeholder="Password"
                 placeholderTextColor={colors.textSecondary}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); setErrorMessage(''); }}
                 secureTextEntry
                 editable={!loading}
               />
@@ -230,16 +196,23 @@ export default function SignupScreen() {
                 placeholder="Confirm Password"
                 placeholderTextColor={colors.textSecondary}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(t) => { setConfirmPassword(t); setErrorMessage(''); }}
                 secureTextEntry
                 editable={!loading}
               />
             </View>
 
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
               style={[styles.signupButton, loading && styles.signupButtonDisabled]}
               onPress={handleSignup}
               disabled={loading}
+              activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
@@ -258,6 +231,7 @@ export default function SignupScreen() {
               style={styles.socialButton}
               onPress={handleGoogleSignIn}
               disabled={loading}
+              activeOpacity={0.8}
             >
               <IconSymbol
                 ios_icon_name="g.circle.fill"
@@ -272,6 +246,7 @@ export default function SignupScreen() {
               style={styles.socialButton}
               onPress={handleAppleSignIn}
               disabled={loading}
+              activeOpacity={0.8}
             >
               <IconSymbol
                 ios_icon_name="apple.logo"
@@ -291,7 +266,8 @@ export default function SignupScreen() {
               disabled={loading}
             >
               <Text style={styles.loginLinkText}>
-                Already have an account? <Text style={styles.loginLinkTextBold}>Login</Text>
+                Already have an account?{' '}
+                <Text style={styles.loginLinkTextBold}>Login</Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -362,6 +338,18 @@ const styles = StyleSheet.create({
     height: 56,
     fontSize: 16,
     color: colors.text,
+  },
+  errorBox: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 14,
+    lineHeight: 20,
   },
   signupButton: {
     backgroundColor: colors.primary,
