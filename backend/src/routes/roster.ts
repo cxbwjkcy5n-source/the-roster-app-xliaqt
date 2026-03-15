@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import * as authSchema from '../db/auth-schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
 
@@ -50,24 +50,7 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id, profileName: body.name }, 'Creating new roster profile');
 
-      // Ensure user record exists before creating profile (foreign key constraint)
-      try {
-        const existingUser = await app.db.query.user.findFirst({
-          where: eq(authSchema.user.id, session.user.id),
-        });
-
-        if (!existingUser) {
-          app.logger.info({ userId: session.user.id }, 'User record not found, creating it for roster profile');
-          await app.db.insert(authSchema.user).values({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name || session.user.email.split('@')[0],
-            emailVerified: true,
-          });
-        }
-      } catch (userError) {
-        app.logger.warn({ err: userError, userId: session.user.id }, 'Could not ensure user record exists');
-      }
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       try {
         const [profile] = await app.db
@@ -125,6 +108,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
+      await ensureUserExists(app, session.user.id, session.user.email);
+
       app.logger.info({ userId: session.user.id }, 'Fetching all roster profiles');
 
       const profiles = await app.db.query.rosterProfiles.findMany({
@@ -155,6 +140,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
 
@@ -193,6 +180,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };
@@ -235,6 +224,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
 
@@ -284,6 +275,8 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
       const { flagText, flagType } = request.body as { flagText: string; flagType: 'red' | 'green' };

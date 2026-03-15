@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, lt } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 import { gateway } from '@specific-dev/framework';
 import { generateObject } from 'ai';
 import { z } from 'zod';
@@ -124,6 +124,9 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, profileId: body.profileId }, 'Creating new date record');
 
       try {
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
+
         // Verify that the profile belongs to the user
         const profile = await app.db.query.rosterProfiles.findFirst({
           where: and(

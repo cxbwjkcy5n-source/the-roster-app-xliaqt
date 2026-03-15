@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, desc, or, lt, isNull, count } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerInteractionsRoutes(app: App, fastify: FastifyInstance) {
 
@@ -44,6 +44,9 @@ export function registerInteractionsRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, profileId: body.profileId, type: body.type }, 'Creating interaction');
 
       try {
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
+
         // Verify profile ownership
         const profile = await app.db.query.rosterProfiles.findFirst({
           where: and(

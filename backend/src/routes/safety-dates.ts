@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
 
@@ -67,6 +67,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const body = request.body as {
         profileName: string;
@@ -162,6 +164,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
+      await ensureUserExists(app, session.user.id, session.user.email);
+
       const activeSafetyDate = await app.db.query.safetyDates.findFirst({
         where: and(
           eq(schema.safetyDates.userId, session.user.id),
@@ -194,6 +198,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
+      await ensureUserExists(app, session.user.id, session.user.email);
+
       const safetyDates = await app.db.query.safetyDates.findMany({
         where: eq(schema.safetyDates.userId, session.user.id),
         with: {
@@ -220,6 +226,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
 
@@ -255,6 +263,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
 
@@ -298,6 +308,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
 
@@ -351,6 +363,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
       const body = request.body as { contactName: string; phoneNumber: string };
@@ -413,6 +427,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
+      await ensureUserExists(app, session.user.id, session.user.email);
+
       const { id, contactId } = request.params as { id: string; contactId: string };
 
       // Verify contact exists and belongs to user
@@ -452,6 +468,8 @@ export function registerSafetyDatesRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
       const body = request.body as { [key: string]: any };

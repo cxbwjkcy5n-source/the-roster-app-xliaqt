@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { verifyAndExtractUser } from '../middleware/dual-auth.js';
 import type { App } from '../index.js';
+import * as authSchema from '../db/auth-schema.js';
 
 /**
  * Enhanced authentication middleware that supports both Supabase and Better Auth
@@ -78,4 +79,20 @@ export function getUserIdFromRequest(request: FastifyRequest, app: App): string 
 export function isAuthenticated(request: FastifyRequest, app: App): boolean {
   const tokenUser = verifyAndExtractUser(request, app.logger);
   return tokenUser !== null && tokenUser.id !== undefined;
+}
+
+/**
+ * Auto-upsert user row to prevent foreign key violations
+ * Ensures the user row exists before any queries that reference it
+ */
+export async function ensureUserExists(app: App, userId: string, email: string = 'unknown@example.com'): Promise<void> {
+  try {
+    await app.db
+      .insert(authSchema.user)
+      .values({ id: userId, email, name: userId })
+      .onConflictDoNothing();
+  } catch (error) {
+    app.logger.warn({ userId, err: error }, 'Failed to auto-upsert user row');
+    // Don't throw - the row may already exist or user may have data issues
+  }
 }

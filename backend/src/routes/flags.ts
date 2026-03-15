@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerFlagsRoutes(app: App, fastify: FastifyInstance) {
 
@@ -20,6 +20,8 @@ export function registerFlagsRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { id } = request.params as { id: string };
 

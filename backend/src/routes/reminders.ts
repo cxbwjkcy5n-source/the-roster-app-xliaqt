@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerRemindersRoutes(app: App, fastify: FastifyInstance) {
 
@@ -47,6 +47,9 @@ export function registerRemindersRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, type: body.type }, 'Creating reminder');
 
       try {
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
+
         // Verify profile ownership if profileId is provided
         if (body.profileId) {
           const profile = await app.db.query.rosterProfiles.findFirst({

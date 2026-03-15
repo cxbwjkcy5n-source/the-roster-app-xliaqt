@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 import { gateway } from '@specific-dev/framework';
 import { generateObject } from 'ai';
 import { z } from 'zod';
@@ -58,6 +58,8 @@ export function registerLocationsRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { query } = request.query as { query: string };
 

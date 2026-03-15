@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
@@ -54,6 +54,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, name: body.name }, 'Creating new profile');
 
       try {
+        // Auto-upsert user row to prevent foreign key violations
+        await ensureUserExists(app, session.user.id, session.user.email);
+
         const [profile] = await app.db
           .insert(schema.rosterProfiles)
           .values({
@@ -65,7 +68,7 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
             birthdayYear: body.birthdayYear,
             zodiacSign: body.zodiacSign,
             favoriteColor: body.favoriteColor,
-            favoriteFood: body.favoriteFood,
+            favoriteFood: body.favoriteFood || body.favoriteFoodType,
             relationshipType: body.relationshipType,
             location: body.location,
             phoneNumber: body.phoneNumber,
@@ -77,16 +80,24 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
             hobbies: body.hobbies,
             interests: body.interests,
             howYouMet: body.howYouMet,
-            interestLevel: body.interestLevel,
+            interestLevel: body.interestLevel || 'medium',
             profileImageUrl: body.profileImageUrl,
             profileImageKey: body.profileImageKey,
-            status: body.status,
+            status: body.status || 'roster',
             benchReason: body.benchReason,
+            displayOrder: body.displayOrder || 0,
           })
           .returning();
 
         app.logger.info({ profileId: profile.id, userId: session.user.id }, 'Profile created successfully');
-        return profile;
+
+        // Return with nested empty arrays as per spec
+        return {
+          ...profile,
+          redFlags: [],
+          greenFlags: [],
+          dates: [],
+        };
       } catch (error) {
         app.logger.error(
           { err: error, userId: session.user.id, name: body.name },
@@ -145,9 +156,12 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
 
       app.logger.info({ userId: session.user.id, count: body.profiles.length }, 'Reordering profiles');
 
-      let updated = 0;
-
       try {
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
+
+        let updated = 0;
+
         // Update each profile's display order
         for (const item of body.profiles) {
           const existing = await app.db.query.rosterProfiles.findFirst({
@@ -192,6 +206,9 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id }, 'Fetching all profiles');
 
       try {
+        // Auto-upsert user row
+        await ensureUserExists(app, session.user.id, session.user.email);
+
         const profiles = await app.db.query.rosterProfiles.findMany({
           where: eq(schema.rosterProfiles.userId, session.user.id),
           with: {

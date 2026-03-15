@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, count, sql, desc, and, gt, isNotNull, avg } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
 export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
 
@@ -98,6 +98,8 @@ export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       app.logger.info({ userId: session.user.id }, 'Fetching analytics');
 
@@ -359,7 +361,23 @@ export function registerAnalyticsRoutes(app: App, fastify: FastifyInstance) {
         };
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch analytics');
-        return reply.status(500).send({ error: 'Failed to fetch analytics. Please try again.' });
+        // Return default analytics with zeros on error
+        return {
+          totalProfiles: 0,
+          totalDates: 0,
+          upcomingDates: 0,
+          completedDates: 0,
+          interestLevelBreakdown: { low: 0, medium: 0, high: 0 },
+          statusBreakdown: { roster: 0, bench: 0 },
+          dateFrequency: { thisWeek: 0, thisMonth: 0, lastMonth: 0 },
+          datesPerMonth: [],
+          averageRating: 0,
+          totalRatings: 0,
+          wouldGoAgainPercentage: 0,
+          commonRedFlags: [],
+          commonGreenFlags: [],
+          topRatedDates: [],
+        };
       }
     }
   );

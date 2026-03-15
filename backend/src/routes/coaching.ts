@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
-import { requireDualAuth } from '../utils/auth-utils.js';
+import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 import { gateway } from '@specific-dev/framework';
 import { generateText } from 'ai';
 
@@ -19,6 +19,8 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       app.logger.info({ userId: session.user.id }, 'Fetching dating coach suggestions');
 
@@ -114,6 +116,8 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
+      await ensureUserExists(app, session.user.id, session.user.email);
+
       app.logger.info({ userId: session.user.id }, 'Fetching personalized coaching recommendations');
 
       return {
@@ -189,6 +193,8 @@ export function registerCoachingRoutes(app: App, fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
 
       const { message, history = [], context } = request.body as {
         message: string;
