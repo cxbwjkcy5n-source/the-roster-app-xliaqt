@@ -9,6 +9,9 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.rostercollective.theroster"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png"
     }
   }
 }
