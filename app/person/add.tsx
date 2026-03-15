@@ -98,6 +98,8 @@ export default function AddPersonScreen() {
   const [facebook, setFacebook] = useState('');
   const [snapchat, setSnapchat] = useState('');
   const [notes, setNotes] = useState('');
+  const [sexualChemistry, setSexualChemistry] = useState<number | null>(null);
+  const [attractiveness, setAttractiveness] = useState<number | null>(null);
   const [redFlagInput, setRedFlagInput] = useState('');
   const [greenFlagInput, setGreenFlagInput] = useState('');
   const [redFlags, setRedFlags] = useState<string[]>([]);
@@ -159,6 +161,8 @@ export default function AddPersonScreen() {
         setRelationshipType(existingPerson.relationshipType);
         setCustomRelationshipType(existingPerson.customRelationshipType || '');
         setHowMet(existingPerson.howMet || '');
+        setSexualChemistry(existingPerson.sexualChemistry ?? null);
+        setAttractiveness(existingPerson.attractiveness ?? null);
         setLocation(existingPerson.location);
         setPhoneNumber(existingPerson.phoneNumber);
         setInstagram(existingPerson.instagram || '');
@@ -307,6 +311,8 @@ export default function AddPersonScreen() {
         redFlags: redFlags.map((text, index) => ({ id: `red-${index}`, text, type: 'red' as const })),
         greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' as const })),
         interestLevel,
+        sexualChemistry: sexualChemistry,
+        attractiveness: attractiveness,
         imageUrl: uploadedImageUrl,
         // camelCase fields for API
         profileImageUrl: uploadedImageUrl,
@@ -647,7 +653,7 @@ export default function AddPersonScreen() {
 
           {/* How You Met Field */}
           <View style={styles.section}>
-            <Text style={styles.label}>How You Met</Text>
+            <Text style={styles.label}>How We Met</Text>
             <TextInput
               style={styles.input}
               value={howMet}
@@ -655,6 +661,84 @@ export default function AddPersonScreen() {
               placeholder="e.g., Coffee shop, Tinder, Through friends..."
               placeholderTextColor={colors.grey}
             />
+          </View>
+
+          {/* Sexual Chemistry Rating */}
+          <View style={styles.section}>
+            <View style={styles.ratingRow}>
+              <Text style={styles.ratingLabel}>Sexual Chemistry</Text>
+              <View style={styles.ratingButtons}>
+                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                  <TouchableOpacity
+                    key={`sc-${n}`}
+                    style={[
+                      styles.ratingBtn,
+                      sexualChemistry === n && styles.ratingBtnActive,
+                    ]}
+                    onPress={() => {
+                      console.log('[AddPerson] User tapped Sexual Chemistry:', n);
+                      setSexualChemistry(n);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.ratingBtnText, sexualChemistry === n && styles.ratingBtnTextActive]}>
+                      {n}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[styles.ratingBtnNA, sexualChemistry === null && styles.ratingBtnNAActive]}
+                  onPress={() => {
+                    console.log('[AddPerson] User tapped Sexual Chemistry: N/A');
+                    setSexualChemistry(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.ratingBtnNAText, sexualChemistry === null && styles.ratingBtnNATextActive]}>
+                    N/A
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Attractiveness Rating */}
+          <View style={styles.section}>
+            <View style={styles.ratingRow}>
+              <Text style={styles.ratingLabel}>Attractiveness</Text>
+              <View style={styles.ratingButtons}>
+                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                  <TouchableOpacity
+                    key={`attr-${n}`}
+                    style={[
+                      styles.ratingBtn,
+                      attractiveness === n && styles.ratingBtnActive,
+                    ]}
+                    onPress={() => {
+                      console.log('[AddPerson] User tapped Attractiveness:', n);
+                      setAttractiveness(n);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.ratingBtnText, attractiveness === n && styles.ratingBtnTextActive]}>
+                      {n}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[styles.ratingBtnNA, attractiveness === null && styles.ratingBtnNAActive]}
+                  onPress={() => {
+                    console.log('[AddPerson] User tapped Attractiveness: N/A');
+                    setAttractiveness(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.ratingBtnNAText, attractiveness === null && styles.ratingBtnNATextActive]}>
+                    N/A
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -1218,6 +1302,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  ratingRow: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  ratingLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  ratingButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  ratingBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.grey + '40',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ratingBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  ratingBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  ratingBtnTextActive: {
+    color: '#fff',
+  },
+  ratingBtnNA: {
+    paddingHorizontal: 8,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.grey + '40',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ratingBtnNAActive: {
+    backgroundColor: colors.grey,
+    borderColor: colors.grey,
+  },
+  ratingBtnNAText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.grey,
+  },
+  ratingBtnNATextActive: {
+    color: '#fff',
   },
   prefillBanner: {
     backgroundColor: '#1a3a1a',

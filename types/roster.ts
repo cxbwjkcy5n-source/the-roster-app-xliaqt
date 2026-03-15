@@ -39,6 +39,10 @@ export interface RosterPerson {
   benchReason?: string;
   sortOrder?: number;
   createdAt?: string;
+  // New rating fields
+  sexualChemistry?: number | null;
+  attractiveness?: number | null;
+  compatibilityScore?: number | null;
   // camelCase API fields
   profileImageUrl?: string;
   howYouMet?: string;

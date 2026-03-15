@@ -131,6 +131,9 @@ function mapProfileToRosterPerson(profile: any): RosterPerson {
     status: profile.status || 'roster',
     benchReason: profile.benchReason,
     sortOrder: profile.sortOrder || 0,
+    sexualChemistry: profile.sexualChemistry ?? null,
+    attractiveness: profile.attractiveness ?? null,
+    compatibilityScore: profile.compatibilityScore ?? null,
   };
 }
 
@@ -160,6 +163,9 @@ function mapRosterPersonToProfileData(person: RosterPerson) {
     status: person.status,
     benchReason: person.benchReason,
     sortOrder: person.sortOrder || 0,
+    sexual_chemistry: person.sexualChemistry ?? null,
+    attractiveness: person.attractiveness ?? null,
+    how_we_met: person.howMet || null,
   };
 }
 

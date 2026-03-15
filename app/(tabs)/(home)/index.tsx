@@ -121,7 +121,18 @@ export default function RosterScreen() {
     }
   };
 
+  const getCompatibilityBadgeColor = (score: number) => {
+    if (score >= 70) return '#2D8B4E';
+    if (score >= 40) return '#D4AF37';
+    return '#C41E3A';
+  };
+
   const renderPersonCard = ({ item }: { item: RosterPerson }) => {
+    const hasScore = item.compatibilityScore != null;
+    const scoreNum = hasScore ? Number(item.compatibilityScore) : 0;
+    const scoreDisplay = hasScore ? String(Math.round(scoreNum)) + '%' : '';
+    const badgeColor = hasScore ? getCompatibilityBadgeColor(scoreNum) : colors.grey;
+
     return (
       <TouchableOpacity
         onPress={() => {
@@ -145,6 +156,11 @@ export default function RosterScreen() {
             { backgroundColor: getInterestColor(item.interestLevel) },
           ]}
         />
+        {hasScore && (
+          <View style={[styles.compatibilityBadge, { backgroundColor: badgeColor }]}>
+            <Text style={styles.compatibilityBadgeText}>{scoreDisplay}</Text>
+          </View>
+        )}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.85)']}
           style={styles.personInfoGradient}
@@ -152,7 +168,10 @@ export default function RosterScreen() {
           <View style={styles.personInfo}>
             <Text style={styles.personName}>{item.name}</Text>
             <Text style={styles.personDetails}>
-              {item.age} • {item.location}
+              {item.age}
+            </Text>
+            <Text style={styles.personDetails}>
+              {item.location}
             </Text>
             <View style={styles.flagsContainer}>
               {item.redFlags && item.redFlags.length > 0 && (
@@ -529,6 +548,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.white,
     fontWeight: '700',
+  },
+  compatibilityBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    minWidth: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  compatibilityBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.3,
   },
   emptyCard: {
     width: '100%',
