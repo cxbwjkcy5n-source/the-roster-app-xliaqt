@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
+import * as authSchema from '../db/auth-schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
 
@@ -223,6 +224,80 @@ export function registerProfileRoutes(app: App, fastify: FastifyInstance) {
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch profiles');
         return reply.status(500).send({ error: 'Failed to fetch profiles. Please try again.' });
+      }
+    }
+  );
+
+  // Get profile by code (public lookup - can look up any user by their 6-char code)
+  fastify.get<{ Querystring: { code: string } }>(
+    '/api/profiles/by-code',
+    {
+      schema: {
+        description: 'Get a user profile by their 6-character alphanumeric code',
+        tags: ['profiles'],
+        querystring: {
+          type: 'object',
+          properties: {
+            code: { type: 'string' },
+          },
+          required: ['code'],
+        },
+        response: { 200: { type: 'object' } },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const session = await requireDualAuth(request, reply, app);
+      if (!session) return;
+
+      await ensureUserExists(app, session.user.id, session.user.email);
+
+      const { code } = request.query as { code: string };
+
+      // Validate code format: exactly 6 alphanumeric characters
+      if (!code || !/^[a-zA-Z0-9]{6}$/.test(code)) {
+        app.logger.warn({ userId: session.user.id, code }, 'Invalid code format for profile lookup');
+        return reply.status(400).send({ error: 'Code must be exactly 6 alphanumeric characters' });
+      }
+
+      app.logger.info({ userId: session.user.id, code }, 'Looking up profile by code');
+
+      try {
+        // Query to find user by code using PostgreSQL functions
+        const upperCode = code.toUpperCase();
+        const users = await app.db
+          .select()
+          .from(authSchema.user)
+          .where(
+            sql`UPPER(REGEXP_REPLACE(id::text, '[^a-zA-Z0-9]', '', 'g')) LIKE UPPER(${upperCode}) || '%'
+              AND LENGTH(REGEXP_REPLACE(id::text, '[^a-zA-Z0-9]', '', 'g')) >= 6`
+          )
+          .limit(1);
+
+        if (users.length === 0) {
+          app.logger.info({ userId: session.user.id, code }, 'No profile found with that code');
+          return reply.status(404).send({ error: 'No profile found with that code' });
+        }
+
+        const user = users[0];
+
+        // Build response with only non-null/non-empty fields in camelCase
+        const profile: Record<string, any> = {};
+
+        if (user.name) profile.name = user.name;
+        if (user.age) profile.age = user.age;
+        if (user.location) profile.location = user.location;
+        if (user.phoneNumber) profile.phoneNumber = user.phoneNumber;
+        if (user.instagram) profile.instagram = user.instagram;
+        if (user.twitter) profile.twitter = user.twitter;
+        if (user.favoriteColor) profile.favoriteColor = user.favoriteColor;
+        if (user.favoriteFoodType) profile.favoriteFoodType = user.favoriteFoodType;
+        if (user.image) profile.image = user.image;
+
+        app.logger.info({ userId: session.user.id, targetUserId: user.id, code }, 'Profile found and returned');
+        return profile;
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, code }, 'Failed to look up profile by code');
+        return reply.status(500).send({ error: 'Failed to look up profile. Please try again.' });
       }
     }
   );
