@@ -85,6 +85,8 @@ export default function AddPersonScreen() {
   const [birthMonth, setBirthMonth] = useState(1);
   const [birthDay, setBirthDay] = useState(1);
   const [interestLevel, setInterestLevel] = useState<InterestLevel>('medium');
+  const [sexualChemistryLevel, setSexualChemistryLevel] = useState<InterestLevel | null | undefined>(undefined);
+  const [attractivenessLevel, setAttractivenessLevel] = useState<InterestLevel | null | undefined>(undefined);
   const [favoriteColor, setFavoriteColor] = useState('');
   const [favoriteColorHex, setFavoriteColorHex] = useState('');
   const [favoriteFoodType, setFavoriteFoodType] = useState('');
@@ -98,8 +100,7 @@ export default function AddPersonScreen() {
   const [facebook, setFacebook] = useState('');
   const [snapchat, setSnapchat] = useState('');
   const [notes, setNotes] = useState('');
-  const [sexualChemistry, setSexualChemistry] = useState<number | null>(null);
-  const [attractiveness, setAttractiveness] = useState<number | null>(null);
+
   const [redFlagInput, setRedFlagInput] = useState('');
   const [greenFlagInput, setGreenFlagInput] = useState('');
   const [redFlags, setRedFlags] = useState<string[]>([]);
@@ -161,8 +162,10 @@ export default function AddPersonScreen() {
         setRelationshipType(existingPerson.relationshipType);
         setCustomRelationshipType(existingPerson.customRelationshipType || '');
         setHowMet(existingPerson.howMet || '');
-        setSexualChemistry(existingPerson.sexualChemistry ?? null);
-        setAttractiveness(existingPerson.attractiveness ?? null);
+        const scNum = existingPerson.sexualChemistry;
+        setSexualChemistryLevel(scNum == null ? null : scNum <= 3 ? 'low' : scNum <= 7 ? 'medium' : 'high');
+        const atNum = existingPerson.attractiveness;
+        setAttractivenessLevel(atNum == null ? null : atNum <= 3 ? 'low' : atNum <= 7 ? 'medium' : 'high');
         setLocation(existingPerson.location);
         setPhoneNumber(existingPerson.phoneNumber);
         setInstagram(existingPerson.instagram || '');
@@ -311,8 +314,8 @@ export default function AddPersonScreen() {
         redFlags: redFlags.map((text, index) => ({ id: `red-${index}`, text, type: 'red' as const })),
         greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' as const })),
         interestLevel,
-        sexualChemistry: sexualChemistry,
-        attractiveness: attractiveness,
+        sexualChemistry: sexualChemistryLevel === 'low' ? 3 : sexualChemistryLevel === 'medium' ? 6 : sexualChemistryLevel === 'high' ? 9 : null,
+        attractiveness: attractivenessLevel === 'low' ? 3 : attractivenessLevel === 'medium' ? 6 : attractivenessLevel === 'high' ? 9 : null,
         imageUrl: uploadedImageUrl,
         // camelCase fields for API
         profileImageUrl: uploadedImageUrl,
@@ -504,27 +507,137 @@ export default function AddPersonScreen() {
           </TouchableOpacity>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interest Level</Text>
-            <View style={styles.interestContainer}>
-              {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => (
-                <TouchableOpacity
-                  key={`interest-${level}`}
-                  style={[
-                    styles.interestButton,
-                    interestLevel === level && { backgroundColor: getInterestColor(level) },
-                  ]}
-                  onPress={() => setInterestLevel(level)}
-                >
-                  <Text
+            <Text style={styles.sectionTitle}>Ratings</Text>
+
+            <Text style={styles.label}>Interest Level</Text>
+            <View style={[styles.interestContainer, { marginBottom: 16 }]}>
+              {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => {
+                const interestLevelLabel = level.charAt(0).toUpperCase() + level.slice(1);
+                const isActive = interestLevel === level;
+                const activeColor = getInterestColor(level);
+                return (
+                  <TouchableOpacity
+                    key={`interest-${level}`}
                     style={[
-                      styles.interestButtonText,
-                      interestLevel === level && styles.interestButtonTextActive,
+                      styles.interestButton,
+                      isActive && { backgroundColor: activeColor },
                     ]}
+                    onPress={() => {
+                      console.log('[AddPerson] User tapped Interest Level:', level);
+                      setInterestLevel(level);
+                    }}
                   >
-                    {level.charAt(0).toUpperCase() + level.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.interestButtonText,
+                        isActive && styles.interestButtonTextActive,
+                      ]}
+                    >
+                      {interestLevelLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>Sexual Chemistry</Text>
+            <View style={[styles.interestContainer, { marginBottom: 16 }]}>
+              {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => {
+                const scLabel = level.charAt(0).toUpperCase() + level.slice(1);
+                const isActive = sexualChemistryLevel === level;
+                const activeColor = getInterestColor(level);
+                return (
+                  <TouchableOpacity
+                    key={`sc-${level}`}
+                    style={[
+                      styles.interestButton,
+                      isActive && { backgroundColor: activeColor },
+                    ]}
+                    onPress={() => {
+                      console.log('[AddPerson] User tapped Sexual Chemistry:', level);
+                      setSexualChemistryLevel(level);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.interestButtonText,
+                        isActive && styles.interestButtonTextActive,
+                      ]}
+                    >
+                      {scLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[
+                  styles.interestButton,
+                  sexualChemistryLevel === null && styles.interestButtonNA,
+                ]}
+                onPress={() => {
+                  console.log('[AddPerson] User tapped Sexual Chemistry: N/A');
+                  setSexualChemistryLevel(null);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.interestButtonText,
+                    sexualChemistryLevel === null && styles.interestButtonTextActive,
+                  ]}
+                >
+                  N/A
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Attractiveness</Text>
+            <View style={styles.interestContainer}>
+              {(['low', 'medium', 'high'] as InterestLevel[]).map((level) => {
+                const attrLabel = level.charAt(0).toUpperCase() + level.slice(1);
+                const isActive = attractivenessLevel === level;
+                const activeColor = getInterestColor(level);
+                return (
+                  <TouchableOpacity
+                    key={`attr-${level}`}
+                    style={[
+                      styles.interestButton,
+                      isActive && { backgroundColor: activeColor },
+                    ]}
+                    onPress={() => {
+                      console.log('[AddPerson] User tapped Attractiveness:', level);
+                      setAttractivenessLevel(level);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.interestButtonText,
+                        isActive && styles.interestButtonTextActive,
+                      ]}
+                    >
+                      {attrLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[
+                  styles.interestButton,
+                  attractivenessLevel === null && styles.interestButtonNA,
+                ]}
+                onPress={() => {
+                  console.log('[AddPerson] User tapped Attractiveness: N/A');
+                  setAttractivenessLevel(null);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.interestButtonText,
+                    attractivenessLevel === null && styles.interestButtonTextActive,
+                  ]}
+                >
+                  N/A
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -661,84 +774,6 @@ export default function AddPersonScreen() {
               placeholder="e.g., Coffee shop, Tinder, Through friends..."
               placeholderTextColor={colors.grey}
             />
-          </View>
-
-          {/* Sexual Chemistry Rating */}
-          <View style={styles.section}>
-            <View style={styles.ratingRow}>
-              <Text style={styles.ratingLabel}>Sexual Chemistry</Text>
-              <View style={styles.ratingButtons}>
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                  <TouchableOpacity
-                    key={`sc-${n}`}
-                    style={[
-                      styles.ratingBtn,
-                      sexualChemistry === n && styles.ratingBtnActive,
-                    ]}
-                    onPress={() => {
-                      console.log('[AddPerson] User tapped Sexual Chemistry:', n);
-                      setSexualChemistry(n);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.ratingBtnText, sexualChemistry === n && styles.ratingBtnTextActive]}>
-                      {n}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[styles.ratingBtnNA, sexualChemistry === null && styles.ratingBtnNAActive]}
-                  onPress={() => {
-                    console.log('[AddPerson] User tapped Sexual Chemistry: N/A');
-                    setSexualChemistry(null);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.ratingBtnNAText, sexualChemistry === null && styles.ratingBtnNATextActive]}>
-                    N/A
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Attractiveness Rating */}
-          <View style={styles.section}>
-            <View style={styles.ratingRow}>
-              <Text style={styles.ratingLabel}>Attractiveness</Text>
-              <View style={styles.ratingButtons}>
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                  <TouchableOpacity
-                    key={`attr-${n}`}
-                    style={[
-                      styles.ratingBtn,
-                      attractiveness === n && styles.ratingBtnActive,
-                    ]}
-                    onPress={() => {
-                      console.log('[AddPerson] User tapped Attractiveness:', n);
-                      setAttractiveness(n);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.ratingBtnText, attractiveness === n && styles.ratingBtnTextActive]}>
-                      {n}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[styles.ratingBtnNA, attractiveness === null && styles.ratingBtnNAActive]}
-                  onPress={() => {
-                    console.log('[AddPerson] User tapped Attractiveness: N/A');
-                    setAttractiveness(null);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.ratingBtnNAText, attractiveness === null && styles.ratingBtnNATextActive]}>
-                    N/A
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
 
           <View style={styles.section}>
@@ -1194,6 +1229,10 @@ const styles = StyleSheet.create({
   },
   interestButtonTextActive: {
     color: '#fff',
+  },
+  interestButtonNA: {
+    backgroundColor: colors.grey,
+    borderColor: colors.grey,
   },
   carouselContainer: {
     paddingVertical: 8,
