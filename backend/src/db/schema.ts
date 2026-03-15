@@ -1,153 +1,134 @@
-import { pgTable, text, integer, timestamp, uuid, boolean, jsonb } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
-import { user } from './auth-schema.js';
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  boolean,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import { sql, relations } from 'drizzle-orm';
 
-export const rosterProfiles = pgTable('roster_profiles', {
+// Users table
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// User's own profile
+export const userProfiles = pgTable('user_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name'),
   age: integer('age'),
-  birthdayMonth: integer('birthday_month'),
-  birthdayDay: integer('birthday_day'),
-  birthdayYear: integer('birthday_year'),
-  zodiacSign: text('zodiac_sign'),
+  phone: text('phone'),
   favoriteColor: text('favorite_color'),
   favoriteFood: text('favorite_food'),
-  relationshipType: text('relationship_type'),
-  location: text('location'),
-  phoneNumber: text('phone_number'),
   instagram: text('instagram'),
   twitter: text('twitter'),
-  facebook: text('facebook'),
-  snapchat: text('snapchat'),
   notes: text('notes'),
-  hobbies: text('hobbies'),
-  interests: text('interests'),
-  howYouMet: text('how_you_met'),
-  interestLevel: text('interest_level', { enum: ['low', 'medium', 'high'] }).default('medium'),
-  profileImageUrl: text('profile_image_url'),
-  profileImageKey: text('profile_image_key'),
-  status: text('status', { enum: ['roster', 'bench'] }).default('roster'),
-  benchReason: text('bench_reason'),
-  displayOrder: integer('display_order').default(0),
-  lastContactDate: timestamp('last_contact_date'),
+  photoUrl: text('photo_url'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const redFlags = pgTable('red_flags', {
+// Roster profiles (people the user adds)
+export const rosterProfiles = pgTable('roster_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  flagText: text('flag_text').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  location: text('location'),
+  age: integer('age'),
+  birthdayMonth: text('birthday_month'),
+  birthdayDay: integer('birthday_day'),
+  zodiacSign: text('zodiac_sign'),
+  favoriteFood: text('favorite_food'),
+  relationshipType: text('relationship_type'),
+  howWeMet: text('how_we_met'),
+  phone: text('phone'),
+  instagram: text('instagram'),
+  twitter: text('twitter'),
+  notes: text('notes'),
+  photoUrl: text('photo_url'),
+  priority: text('priority').default('medium'),
+  status: text('status').default('active'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const greenFlags = pgTable('green_flags', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  flagText: text('flag_text').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-
+// Dates table
 export const dates = pgTable('dates', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  status: text('status', { enum: ['upcoming', 'completed'] }).default('upcoming'),
-  type: text('type', { enum: ['casual', 'formal', 'activity', 'dinner', 'drinks', 'coffee', 'movie', 'outdoor', 'other'] }).default('casual'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  profileId: uuid('profile_id').references(() => rosterProfiles.id, {
+    onDelete: 'set null',
+  }),
+  status: text('status').default('planned'),
+  type: text('type'),
   dateTime: timestamp('date_time'),
   locationName: text('location_name'),
   locationAddress: text('location_address'),
-  locationCoordinates: jsonb('location_coordinates').$type<{ lat: number; lng: number }>(),
+  locationCoordinates: text('location_coordinates'),
   notes: text('notes'),
   rating: integer('rating'),
   wouldGoAgain: boolean('would_go_again'),
-  reminderSettings: jsonb('reminder_settings').$type<{ oneHourBefore?: boolean; oneDayBefore?: boolean; oneWeekBefore?: boolean }>(),
+  reminderSettings: text('reminder_settings'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-export const reminders = pgTable('reminders', {
+// Matches table
+export const matches = pgTable('matches', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  profileId: uuid('profile_id').references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  type: text('type', { enum: ['morning_text', 'check_in', 'date_reminder', 'auto_nudge'] }).notNull(),
-  scheduledFor: timestamp('scheduled_for').notNull(),
-  message: text('message').notNull(),
-  sent: boolean('sent').default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
-});
-
-export const interactions = pgTable('interactions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  profileId: uuid('profile_id').notNull().references(() => rosterProfiles.id, { onDelete: 'cascade' }),
-  type: text('type', { enum: ['date', 'morning_text', 'check_in', 'call', 'message', 'moved_to_bench', 'moved_to_roster'] }).notNull(),
-  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  profileId: uuid('profile_id').references(() => rosterProfiles.id, {
+    onDelete: 'cascade',
+  }),
+  compatibilityScore: integer('compatibility_score'),
   notes: text('notes'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-
-export const safetyDates = pgTable('safety_dates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  profileName: text('profile_name').notNull(),
-  dateWithName: text('date_with_name').notNull(),
-  dateWithDescription: text('date_with_description'),
-  location: text('location').notNull(),
-  locationAddress: text('location_address'),
-  coordinates: jsonb('coordinates').$type<{ latitude: number; longitude: number }>(),
-  notes: text('notes'),
-  profilePhotoUrl: text('profile_photo_url'),
-  licensePlate: text('license_plate'),
-  status: text('status', { enum: ['active', 'completed', 'emergency'] }).default('active').notNull(),
-  startTime: timestamp('start_time').notNull(),
-  endTime: timestamp('end_time'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
-});
-
-export const emergencyContacts = pgTable('emergency_contacts', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-  safetyDateId: uuid('safety_date_id').notNull().references(() => safetyDates.id, { onDelete: 'cascade' }),
-  contactName: text('contact_name').notNull(),
-  phoneNumber: text('phone_number').notNull(),
-  sharedAt: timestamp('shared_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Relations
-export const rosterProfilesRelations = relations(rosterProfiles, ({ one, many }) => ({
-  user: one(user, {
-    fields: [rosterProfiles.userId],
-    references: [user.id],
-  }),
-  redFlags: many(redFlags),
-  greenFlags: many(greenFlags),
+export const usersRelations = relations(users, ({ one, many }) => ({
+  profile: one(userProfiles),
+  rosterProfiles: many(rosterProfiles),
   dates: many(dates),
-  reminders: many(reminders),
-  interactions: many(interactions),
+  matches: many(matches),
 }));
 
-export const redFlagsRelations = relations(redFlags, ({ one }) => ({
-  profile: one(rosterProfiles, {
-    fields: [redFlags.profileId],
-    references: [rosterProfiles.id],
+export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [userProfiles.userId],
+    references: [users.id],
   }),
 }));
 
-export const greenFlagsRelations = relations(greenFlags, ({ one }) => ({
-  profile: one(rosterProfiles, {
-    fields: [greenFlags.profileId],
-    references: [rosterProfiles.id],
-  }),
-}));
+export const rosterProfilesRelations = relations(
+  rosterProfiles,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [rosterProfiles.userId],
+      references: [users.id],
+    }),
+    dates: many(dates),
+    matches: many(matches),
+  })
+);
 
 export const datesRelations = relations(dates, ({ one }) => ({
-  user: one(user, {
+  user: one(users, {
     fields: [dates.userId],
-    references: [user.id],
+    references: [users.id],
   }),
   profile: one(rosterProfiles, {
     fields: [dates.profileId],
@@ -155,43 +136,13 @@ export const datesRelations = relations(dates, ({ one }) => ({
   }),
 }));
 
-export const remindersRelations = relations(reminders, ({ one }) => ({
-  user: one(user, {
-    fields: [reminders.userId],
-    references: [user.id],
+export const matchesRelations = relations(matches, ({ one }) => ({
+  user: one(users, {
+    fields: [matches.userId],
+    references: [users.id],
   }),
   profile: one(rosterProfiles, {
-    fields: [reminders.profileId],
+    fields: [matches.profileId],
     references: [rosterProfiles.id],
-  }),
-}));
-
-export const interactionsRelations = relations(interactions, ({ one }) => ({
-  user: one(user, {
-    fields: [interactions.userId],
-    references: [user.id],
-  }),
-  profile: one(rosterProfiles, {
-    fields: [interactions.profileId],
-    references: [rosterProfiles.id],
-  }),
-}));
-
-export const safetyDatesRelations = relations(safetyDates, ({ one, many }) => ({
-  user: one(user, {
-    fields: [safetyDates.userId],
-    references: [user.id],
-  }),
-  emergencyContacts: many(emergencyContacts),
-}));
-
-export const emergencyContactsRelations = relations(emergencyContacts, ({ one }) => ({
-  user: one(user, {
-    fields: [emergencyContacts.userId],
-    references: [user.id],
-  }),
-  safetyDate: one(safetyDates, {
-    fields: [emergencyContacts.safetyDateId],
-    references: [safetyDates.id],
   }),
 }));
