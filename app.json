@@ -12,6 +12,7 @@
     },
     "splash": {
       "image": "./assets/splash-icon.png"
-    }
+    },
+    "version": "1.1.1"
   }
 }
