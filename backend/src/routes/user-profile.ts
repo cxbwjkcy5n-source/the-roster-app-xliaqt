@@ -175,17 +175,17 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
   fastify.put<{
     Body: {
       name?: string;
+      age?: string;
+      location?: string;
+      phoneNumber?: string;
+      favoriteColor?: string;
+      favoriteFoodType?: string;
+      instagram?: string;
+      twitter?: string;
+      notes?: string;
       image?: string;
       imageKey?: string;
       profileCompleted?: boolean;
-      phoneNumber?: string;
-      favoriteColor?: string;
-      favoriteFood?: string;
-      instagram?: string;
-      twitter?: string;
-      facebook?: string;
-      snapchat?: string;
-      notes?: string;
     };
   }>(
     '/api/user/profile',
@@ -197,17 +197,17 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             name: { type: 'string', minLength: 1 },
+            age: { type: 'string' },
+            location: { type: 'string' },
+            phoneNumber: { type: 'string' },
+            favoriteColor: { type: 'string' },
+            favoriteFoodType: { type: 'string' },
+            instagram: { type: 'string' },
+            twitter: { type: 'string' },
+            notes: { type: 'string' },
             image: { type: 'string' },
             imageKey: { type: 'string' },
             profileCompleted: { type: 'boolean' },
-            phoneNumber: { type: 'string' },
-            favoriteColor: { type: 'string' },
-            favoriteFood: { type: 'string' },
-            instagram: { type: 'string' },
-            twitter: { type: 'string' },
-            facebook: { type: 'string' },
-            snapchat: { type: 'string' },
-            notes: { type: 'string' },
           },
         },
         response: { 200: { type: 'object' } },
@@ -219,17 +219,17 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
       const body = request.body as {
         name?: string;
+        age?: string;
+        location?: string;
+        phoneNumber?: string;
+        favoriteColor?: string;
+        favoriteFoodType?: string;
+        instagram?: string;
+        twitter?: string;
+        notes?: string;
         image?: string;
         imageKey?: string;
         profileCompleted?: boolean;
-        phoneNumber?: string;
-        favoriteColor?: string;
-        favoriteFood?: string;
-        instagram?: string;
-        twitter?: string;
-        facebook?: string;
-        snapchat?: string;
-        notes?: string;
       };
 
       app.logger.info({ userId: session.user.id }, 'Updating user profile (upsert)');
@@ -254,6 +254,14 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
             id: session.user.id,
             email: session.user.email,
             name: body.name || session.user.name || 'User',
+            age: body.age,
+            location: body.location,
+            phoneNumber: body.phoneNumber,
+            favoriteColor: body.favoriteColor,
+            favoriteFoodType: body.favoriteFoodType,
+            instagram: body.instagram,
+            twitter: body.twitter,
+            notes: body.notes,
             image: body.image,
             imageKey: body.imageKey,
             profileCompleted: body.profileCompleted ?? false,
@@ -271,7 +279,16 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
             id: createdUser.id,
             email: createdUser.email,
             name: createdUser.name,
+            age: createdUser.age,
+            location: createdUser.location,
+            phoneNumber: createdUser.phoneNumber,
+            favoriteColor: createdUser.favoriteColor,
+            favoriteFoodType: createdUser.favoriteFoodType,
+            instagram: createdUser.instagram,
+            twitter: createdUser.twitter,
+            notes: createdUser.notes,
             image: createdUser.image,
+            imageKey: createdUser.imageKey,
             profileCompleted: createdUser.profileCompleted,
             emailVerified: createdUser.emailVerified,
             createdAt: createdUser.createdAt,
@@ -286,6 +303,38 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
 
         if (body.name !== undefined) {
           updateData.name = body.name;
+        }
+
+        if (body.age !== undefined) {
+          updateData.age = body.age;
+        }
+
+        if (body.location !== undefined) {
+          updateData.location = body.location;
+        }
+
+        if (body.phoneNumber !== undefined) {
+          updateData.phoneNumber = body.phoneNumber;
+        }
+
+        if (body.favoriteColor !== undefined) {
+          updateData.favoriteColor = body.favoriteColor;
+        }
+
+        if (body.favoriteFoodType !== undefined) {
+          updateData.favoriteFoodType = body.favoriteFoodType;
+        }
+
+        if (body.instagram !== undefined) {
+          updateData.instagram = body.instagram;
+        }
+
+        if (body.twitter !== undefined) {
+          updateData.twitter = body.twitter;
+        }
+
+        if (body.notes !== undefined) {
+          updateData.notes = body.notes;
         }
 
         if (body.image !== undefined) {
@@ -312,7 +361,16 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
           id: updatedUser.id,
           email: updatedUser.email,
           name: updatedUser.name,
+          age: updatedUser.age,
+          location: updatedUser.location,
+          phoneNumber: updatedUser.phoneNumber,
+          favoriteColor: updatedUser.favoriteColor,
+          favoriteFoodType: updatedUser.favoriteFoodType,
+          instagram: updatedUser.instagram,
+          twitter: updatedUser.twitter,
+          notes: updatedUser.notes,
           image: updatedUser.image,
+          imageKey: updatedUser.imageKey,
           profileCompleted: updatedUser.profileCompleted,
           emailVerified: updatedUser.emailVerified,
           createdAt: updatedUser.createdAt,

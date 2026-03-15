@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, desc, or, lt, isNull } from 'drizzle-orm';
+import { eq, and, desc, or, lt, isNull, count } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth } from '../utils/auth-utils.js';
@@ -138,24 +138,50 @@ export function registerInteractionsRoutes(app: App, fastify: FastifyInstance) {
     }
   );
 
-  // Get auto-nudges (profiles not contacted in 10+ days)
+  // Get smart nudges (array of suggestion strings)
   fastify.get(
     '/api/nudges',
     {
       schema: {
-        description: 'Get profiles to nudge (not contacted in 10+ days)',
+        description: 'Get smart nudges and suggestions based on user data',
         tags: ['interactions'],
-        response: { 200: { type: 'array' } },
+        response: {
+          200: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const session = await requireDualAuth(request, reply, app);
       if (!session) return;
 
-      app.logger.info({ userId: session.user.id }, 'Fetching nudge profiles (not contacted in 10+ days)');
+      app.logger.info({ userId: session.user.id }, 'Fetching nudges');
 
       try {
-        // Get current date minus 10 days
+        const nudges: string[] = [];
+
+        // Get profile count
+        let totalProfiles = 0;
+        try {
+          const profileCountResult = await app.db
+            .select({ count: count() })
+            .from(schema.rosterProfiles)
+            .where(eq(schema.rosterProfiles.userId, session.user.id));
+          totalProfiles = profileCountResult[0]?.count || 0;
+        } catch (_) {
+          totalProfiles = 0;
+        }
+
+        if (totalProfiles === 0) {
+          nudges.push('Add someone to your roster to get started!');
+          nudges.push('Start building your dating roster by adding contacts.');
+          nudges.push('No contacts yet? Time to expand your roster!');
+          return nudges;
+        }
+
+        // Get nudge profiles (not contacted in 10+ days)
         const tenDaysAgo = new Date();
         tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
 
@@ -177,11 +203,59 @@ export function registerInteractionsRoutes(app: App, fastify: FastifyInstance) {
             )
           );
 
-        app.logger.info({ userId: session.user.id, count: nudgeProfiles.length }, 'Nudge profiles fetched successfully');
-        return nudgeProfiles;
+        if (nudgeProfiles.length > 0) {
+          const contactNames = nudgeProfiles.map(p => p.name).join(', ');
+          nudges.push(`You haven't contacted ${contactNames} recently. Time to reach out!`);
+          nudges.push(`${nudgeProfiles.length} people in your roster haven't heard from you in 10+ days!`);
+        }
+
+        // Get date statistics
+        const dateCountResult = await app.db
+          .select({ count: count() })
+          .from(schema.dates)
+          .where(eq(schema.dates.userId, session.user.id));
+
+        const totalDates = dateCountResult[0]?.count || 0;
+
+        if (totalDates === 0 && totalProfiles > 0) {
+          nudges.push('Schedule a date to track your dating life!');
+          nudges.push('Time to ask someone out! Create your first date record.');
+        }
+
+        // Get upcoming dates
+        const upcomingDatesResult = await app.db
+          .select({ count: count() })
+          .from(schema.dates)
+          .where(
+            and(
+              eq(schema.dates.userId, session.user.id),
+              eq(schema.dates.status, 'upcoming')
+            )
+          );
+
+        const upcomingCount = upcomingDatesResult[0]?.count || 0;
+
+        if (upcomingCount === 0 && totalProfiles > 0) {
+          nudges.push('You have no upcoming dates. Reach out to someone in your roster!');
+        }
+
+        // Generic helpful nudges if we're light on suggestions
+        if (nudges.length === 0) {
+          nudges.push('Keep building your roster and tracking your dating life!');
+          nudges.push('Your dating journey is unique - stay authentic and true to yourself!');
+          nudges.push('Remember: quality over quantity when it comes to dating!');
+        }
+
+        app.logger.info({ userId: session.user.id, nudgeCount: nudges.length }, 'Nudges generated successfully');
+        return nudges;
       } catch (error) {
-        app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch nudge profiles');
-        return reply.status(500).send({ error: 'Failed to fetch nudge profiles. Please try again.' });
+        app.logger.error({ err: error, userId: session.user.id }, 'Failed to generate nudges');
+        // Return default generic nudges if there's an error
+        return [
+          'Add someone to your roster to get started!',
+          'Schedule a date to track your dating life',
+          'Keep building your dating journey!',
+        ];
       }
     }
   );
