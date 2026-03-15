@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, lt } from 'drizzle-orm';
+import { eq, and, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import type { App } from '../index.js';
 import { requireDualAuth, ensureUserExists } from '../utils/auth-utils.js';
@@ -204,17 +204,27 @@ export function registerDatesRoutes(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, status }, 'Fetching dates');
 
       try {
-        // Return all dates - frontend handles filtering and time-based updates
-        const allDates = await app.db
-          .query.dates.findMany({
-            where: eq(schema.dates.userId, session.user.id),
-            with: {
-              profile: true,
-            },
-          });
+        // Fetch all dates for the user
+        const dates = await app.db
+          .select()
+          .from(schema.dates)
+          .where(eq(schema.dates.userId, session.user.id));
 
-        app.logger.info({ userId: session.user.id, count: allDates.length }, 'Dates fetched successfully');
-        return allDates;
+        // For each date that has a profile_id, fetch the profile separately
+        const datesWithProfiles = await Promise.all(
+          dates.map(async (date) => {
+            let profile = null;
+            if (date.profileId) {
+              profile = await app.db.query.rosterProfiles.findFirst({
+                where: eq(schema.rosterProfiles.id, date.profileId),
+              });
+            }
+            return { ...date, profile };
+          })
+        );
+
+        app.logger.info({ userId: session.user.id, count: datesWithProfiles.length }, 'Dates fetched successfully');
+        return datesWithProfiles;
       } catch (error) {
         app.logger.error({ err: error, userId: session.user.id, status }, 'Failed to fetch dates');
         return reply.status(500).send({ error: 'Failed to fetch dates. Please try again.' });

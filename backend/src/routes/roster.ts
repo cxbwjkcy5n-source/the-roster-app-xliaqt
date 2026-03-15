@@ -293,18 +293,39 @@ export function registerRosterRoutes(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Profile not found' });
       }
 
-      if (flagType === 'red') {
-        const [flag] = await app.db
-          .insert(schema.redFlags)
-          .values({ profileId: id, flagText })
-          .returning();
-        return flag;
-      } else {
-        const [flag] = await app.db
-          .insert(schema.greenFlags)
-          .values({ profileId: id, flagText })
-          .returning();
-        return flag;
+      try {
+        if (flagType === 'red') {
+          // Delete all existing red flags for this profile
+          await app.db
+            .delete(schema.redFlags)
+            .where(eq(schema.redFlags.profileId, id));
+
+          // Insert the new red flag
+          const [flag] = await app.db
+            .insert(schema.redFlags)
+            .values({ profileId: id, flagText })
+            .returning();
+
+          app.logger.info({ userId: session.user.id, profileId: id, flagType: 'red' }, 'Red flag set successfully');
+          return flag;
+        } else {
+          // Delete all existing green flags for this profile
+          await app.db
+            .delete(schema.greenFlags)
+            .where(eq(schema.greenFlags.profileId, id));
+
+          // Insert the new green flag
+          const [flag] = await app.db
+            .insert(schema.greenFlags)
+            .values({ profileId: id, flagText })
+            .returning();
+
+          app.logger.info({ userId: session.user.id, profileId: id, flagType: 'green' }, 'Green flag set successfully');
+          return flag;
+        }
+      } catch (error) {
+        app.logger.error({ err: error, userId: session.user.id, profileId: id }, 'Failed to set flag');
+        return reply.status(500).send({ error: 'Failed to set flag' });
       }
     }
   );

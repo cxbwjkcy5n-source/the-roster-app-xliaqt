@@ -61,6 +61,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
             twitter: userProfile.twitter,
             notes: userProfile.notes,
             image: userProfile.image,
+            profileImageUrl: userProfile.image,
             imageKey: userProfile.imageKey,
             profileCompleted: userProfile.profileCompleted || false,
             emailVerified: userProfile.emailVerified,
@@ -83,6 +84,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
           twitter: undefined,
           notes: undefined,
           image: undefined,
+          profileImageUrl: undefined,
           imageKey: undefined,
           profileCompleted: false,
           emailVerified: true,
@@ -188,6 +190,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
             twitter: { type: 'string' },
             notes: { type: 'string' },
             image: { type: 'string' },
+            profileImageUrl: { type: 'string' },
             profile_completed: { type: 'boolean' },
             profileCompleted: { type: 'boolean' },
           },
@@ -245,8 +248,9 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
         // Handle notes
         if (body.notes !== undefined) updateData.notes = body.notes;
 
-        // Handle image
+        // Handle image (support both "image" and "profileImageUrl" field names)
         if (body.image !== undefined) updateData.image = body.image;
+        if (body.profileImageUrl !== undefined) updateData.image = body.profileImageUrl;
 
         // Handle profile_completed (support both snake_case and camelCase)
         if (body.profile_completed !== undefined) updateData.profileCompleted = body.profile_completed;
@@ -274,6 +278,7 @@ export function registerUserProfileRoutes(app: App, fastify: FastifyInstance) {
           twitter: updatedUser.twitter,
           notes: updatedUser.notes,
           image: updatedUser.image,
+          profileImageUrl: updatedUser.image,
           profileCompleted: updatedUser.profileCompleted,
           emailVerified: updatedUser.emailVerified,
           createdAt: updatedUser.createdAt,
