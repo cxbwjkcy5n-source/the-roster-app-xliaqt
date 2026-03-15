@@ -444,8 +444,7 @@ export default function AddPersonScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => {
             console.log('[AddPerson] User tapped Cancel button');
@@ -949,8 +948,7 @@ export default function AddPersonScreen() {
             </View>
           </TouchableWithoutFeedback>
         </Modal>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
 }
 
