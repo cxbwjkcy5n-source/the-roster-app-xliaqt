@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
-import { authenticatedPost } from '@/utils/api';
+import { authenticatedPost, authenticatedGet } from '@/utils/api';
+import { useRoster } from '@/contexts/RosterContext';
 
 interface Message {
   id: string;
@@ -26,18 +27,47 @@ interface Message {
   timestamp: Date;
 }
 
+const DEFAULT_GREETING = "Hi! I'm your dating coach. I'm here to help you with dating advice, conversation tips, date ideas, and relationship guidance. What would you like to talk about?";
+const PERSONALIZED_GREETING = "Hey! I'm your personal dating coach. I can see your roster and dating history, so I can give you personalized advice. What's on your mind?";
+
 export default function DatingCoachScreen() {
   const router = useRouter();
+  const { roster, bench } = useRoster();
+  const [analytics, setAnalytics] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: "Hi! I'm your dating coach. I'm here to help you with dating advice, conversation tips, date ideas, and relationship guidance. What would you like to talk about?",
+      content: DEFAULT_GREETING,
       timestamp: new Date(),
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    console.log('[DatingCoach] Loading analytics on mount');
+    authenticatedGet('/api/analytics')
+      .then((data) => {
+        console.log('[DatingCoach] Analytics loaded');
+        setAnalytics(data);
+      })
+      .catch((err) => {
+        console.error('[DatingCoach] Failed to load analytics:', err);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (roster.length > 0 || bench.length > 0) {
+      console.log('[DatingCoach] Roster data loaded - updating greeting to personalized version');
+      setMessages((prev) => {
+        if (prev.length === 1 && prev[0].id === '1') {
+          return [{ ...prev[0], content: PERSONALIZED_GREETING }];
+        }
+        return prev;
+      });
+    }
+  }, [roster, bench]);
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -56,6 +86,25 @@ export default function DatingCoachScreen() {
 
     try {
       console.log('[DatingCoach] Sending message to AI:', messageToSend);
+
+      // Build system context from roster/analytics data
+      const rosterSummary = roster.map(p => `${p.name} (age ${p.age || 'unknown'}, interest: ${p.interestLevel || 'medium'}, location: ${p.location || 'unknown'})`).join(', ') || 'none';
+      const benchSummary = bench.map(p => `${p.name} (reason: ${p.benchReason || 'unspecified'})`).join(', ') || 'none';
+      const commonRedFlags = analytics?.commonRedFlags?.slice(0, 3).map((f: any) => f.flag).join(', ') || 'none';
+      const commonGreenFlags = analytics?.commonGreenFlags?.slice(0, 3).map((f: any) => f.flag).join(', ') || 'none';
+      const avgRating = analytics?.averageRating ? Number(analytics.averageRating).toFixed(1) : 'N/A';
+      const wouldGoAgain = analytics?.wouldGoAgainPercentage ? Number(analytics.wouldGoAgainPercentage).toFixed(0) + '%' : 'N/A';
+
+      const systemContext = `USER'S DATING DATA:
+Roster (${roster.length} people): ${rosterSummary}
+Bench (${bench.length} people): ${benchSummary}
+Total dates: ${analytics?.totalDates || 0}, Completed: ${analytics?.completedDates || 0}, Upcoming: ${analytics?.upcomingDates || 0}
+Average rating: ${avgRating}/5
+Would go again: ${wouldGoAgain}
+Common red flags: ${commonRedFlags}
+Common green flags: ${commonGreenFlags}`;
+
+      console.log('[DatingCoach] System context built, roster size:', roster.length);
       
       // Prepare conversation history for API
       const conversationHistory = messages.map(msg => ({
@@ -72,6 +121,7 @@ export default function DatingCoachScreen() {
       const response = await authenticatedPost('/api/coaching/chat', {
         message: messageToSend,
         history: conversationHistory,
+        context: systemContext,
       });
 
       console.log('[DatingCoach] Received AI response');
