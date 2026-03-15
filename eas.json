@@ -54,7 +54,7 @@
         "buildConfiguration": "Release"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "app-bundle"
       }
     }
   },
@@ -62,8 +62,7 @@
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "6758260932",
-        "usesExistingBuild": false
+        "ascAppId": "6758260932"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
