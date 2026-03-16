@@ -1,10 +1,9 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RosterPerson } from '@/types/roster';
-import { authenticatedGet } from '@/utils/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRoster } from '@/contexts/RosterContext';
-import { colors, gradients } from '@/styles/commonStyles';
+import { colors } from '@/styles/commonStyles';
 import {
   View,
   Text,
@@ -16,17 +15,43 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DateEvent } from '@/types/roster';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: screenWidth } = Dimensions.get('window');
 
+const DARK_GREEN = '#1B4332';
+
+// Load ratings map for all roster members
+async function loadRatingsMap(ids: string[]): Promise<Record<string, number>> {
+  const result: Record<string, number> = {};
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const raw = await AsyncStorage.getItem(`ratingsMap_${id}`);
+        if (raw) {
+          const ratings = JSON.parse(raw);
+          const values: number[] = Object.values(ratings);
+          if (values.length > 0) {
+            const avg = values.reduce((s, v) => s + Number(v), 0) / values.length;
+            result[id] = Math.round(avg * 10) / 10;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })
+  );
+  return result;
+}
+
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, bench, loading: rosterLoading, dates, refreshDates, updateDate, rateDate, error, backendReady, retryLoading } = useRoster();
+  const { roster, loading: rosterLoading, error, backendReady, retryLoading } = useRoster();
   const { user, loading: authLoading, profileIncomplete } = useAuth();
+  const [ratingsMap, setRatingsMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,7 +60,18 @@ export default function RosterScreen() {
     }
   }, [user, authLoading, router]);
 
-  // Show loading only on initial load
+  // Load ratings from AsyncStorage when roster changes
+  useEffect(() => {
+    if (roster.length > 0) {
+      const ids = roster.map(p => p.id);
+      console.log('[Home] Loading ratings from AsyncStorage for', ids.length, 'people');
+      loadRatingsMap(ids).then(map => {
+        setRatingsMap(map);
+        console.log('[Home] Ratings loaded:', Object.keys(map).length, 'entries');
+      });
+    }
+  }, [roster]);
+
   if (authLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -45,7 +81,6 @@ export default function RosterScreen() {
     );
   }
 
-  // Show error state with retry button if backend is not ready
   if (!backendReady && error) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,7 +95,7 @@ export default function RosterScreen() {
             <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
           </View>
         </LinearGradient>
-        
+
         <View style={styles.errorContainer}>
           <IconSymbol
             ios_icon_name="exclamationmark.triangle"
@@ -75,7 +110,7 @@ export default function RosterScreen() {
           <Text style={styles.errorSubtext}>
             {rosterLoading ? 'Retrying...' : 'Please wait or tap retry below.'}
           </Text>
-          
+
           {rosterLoading ? (
             <ActivityIndicator size="large" color={colors.rosterGreen} style={styles.retrySpinner} />
           ) : (
@@ -110,28 +145,17 @@ export default function RosterScreen() {
 
   const getInterestColor = (level: string) => {
     switch (level?.toLowerCase()) {
-      case 'high':
-        return colors.rosterGreen;
-      case 'medium':
-        return colors.warning;
-      case 'low':
-        return colors.actionRed;
-      default:
-        return colors.grey;
+      case 'high': return colors.rosterGreen;
+      case 'medium': return colors.warning;
+      case 'low': return colors.actionRed;
+      default: return colors.grey;
     }
   };
 
-  const getCompatibilityBadgeColor = (score: number) => {
-    if (score >= 70) return '#2D8B4E';
-    if (score >= 40) return '#D4AF37';
-    return '#C41E3A';
-  };
-
   const renderPersonCard = ({ item }: { item: RosterPerson }) => {
-    const hasScore = item.compatibilityScore != null;
-    const scoreNum = hasScore ? Number(item.compatibilityScore) : 0;
-    const scoreDisplay = hasScore ? String(Math.round(scoreNum)) + '%' : '';
-    const badgeColor = hasScore ? getCompatibilityBadgeColor(scoreNum) : colors.grey;
+    const avgRating = ratingsMap[item.id];
+    const hasRating = avgRating !== undefined;
+    const ratingStr = hasRating ? String(avgRating) : '';
 
     return (
       <TouchableOpacity
@@ -156,9 +180,10 @@ export default function RosterScreen() {
             { backgroundColor: getInterestColor(item.interestLevel) },
           ]}
         />
-        {hasScore && (
-          <View style={[styles.compatibilityBadge, { backgroundColor: badgeColor }]}>
-            <Text style={styles.compatibilityBadgeText}>{scoreDisplay}</Text>
+        {hasRating && (
+          <View style={styles.ratingBadge}>
+            <Text style={styles.ratingBadgeText}>{ratingStr}</Text>
+            <Text style={styles.ratingBadgeStar}>★</Text>
           </View>
         )}
         <LinearGradient
@@ -167,31 +192,27 @@ export default function RosterScreen() {
         >
           <View style={styles.personInfo}>
             <Text style={styles.personName}>{item.name}</Text>
-            <Text style={styles.personDetails}>
-              {item.age}
-            </Text>
-            <Text style={styles.personDetails}>
-              {item.location}
-            </Text>
+            <Text style={styles.personDetails}>{item.age}</Text>
+            <Text style={styles.personDetails}>{item.location}</Text>
             <View style={styles.flagsContainer}>
               {item.redFlags && item.redFlags.length > 0 && (
                 <View style={[styles.flagBadge, { backgroundColor: 'rgba(233, 36, 63, 0.9)' }]}>
-                  <IconSymbol 
-                    ios_icon_name="flag.fill" 
-                    android_material_icon_name="flag" 
-                    size={12} 
-                    color={colors.white} 
+                  <IconSymbol
+                    ios_icon_name="flag.fill"
+                    android_material_icon_name="flag"
+                    size={12}
+                    color={colors.white}
                   />
                   <Text style={styles.flagCount}>{item.redFlags.length}</Text>
                 </View>
               )}
               {item.greenFlags && item.greenFlags.length > 0 && (
                 <View style={[styles.flagBadge, { backgroundColor: 'rgba(17, 163, 106, 0.9)' }]}>
-                  <IconSymbol 
-                    ios_icon_name="flag.fill" 
-                    android_material_icon_name="flag" 
-                    size={12} 
-                    color={colors.white} 
+                  <IconSymbol
+                    ios_icon_name="flag.fill"
+                    android_material_icon_name="flag"
+                    size={12}
+                    color={colors.white}
                   />
                   <Text style={styles.flagCount}>{item.greenFlags.length}</Text>
                 </View>
@@ -212,18 +233,16 @@ export default function RosterScreen() {
       }}
       activeOpacity={0.8}
     >
-      <IconSymbol 
-        ios_icon_name="plus.circle" 
-        android_material_icon_name="add-circle-outline" 
-        size={72} 
-        color={colors.grey} 
+      <IconSymbol
+        ios_icon_name="plus.circle"
+        android_material_icon_name="add-circle-outline"
+        size={72}
+        color={colors.grey}
       />
       <Text style={styles.emptyText}>Add your first person</Text>
       <Text style={styles.emptySubtext}>Tap to get started</Text>
     </TouchableOpacity>
   );
-
-
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -270,11 +289,11 @@ export default function RosterScreen() {
             }}
             activeOpacity={0.7}
           >
-            <IconSymbol 
-              ios_icon_name="calendar" 
-              android_material_icon_name="calendar-today" 
-              size={22} 
-              color={colors.white} 
+            <IconSymbol
+              ios_icon_name="calendar"
+              android_material_icon_name="calendar-today"
+              size={22}
+              color={colors.white}
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -285,11 +304,11 @@ export default function RosterScreen() {
             }}
             activeOpacity={0.7}
           >
-            <IconSymbol 
-              ios_icon_name="chart.bar.fill" 
-              android_material_icon_name="insert-chart" 
-              size={22} 
-              color={colors.white} 
+            <IconSymbol
+              ios_icon_name="chart.bar.fill"
+              android_material_icon_name="insert-chart"
+              size={22}
+              color={colors.white}
             />
           </TouchableOpacity>
         </View>
@@ -297,8 +316,8 @@ export default function RosterScreen() {
 
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Image 
-            source={require('@/assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png')} 
+          <Image
+            source={require('@/assets/images/799535b5-0e83-4d1e-bf79-2fae663be2a2.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -320,7 +339,6 @@ export default function RosterScreen() {
           />
         )}
       </View>
-
     </SafeAreaView>
   );
 }
@@ -502,6 +520,33 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  ratingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: DARK_GREEN,
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  ratingBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  ratingBadgeStar: {
+    fontSize: 10,
+    color: '#FFD700',
+    fontWeight: '700',
+  },
   personInfoGradient: {
     position: 'absolute',
     bottom: 0,
@@ -548,30 +593,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.white,
     fontWeight: '700',
-  },
-  compatibilityBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    minWidth: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.85)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  compatibilityBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
   },
   emptyCard: {
     width: '100%',

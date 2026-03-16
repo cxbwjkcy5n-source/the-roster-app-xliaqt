@@ -14,6 +14,7 @@ import {
   FlatList,
   Dimensions,
   ImageSourcePropType,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -67,59 +68,23 @@ const INTENTION_OPTIONS = [
 ];
 
 const FAV_FOOD_OPTIONS = [
-  'Italian',
-  'Mexican',
-  'Japanese/Sushi',
-  'American',
-  'Mediterranean',
-  'Thai',
-  'Indian',
-  'Chinese',
-  'Caribbean',
-  'Soul Food',
-  'Vegan/Plant-based',
-  'Other',
+  'Italian', 'Mexican', 'Japanese/Sushi', 'American', 'Mediterranean',
+  'Thai', 'Indian', 'Chinese', 'Caribbean', 'Soul Food', 'Vegan/Plant-based', 'Other',
 ];
 
 const FAV_COLOR_OPTIONS = [
-  'Red',
-  'Blue',
-  'Green',
-  'Purple',
-  'Pink',
-  'Black',
-  'White',
-  'Yellow',
-  'Orange',
-  'Brown',
-  'Gold',
-  'Other',
+  'Red', 'Blue', 'Green', 'Purple', 'Pink', 'Black', 'White',
+  'Yellow', 'Orange', 'Brown', 'Gold', 'Other',
 ];
 
 const THINGS_THEY_LIKE_OPTIONS = [
-  'Traveling',
-  'Music',
-  'Sports',
-  'Cooking',
-  'Gaming',
-  'Reading',
-  'Fitness',
-  'Art',
-  'Fashion',
-  'Movies/TV',
-  'Outdoors',
-  'Dancing',
-  'Other',
+  'Traveling', 'Music', 'Sports', 'Cooking', 'Gaming', 'Reading',
+  'Fitness', 'Art', 'Fashion', 'Movies/TV', 'Outdoors', 'Dancing', 'Other',
 ];
 
 const LIFESTYLE_VIBE_OPTIONS = [
-  'Homebody',
-  'Social butterfly',
-  'Adventurer',
-  'Workaholic',
-  'Balanced',
-  'Night owl',
-  'Early bird',
+  'Homebody', 'Social butterfly', 'Adventurer', 'Workaholic',
+  'Balanced', 'Night owl', 'Early bird',
 ];
 
 const getDaysInMonth = (month: number) => {
@@ -333,7 +298,7 @@ const flagRowStyle = StyleSheet.create({
   },
 });
 
-// ─── Picker Modal ─────────────────────────────────────────────────────────────
+// ─── Single-select Picker Modal ───────────────────────────────────────────────
 function PickerModal({
   visible,
   title,
@@ -381,6 +346,82 @@ function PickerModal({
                 })}
               </ScrollView>
               <TouchableOpacity style={pickerStyle.doneBtn} onPress={onClose}>
+                <Text style={pickerStyle.doneBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+// ─── Multi-select Picker Modal ────────────────────────────────────────────────
+function MultiPickerModal({
+  visible,
+  title,
+  items,
+  selectedValues,
+  onDone,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  items: string[];
+  selectedValues: string[];
+  onDone: (values: string[]) => void;
+  onClose: () => void;
+}) {
+  const [localSelected, setLocalSelected] = useState<string[]>(selectedValues);
+
+  useEffect(() => {
+    if (visible) setLocalSelected(selectedValues);
+  }, [visible, selectedValues]);
+
+  const toggleItem = (item: string) => {
+    setLocalSelected(prev =>
+      prev.includes(item) ? prev.filter(v => v !== item) : [...prev, item]
+    );
+  };
+
+  const handleDone = () => {
+    console.log(`[MultiPicker] Done — selected: ${localSelected.join(', ')}`);
+    onDone(localSelected);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={pickerStyle.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={pickerStyle.sheet}>
+              <View style={pickerStyle.header}>
+                <Text style={pickerStyle.title}>{title}</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={pickerStyle.close}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={pickerStyle.scroll}>
+                {items.map((item) => {
+                  const isActive = localSelected.includes(item);
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[pickerStyle.item, isActive && pickerStyle.itemActive]}
+                      onPress={() => toggleItem(item)}
+                    >
+                      <Text style={[pickerStyle.itemText, isActive && pickerStyle.itemTextActive]}>
+                        {item}
+                      </Text>
+                      {isActive && (
+                        <Text style={pickerStyle.checkmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity style={pickerStyle.doneBtn} onPress={handleDone}>
                 <Text style={pickerStyle.doneBtnText}>Done</Text>
               </TouchableOpacity>
             </View>
@@ -449,6 +490,40 @@ const pickerStyle = StyleSheet.create({
   },
 });
 
+// ─── Multi-select Dropdown Field ──────────────────────────────────────────────
+function MultiDropdownField({
+  label,
+  values,
+  placeholder,
+  onPress,
+}: {
+  label: string;
+  values: string[];
+  placeholder: string;
+  onPress: () => void;
+}) {
+  const hasValues = values.length > 0;
+  return (
+    <View style={dropdownStyle.wrapper}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TouchableOpacity style={dropdownStyle.field} onPress={onPress} activeOpacity={0.7}>
+        {hasValues ? (
+          <View style={dropdownStyle.pillsRow}>
+            {values.map((v) => (
+              <View key={v} style={dropdownStyle.valuePill}>
+                <Text style={dropdownStyle.valueText}>{v}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={dropdownStyle.placeholder}>{placeholder}</Text>
+        )}
+        <Text style={dropdownStyle.chevron}>›</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Dropdown Field ───────────────────────────────────────────────────────────
 function DropdownField({
   label,
@@ -495,14 +570,21 @@ const dropdownStyle = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     minHeight: 44,
   },
+  pillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    flex: 1,
+    gap: 4,
+  },
   valuePill: {
     backgroundColor: DARK_GREEN + '18',
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 2,
   },
   valueText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: DARK_GREEN,
   },
@@ -514,6 +596,7 @@ const dropdownStyle = StyleSheet.create({
     fontSize: 20,
     color: '#9CA3AF',
     fontWeight: '300',
+    marginLeft: 4,
   },
 });
 
@@ -593,6 +676,7 @@ export default function AddPersonScreen() {
   const params = useLocalSearchParams();
   const isEditing = !!id;
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [hasPrefill, setHasPrefill] = useState(false);
   const [prefillImageUrl, setPrefillImageUrl] = useState<string | null>(null);
   const [scannedName, setScannedName] = useState<string>('their');
@@ -600,7 +684,6 @@ export default function AddPersonScreen() {
   // ── Top card fields ──
   const [photoUri, setPhotoUri] = useState<string | undefined>();
   const [name, setName] = useState('');
-  const [nickname, setNickname] = useState('');
   const [zodiacOverride, setZodiacOverride] = useState('');
 
   // ── Basic Info ──
@@ -619,9 +702,10 @@ export default function AddPersonScreen() {
   // ── Favorites ──
   const [favFood, setFavFood] = useState('');
   const [favColor, setFavColor] = useState('');
-  const [thingsTheyLike, setThingsTheyLike] = useState('');
-  const [lifestyleVibe, setLifestyleVibe] = useState('');
-  const [intention, setIntention] = useState('');
+  // Multi-select arrays
+  const [thingsTheyLike, setThingsTheyLike] = useState<string[]>([]);
+  const [lifestyleVibe, setLifestyleVibe] = useState<string[]>([]);
+  const [intention, setIntention] = useState<string[]>([]);
 
   // ── Flags ──
   const [greenFlagInput, setGreenFlagInput] = useState('');
@@ -639,6 +723,7 @@ export default function AddPersonScreen() {
     datePlanning: 5,
     alignment: 5,
   });
+  const [excludedRatingKeys, setExcludedRatingKeys] = useState<string[]>([]);
 
   // ── Picker visibility ──
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -653,10 +738,13 @@ export default function AddPersonScreen() {
 
   const relationshipCarouselRef = useRef<FlatList>(null);
 
-  // ── Derived: chemistry from ratings average ──
-  const computedChemistry = Math.round(
-    Object.values(ratings).reduce((sum, v) => sum + v, 0) / 7
-  );
+  // ── Derived: chemistry from ratings average (only included categories) ──
+  const includedRatingValues = Object.entries(ratings)
+    .filter(([key]) => !excludedRatingKeys.includes(key))
+    .map(([, v]) => v);
+  const computedChemistry = includedRatingValues.length > 0
+    ? Math.round(includedRatingValues.reduce((sum, v) => sum + v, 0) / includedRatingValues.length)
+    : 0;
 
   // ── Prefill from QR scan ──
   useEffect(() => {
@@ -725,8 +813,21 @@ export default function AddPersonScreen() {
       quality: 0.8,
     });
     if (!result.canceled) {
-      console.log('[AddPerson] Image selected:', result.assets[0].uri);
-      setPhotoUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      console.log('[AddPerson] Image selected, uploading:', uri);
+      setUploadingPhoto(true);
+      try {
+        const uploadResult = await uploadImage(uri, 'roster');
+        console.log('[AddPerson] Photo uploaded successfully:', uploadResult.url);
+        setPhotoUri(uploadResult.url);
+      } catch (err: any) {
+        console.error('[AddPerson] Photo upload failed:', err);
+        // Fall back to local URI so user can still see the photo
+        setPhotoUri(uri);
+        Alert.alert('Upload Warning', 'Photo saved locally. It will be uploaded when you save.');
+      } finally {
+        setUploadingPhoto(false);
+      }
     }
   };
 
@@ -753,12 +854,9 @@ export default function AddPersonScreen() {
   const zodiacSign = zodiacOverride || autoZodiac;
   const zodiacEmoji = getZodiacEmoji(zodiacSign);
   const monthLabel = months[birthMonth - 1];
-  const nicknameDisplay = nickname || 'Nickname';
 
   const dayItems = Array.from({ length: getDaysInMonth(birthMonth) }, (_, i) => String(i + 1));
   const monthItems = months;
-
-  const chemistryLabel = computedChemistry + '/10';
 
   // ── Save ──
   const handleSave = async () => {
@@ -779,12 +877,13 @@ export default function AddPersonScreen() {
 
       let uploadedImageUrl: string | undefined;
 
-      if (isEditing && photoUri && !photoUri.startsWith('file://') && !photoUri.startsWith('content://')) {
+      // If photoUri is already a remote URL (uploaded during pick), use it directly
+      if (photoUri && (photoUri.startsWith('http://') || photoUri.startsWith('https://'))) {
         uploadedImageUrl = photoUri;
-      }
-      if (photoUri && (!isEditing || photoUri.startsWith('file://') || photoUri.startsWith('content://'))) {
+      } else if (photoUri && (photoUri.startsWith('file://') || photoUri.startsWith('content://'))) {
+        // Local URI — upload now
         try {
-          console.log('[AddPerson] Uploading image...');
+          console.log('[AddPerson] Uploading local image...');
           const uploadResult = await uploadImage(photoUri, 'roster');
           uploadedImageUrl = uploadResult.url;
           console.log('[AddPerson] Image uploaded:', uploadedImageUrl);
@@ -798,6 +897,12 @@ export default function AddPersonScreen() {
       if (!uploadedImageUrl && prefillImageUrl) {
         uploadedImageUrl = prefillImageUrl;
       }
+
+      const notesLines = [
+        thingsTheyLike.length > 0 ? `Things they like: ${thingsTheyLike.join(', ')}` : '',
+        lifestyleVibe.length > 0 ? `Lifestyle vibe: ${lifestyleVibe.join(', ')}` : '',
+        intention.length > 0 ? `Intention: ${intention.join(', ')}` : '',
+      ].filter(Boolean);
 
       const person: RosterPerson = {
         id: isEditing ? (id as string) : Date.now().toString(),
@@ -817,12 +922,7 @@ export default function AddPersonScreen() {
         twitter: twitter.trim() || undefined,
         facebook: undefined,
         snapchat: undefined,
-        notes: [
-          nickname ? `Nickname: ${nickname}` : '',
-          thingsTheyLike ? `Things they like: ${thingsTheyLike}` : '',
-          lifestyleVibe ? `Lifestyle vibe: ${lifestyleVibe}` : '',
-          intention ? `Intention: ${intention}` : '',
-        ].filter(Boolean).join('\n') || undefined,
+        notes: notesLines.length > 0 ? notesLines.join('\n') : undefined,
         redFlags: redFlags.map((text, index) => ({ id: `red-${index}`, text, type: 'red' as const })),
         greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' as const })),
         interestLevel: 'medium',
@@ -932,8 +1032,13 @@ export default function AddPersonScreen() {
         {/* ══ TOP CARD (dark green) ══ */}
         <View style={styles.topCard}>
           {/* Avatar */}
-          <TouchableOpacity style={styles.avatarWrapper} onPress={pickImage}>
-            {displayPhoto ? (
+          <TouchableOpacity style={styles.avatarWrapper} onPress={pickImage} disabled={uploadingPhoto}>
+            {uploadingPhoto ? (
+              <View style={styles.avatarPlaceholder}>
+                <ActivityIndicator color="#fff" size="large" />
+                <Text style={styles.avatarPlaceholderText}>Uploading...</Text>
+              </View>
+            ) : displayPhoto ? (
               <Image source={resolveImageSource(displayPhoto)} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
@@ -941,9 +1046,11 @@ export default function AddPersonScreen() {
                 <Text style={styles.avatarPlaceholderText}>Add Photo</Text>
               </View>
             )}
-            <View style={styles.avatarEditBadge}>
-              <Text style={styles.avatarEditBadgeText}>✎</Text>
-            </View>
+            {!uploadingPhoto && (
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditBadgeText}>✎</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* Name input */}
@@ -968,24 +1075,6 @@ export default function AddPersonScreen() {
             <Text style={styles.zodiacBadgeText}> </Text>
             <Text style={styles.zodiacBadgeText}>{zodiacSign}</Text>
           </TouchableOpacity>
-
-          {/* Nickname pill + Chemistry read-only badge */}
-          <View style={styles.pillRow}>
-            <View style={styles.pillInputWrapper}>
-              <TextInput
-                style={styles.pillInput}
-                value={nickname}
-                onChangeText={setNickname}
-                placeholder="Nickname"
-                placeholderTextColor="rgba(255,255,255,0.55)"
-                textAlign="center"
-              />
-            </View>
-            <View style={styles.chemistryBadge}>
-              <Text style={styles.chemistryLabel}>Chemistry</Text>
-              <Text style={styles.chemistryValue}>{chemistryLabel}</Text>
-            </View>
-          </View>
         </View>
 
         {/* ══ SECTION: Basic Info ══ */}
@@ -1099,19 +1188,19 @@ export default function AddPersonScreen() {
             }}
           />
 
-          <DropdownField
+          <MultiDropdownField
             label="Things they like"
-            value={thingsTheyLike}
-            placeholder="Select an interest..."
+            values={thingsTheyLike}
+            placeholder="Select interests..."
             onPress={() => {
               console.log('[AddPerson] User tapped Things They Like dropdown');
               setShowThingsLikePicker(true);
             }}
           />
 
-          <DropdownField
+          <MultiDropdownField
             label="Lifestyle vibe"
-            value={lifestyleVibe}
+            values={lifestyleVibe}
             placeholder="Select lifestyle vibe..."
             onPress={() => {
               console.log('[AddPerson] User tapped Lifestyle Vibe dropdown');
@@ -1119,9 +1208,9 @@ export default function AddPersonScreen() {
             }}
           />
 
-          <DropdownField
+          <MultiDropdownField
             label="Intention"
-            value={intention}
+            values={intention}
             placeholder="Select intention..."
             onPress={() => {
               console.log('[AddPerson] User tapped Intention dropdown');
@@ -1166,8 +1255,16 @@ export default function AddPersonScreen() {
           <RatingsSection
             initialRatings={ratings}
             onChange={(r) => {
-              console.log('[AddPerson] Ratings updated — new chemistry avg:', Math.round(Object.values(r).reduce((s, v) => s + v, 0) / 7));
+              const included = Object.entries(r).filter(([k]) => !excludedRatingKeys.includes(k));
+              const avg = included.length > 0
+                ? Math.round(included.reduce((s, [, v]) => s + v, 0) / included.length)
+                : 0;
+              console.log('[AddPerson] Ratings updated — new chemistry avg:', avg);
               setRatings(r);
+            }}
+            onExcludedChange={(excluded) => {
+              console.log('[AddPerson] Excluded rating categories:', excluded);
+              setExcludedRatingKeys(excluded);
             }}
           />
         </View>
@@ -1237,17 +1334,6 @@ export default function AddPersonScreen() {
         onClose={() => setShowRelTypePicker(false)}
       />
       <PickerModal
-        visible={showIntentionPicker}
-        title="Intention"
-        items={INTENTION_OPTIONS}
-        selectedValue={intention}
-        onSelect={(v) => {
-          console.log('[AddPerson] Intention selected:', v);
-          setIntention(v);
-        }}
-        onClose={() => setShowIntentionPicker(false)}
-      />
-      <PickerModal
         visible={showFavFoodPicker}
         title="Favorite Food"
         items={FAV_FOOD_OPTIONS}
@@ -1269,27 +1355,40 @@ export default function AddPersonScreen() {
         }}
         onClose={() => setShowFavColorPicker(false)}
       />
-      <PickerModal
+
+      {/* Multi-select pickers */}
+      <MultiPickerModal
         visible={showThingsLikePicker}
         title="Things They Like"
         items={THINGS_THEY_LIKE_OPTIONS}
-        selectedValue={thingsTheyLike}
-        onSelect={(v) => {
-          console.log('[AddPerson] Things they like selected:', v);
-          setThingsTheyLike(v);
+        selectedValues={thingsTheyLike}
+        onDone={(vals) => {
+          console.log('[AddPerson] Things they like selected:', vals);
+          setThingsTheyLike(vals);
         }}
         onClose={() => setShowThingsLikePicker(false)}
       />
-      <PickerModal
+      <MultiPickerModal
         visible={showLifestylePicker}
         title="Lifestyle Vibe"
         items={LIFESTYLE_VIBE_OPTIONS}
-        selectedValue={lifestyleVibe}
-        onSelect={(v) => {
-          console.log('[AddPerson] Lifestyle vibe selected:', v);
-          setLifestyleVibe(v);
+        selectedValues={lifestyleVibe}
+        onDone={(vals) => {
+          console.log('[AddPerson] Lifestyle vibe selected:', vals);
+          setLifestyleVibe(vals);
         }}
         onClose={() => setShowLifestylePicker(false)}
+      />
+      <MultiPickerModal
+        visible={showIntentionPicker}
+        title="Intention"
+        items={INTENTION_OPTIONS}
+        selectedValues={intention}
+        onDone={(vals) => {
+          console.log('[AddPerson] Intention selected:', vals);
+          setIntention(vals);
+        }}
+        onClose={() => setShowIntentionPicker(false)}
       />
     </SafeAreaView>
   );
@@ -1426,59 +1525,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 5,
-    marginBottom: 14,
   },
   zodiacBadgeText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
-  },
-
-  // Pill row
-  pillRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  pillInputWrapper: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  pillInput: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '500',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    textAlign: 'center',
-  },
-
-  // Chemistry badge (read-only)
-  chemistryBadge: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chemistryLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  chemistryValue: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
   },
 
   // ── Field label ──
