@@ -14,20 +14,25 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
-  Dimensions,
+  ImageSourcePropType,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/IconSymbol';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, Interaction, Reminder } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
 import { getZodiacEmoji } from '@/utils/zodiac';
 import RatingsSection, { RatingsValues } from '@/components/RatingsSection';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_HEIGHT = SCREEN_WIDTH * 0.75;
+// ─── Constants ────────────────────────────────────────────────────────────────
+const DARK_GREEN = '#1B4332';
+const CARD_GREEN = '#1B4332';
+const GREEN_TRACK = '#A8D5A2';
+const BOTTOM_BAR_HEIGHT = 80;
+
+type TabKey = 'overview' | 'dates' | 'notes' | 'reminders';
 
 const CHECK_IN_MESSAGES = [
   "How's your day?",
@@ -37,33 +42,159 @@ const CHECK_IN_MESSAGES = [
   "What's on your mind?",
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
+  if (!source) return { uri: '' };
+  if (typeof source === 'string') return { uri: source };
+  return source as ImageSourcePropType;
+}
+
+function getZodiacShortLabel(sign: string): string {
+  return sign ? sign.charAt(0).toUpperCase() : '?';
+}
+
+function getCompatibilityLabel(score: number): string {
+  if (score >= 80) return 'Highly compatible';
+  if (score >= 60) return 'Worth exploring';
+  if (score >= 40) return 'Some friction';
+  return 'Challenging match';
+}
+
+// ─── Zodiac Compatibility Ring ────────────────────────────────────────────────
+function CompatibilityRing({ score }: { score: number }) {
+  const SIZE = 64;
+  const STROKE = 5;
+  const RADIUS = (SIZE - STROKE) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const progress = Math.min(score / 100, 1);
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  const scoreStr = String(Math.round(score)) + '%';
+
+  return (
+    <View style={ringStyles.wrapper}>
+      <Svg width={SIZE} height={SIZE}>
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          stroke="rgba(255,255,255,0.25)"
+          strokeWidth={STROKE}
+          fill="none"
+        />
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          stroke="#fff"
+          strokeWidth={STROKE}
+          fill="none"
+          strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${SIZE / 2}, ${SIZE / 2}`}
+        />
+      </Svg>
+      <View style={ringStyles.label}>
+        <Text style={ringStyles.labelText}>{scoreStr}</Text>
+      </View>
+    </View>
+  );
+}
+
+const ringStyles = StyleSheet.create({
+  wrapper: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  labelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+});
+
+// ─── Pill Chip ────────────────────────────────────────────────────────────────
+function Chip({ label, value, style }: { label?: string; value: string; style?: object }) {
+  return (
+    <View style={[chipStyles.chip, style]}>
+      {label ? (
+        <View style={chipStyles.row}>
+          <Text style={chipStyles.label}>{label}</Text>
+          <Text style={chipStyles.colon}>: </Text>
+          <Text style={chipStyles.value}>{value}</Text>
+        </View>
+      ) : (
+        <Text style={chipStyles.value}>{value}</Text>
+      )}
+    </View>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  chip: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '400',
+  },
+  colon: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  value: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '600',
+  },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function PersonDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { roster, bench, dates, interactions, reminders, addInteraction, addReminder, moveToBench, moveToRoster, deletePerson, updatePerson, addFlag, refreshProfiles } = useRoster();
-  
+  const {
+    roster, bench, dates, interactions, reminders,
+    addInteraction, addReminder, moveToBench, moveToRoster,
+    deletePerson, updatePerson, addFlag, refreshProfiles,
+  } = useRoster();
+
   const [person, setPerson] = useState<RosterPerson | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [showBenchModal, setShowBenchModal] = useState(false);
   const [benchReason, setBenchReason] = useState('');
   const [showReminderModal, setShowReminderModal] = useState(false);
-  const [showChemistryTimeline, setShowChemistryTimeline] = useState(false);
   const [profileInteractions, setProfileInteractions] = useState<Interaction[]>([]);
   const [checkInMessageIndex, setCheckInMessageIndex] = useState(0);
-  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [ratingsMap, setRatingsMap] = useState<Record<string, Partial<RatingsValues>>>({});
   const [redFlagInput, setRedFlagInput] = useState('');
   const [greenFlagInput, setGreenFlagInput] = useState('');
-  
-  // FIX: Add custom delete confirmation modal
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  // Ratings state (local per person, keyed by person id)
-  const [ratingsMap, setRatingsMap] = useState<Record<string, Partial<RatingsValues>>>({});
 
   useEffect(() => {
     const allPeople = [...roster, ...bench];
     const foundPerson = allPeople.find(p => p.id === id);
     setPerson(foundPerson || null);
-    
     if (foundPerson) {
       loadProfileInteractions(foundPerson.id);
     }
@@ -84,14 +215,11 @@ export default function PersonDetailScreen() {
 
   const handleAddRedFlag = async () => {
     if (!redFlagInput.trim() || !person) return;
-    
     try {
       console.log('[PersonDetail] Adding red flag:', redFlagInput.trim());
       await addFlag(person.id, redFlagInput.trim(), 'red');
       setRedFlagInput('');
-      
       await refreshProfiles();
-      console.log('[PersonDetail] Red flag added successfully');
     } catch (error) {
       console.error('[PersonDetail] Error adding red flag:', error);
       Alert.alert('Error', 'Failed to add red flag');
@@ -100,14 +228,11 @@ export default function PersonDetailScreen() {
 
   const handleAddGreenFlag = async () => {
     if (!greenFlagInput.trim() || !person) return;
-    
     try {
       console.log('[PersonDetail] Adding green flag:', greenFlagInput.trim());
       await addFlag(person.id, greenFlagInput.trim(), 'green');
       setGreenFlagInput('');
-      
       await refreshProfiles();
-      console.log('[PersonDetail] Green flag added successfully');
     } catch (error) {
       console.error('[PersonDetail] Error adding green flag:', error);
       Alert.alert('Error', 'Failed to add green flag');
@@ -123,91 +248,48 @@ export default function PersonDetailScreen() {
   }
 
   const personDates = dates.filter(d => d.profileId === person.id);
-  const personInteractions = profileInteractions;
   const personReminders = reminders.filter(r => r.profileId === person.id && !r.completed);
-
-  const getInterestColor = (level: string) => {
-    switch (level) {
-      case 'high': return colors.green;
-      case 'medium': return '#FFC107';
-      case 'low': return '#FF0000';
-      default: return colors.grey;
-    }
-  };
+  const compatScore = typeof person.compatibilityScore === 'number' ? person.compatibilityScore : 67;
+  const compatLabel = getCompatibilityLabel(compatScore);
+  const zodiacEmoji = getZodiacEmoji(person.zodiacSign);
+  const zodiacShort = getZodiacShortLabel(person.zodiacSign);
+  const chemistryScore = typeof person.sexualChemistry === 'number' ? person.sexualChemistry : null;
 
   const handleCall = () => {
+    console.log('[PersonDetail] User tapped Call button');
     if (person.phoneNumber) {
       Linking.openURL(`tel:${person.phoneNumber}`);
     } else {
-      Alert.alert('No Phone Number', 'This person doesn&apos;t have a phone number saved');
+      Alert.alert('No Phone Number', 'No phone number saved');
     }
   };
 
   const handleMessage = () => {
+    console.log('[PersonDetail] User tapped Text button');
     if (person.phoneNumber) {
       Linking.openURL(`sms:${person.phoneNumber}`);
     } else {
-      Alert.alert('No Phone Number', 'This person doesn&apos;t have a phone number saved');
+      Alert.alert('No Phone Number', 'No phone number saved');
     }
   };
 
-  const handleSocialMedia = (platform: 'instagram' | 'twitter' | 'facebook' | 'snapchat') => {
-    const username = person[platform];
-    if (!username) {
-      Alert.alert('Not Available', `No ${platform} username saved`);
-      return;
-    }
-
-    let url = '';
-    switch (platform) {
-      case 'instagram':
-        url = `instagram://user?username=${username.replace('@', '')}`;
-        const fallbackInstagram = `https://instagram.com/${username.replace('@', '')}`;
-        Linking.canOpenURL(url).then(supported => {
-          if (supported) {
-            Linking.openURL(url);
-          } else {
-            Linking.openURL(fallbackInstagram);
-          }
-        });
-        break;
-      case 'twitter':
-        url = `twitter://user?screen_name=${username.replace('@', '')}`;
-        const fallbackTwitter = `https://twitter.com/${username.replace('@', '')}`;
-        Linking.canOpenURL(url).then(supported => {
-          if (supported) {
-            Linking.openURL(url);
-          } else {
-            Linking.openURL(fallbackTwitter);
-          }
-        });
-        break;
-      case 'facebook':
-        url = `fb://profile/${username}`;
-        const fallbackFacebook = `https://facebook.com/${username}`;
-        Linking.canOpenURL(url).then(supported => {
-          if (supported) {
-            Linking.openURL(url);
-          } else {
-            Linking.openURL(fallbackFacebook);
-          }
-        });
-        break;
-      case 'snapchat':
-        url = `snapchat://add/${username.replace('@', '')}`;
-        const fallbackSnapchat = `https://snapchat.com/add/${username.replace('@', '')}`;
-        Linking.canOpenURL(url).then(supported => {
-          if (supported) {
-            Linking.openURL(url);
-          } else {
-            Linking.openURL(fallbackSnapchat);
-          }
-        });
-        break;
-    }
+  const handleInstagram = () => {
+    console.log('[PersonDetail] User tapped Instagram button');
+    const username = person.instagram;
+    if (!username) { Alert.alert('Not Available', 'No Instagram username saved'); return; }
+    const url = `instagram://user?username=${username.replace('@', '')}`;
+    const fallback = `https://instagram.com/${username.replace('@', '')}`;
+    Linking.canOpenURL(url).then(ok => Linking.openURL(ok ? url : fallback));
   };
 
-  // FIX: Use custom modal instead of Alert.alert for cross-platform compatibility
+  const handleTikTok = () => {
+    console.log('[PersonDetail] User tapped TikTok button');
+    const username = person.twitter;
+    if (!username) { Alert.alert('Not Available', 'No TikTok username saved'); return; }
+    const url = `https://tiktok.com/@${username.replace('@', '')}`;
+    Linking.openURL(url);
+  };
+
   const handleDelete = () => {
     console.log('[PersonDetail] User tapped Delete button');
     setShowDeleteModal(true);
@@ -227,14 +309,12 @@ export default function PersonDetailScreen() {
   };
 
   const handleMoveToBench = () => {
+    console.log('[PersonDetail] User tapped Move to Bench button');
     setShowBenchModal(true);
   };
 
   const confirmMoveToBench = async () => {
-    if (!benchReason.trim()) {
-      Alert.alert('Error', 'Please provide a reason');
-      return;
-    }
+    if (!benchReason.trim()) { Alert.alert('Error', 'Please provide a reason'); return; }
     try {
       await moveToBench(person.id, benchReason);
       setShowBenchModal(false);
@@ -246,6 +326,7 @@ export default function PersonDetailScreen() {
   };
 
   const handleMoveToRoster = async () => {
+    console.log('[PersonDetail] User tapped Move to Roster button');
     try {
       await moveToRoster(person.id);
       router.back();
@@ -254,58 +335,15 @@ export default function PersonDetailScreen() {
     }
   };
 
-  const handleQuickAction = async (type: 'morning_text' | 'check_in') => {
-    console.log('[PersonDetail] Quick action:', type);
-    
-    if (!person.phoneNumber) {
-      Alert.alert('No Phone Number', 'This person doesn&apos;t have a phone number saved');
-      return;
-    }
-
-    try {
-      let message = '';
-      if (type === 'morning_text') {
-        message = 'Good Morning';
-      } else {
-        message = CHECK_IN_MESSAGES[checkInMessageIndex];
-        setCheckInMessageIndex((checkInMessageIndex + 1) % CHECK_IN_MESSAGES.length);
-      }
-
-      const interaction: Interaction = {
-        id: Date.now().toString(),
-        profileId: person.id,
-        type: type,
-        date: new Date().toISOString(),
-      };
-      await addInteraction(interaction);
-      
-      await loadProfileInteractions(person.id);
-      
-      const smsUrl = `sms:${person.phoneNumber}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
-      console.log('[PersonDetail] Opening messages with URL:', smsUrl);
-      
-      const canOpen = await Linking.canOpenURL(smsUrl);
-      if (canOpen) {
-        await Linking.openURL(smsUrl);
-      } else {
-        Alert.alert('Error', 'Unable to open messages app');
-      }
-    } catch (error) {
-      console.error('[PersonDetail] Error with quick action:', error);
-      Alert.alert('Error', 'Failed to open messages app');
-    }
-  };
-
   const handleSetReminder = async (type: 'morning_text' | 'check_in') => {
     try {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(9, 0, 0, 0);
-
       const reminder: Reminder = {
         id: Date.now().toString(),
         profileId: person.id,
-        type: type,
+        type,
         title: type === 'morning_text' ? 'Send morning text' : 'Check in',
         description: `Reminder to ${type === 'morning_text' ? 'send a morning text' : 'check in'} with ${person.name}`,
         scheduledFor: tomorrow.toISOString(),
@@ -319,560 +357,430 @@ export default function PersonDetailScreen() {
     }
   };
 
-  const getInteractionIcon = (type: string) => {
-    switch (type) {
-      case 'date': return '❤️';
-      case 'morning_text': return '☀️';
-      case 'check_in': return '💬';
-      case 'call': return '📞';
-      case 'text': return '💬';
-      case 'moved_to_bench': return '⏸️';
-      case 'moved_to_roster': return '⭐';
-      default: return '•';
-    }
-  };
+  // ─── Tab Content ─────────────────────────────────────────────────────────
+  const renderOverviewTab = () => (
+    <View style={styles.tabContent}>
+      {/* Favorites Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionCardTitle}>Favorite</Text>
+        <View style={styles.chipsWrap}>
+          {person.favoriteFoodType ? (
+            <Chip label="Fav Food" value={person.favoriteFoodType} />
+          ) : null}
+          {person.favoriteColor ? (
+            <Chip label="Fav Color" value={person.favoriteColor} />
+          ) : null}
+          {person.howMet ? (
+            <Chip label="Things they like" value={person.howMet} />
+          ) : null}
+          {person.relationshipType ? (
+            <Chip label="Lifestyle vibe" value={person.relationshipType} />
+          ) : null}
+          {person.interestLevel ? (
+            <Chip label="Intention" value={person.interestLevel === 'high' ? 'Open to serious' : person.interestLevel === 'medium' ? 'Casual' : 'Just exploring'} />
+          ) : null}
+          {!person.favoriteFoodType && !person.favoriteColor && !person.howMet && (
+            <Text style={styles.emptyText}>No favorites added yet</Text>
+          )}
+        </View>
+      </View>
 
-  const personCreatedDate = person.createdAt || new Date().toISOString();
+      {/* Flags Section */}
+      <View style={styles.sectionCard}>
+        <View style={styles.flagsRow}>
+          {/* Green Flags */}
+          <View style={styles.flagsCol}>
+            <Text style={styles.greenFlagsTitle}>Green Flags</Text>
+            <View style={styles.chipsWrap}>
+              {person.greenFlags.length > 0 ? (
+                person.greenFlags.map(flag => (
+                  <Chip key={flag.id} value={flag.text} />
+                ))
+              ) : (
+                <Text style={styles.emptyText}>None yet</Text>
+              )}
+            </View>
+            {/* Add green flag inline */}
+            <View style={styles.flagInputRow}>
+              <TextInput
+                style={styles.flagInput}
+                value={greenFlagInput}
+                onChangeText={setGreenFlagInput}
+                placeholder="Add green flag"
+                placeholderTextColor="#9CA3AF"
+                onSubmitEditing={handleAddGreenFlag}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={[styles.flagAddBtn, { backgroundColor: DARK_GREEN }]} onPress={handleAddGreenFlag}>
+                <Ionicons name="add" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
 
-  const timelineEvents = [
-    { type: 'added', date: personCreatedDate, name: 'Added to Roster' },
-    ...personDates.map(d => ({ type: 'date', date: d.date, name: 'Date' })),
-    ...personInteractions.map(i => ({ type: i.type, date: i.date, name: i.type })),
-  ];
+          {/* Divider */}
+          <View style={styles.flagsDivider} />
 
-  if (person.benchedAt) {
-    timelineEvents.push({
-      type: 'moved_to_bench',
-      date: person.benchedAt,
-      name: 'Moved to Bench'
-    });
-  }
+          {/* Red Flags */}
+          <View style={styles.flagsCol}>
+            <Text style={styles.redFlagsTitle}>Red Flags</Text>
+            <View style={styles.chipsWrap}>
+              {person.redFlags.length > 0 ? (
+                person.redFlags.map(flag => (
+                  <Chip key={flag.id} value={flag.text} />
+                ))
+              ) : (
+                <Text style={styles.emptyText}>None yet</Text>
+              )}
+            </View>
+            {/* Add red flag inline */}
+            <View style={styles.flagInputRow}>
+              <TextInput
+                style={styles.flagInput}
+                value={redFlagInput}
+                onChangeText={setRedFlagInput}
+                placeholder="Add red flag"
+                placeholderTextColor="#9CA3AF"
+                onSubmitEditing={handleAddRedFlag}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={[styles.flagAddBtn, { backgroundColor: '#DC2626' }]} onPress={handleAddRedFlag}>
+                <Ionicons name="add" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Ratings Section */}
+      <RatingsSection
+        initialRatings={ratingsMap[person.id] || {}}
+        onChange={(ratings) => {
+          console.log('[PersonDetail] Ratings updated for', person.name, ratings);
+          setRatingsMap(prev => ({ ...prev, [person.id]: ratings }));
+        }}
+      />
+    </View>
+  );
+
+  const renderDatesTab = () => (
+    <View style={styles.tabContent}>
+      {personDates.length > 0 ? (
+        personDates.map(date => (
+          <View key={date.id} style={styles.sectionCard}>
+            <Text style={styles.sectionCardTitle}>{date.type}</Text>
+            <Text style={styles.dateDetail}>{date.date} at {date.time}</Text>
+            <Text style={styles.dateLocation}>{date.location}</Text>
+            {date.rating ? (
+              <Text style={styles.dateRating}>{'⭐'.repeat(date.rating)}</Text>
+            ) : null}
+          </View>
+        ))
+      ) : (
+        <View style={styles.comingSoonBox}>
+          <Ionicons name="calendar-outline" size={40} color={DARK_GREEN} />
+          <Text style={styles.comingSoonTitle}>No dates yet</Text>
+          <Text style={styles.comingSoonSub}>Your dates with {person.name} will appear here</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderNotesTab = () => (
+    <View style={styles.tabContent}>
+      {person.notes ? (
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionCardTitle}>Notes</Text>
+          <Text style={styles.notesText}>{person.notes}</Text>
+        </View>
+      ) : (
+        <View style={styles.comingSoonBox}>
+          <Ionicons name="document-text-outline" size={40} color={DARK_GREEN} />
+          <Text style={styles.comingSoonTitle}>No notes yet</Text>
+          <Text style={styles.comingSoonSub}>Edit this person to add notes</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderRemindersTab = () => (
+    <View style={styles.tabContent}>
+      {personReminders.length > 0 ? (
+        personReminders.map(reminder => (
+          <View key={reminder.id} style={styles.sectionCard}>
+            <Text style={styles.sectionCardTitle}>{reminder.title}</Text>
+            <Text style={styles.dateDetail}>{new Date(reminder.scheduledFor).toLocaleString()}</Text>
+          </View>
+        ))
+      ) : (
+        <View style={styles.comingSoonBox}>
+          <Ionicons name="notifications-outline" size={40} color={DARK_GREEN} />
+          <Text style={styles.comingSoonTitle}>No reminders set</Text>
+          <Text style={styles.comingSoonSub}>Tap the bell icon to set a reminder</Text>
+        </View>
+      )}
+      <TouchableOpacity
+        style={styles.addReminderBtn}
+        onPress={() => {
+          console.log('[PersonDetail] User tapped Set Reminder button');
+          setShowReminderModal(true);
+        }}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={DARK_GREEN} />
+        <Text style={styles.addReminderText}>Set a reminder</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const tabContent = activeTab === 'overview'
+    ? renderOverviewTab()
+    : activeTab === 'dates'
+    ? renderDatesTab()
+    : activeTab === 'notes'
+    ? renderNotesTab()
+    : renderRemindersTab();
 
   return (
     <>
       <Stack.Screen
         options={{
           headerShown: true,
-          title: person.name,
-          headerStyle: { backgroundColor: colors.primary },
+          title: 'Roster Details',
+          headerStyle: { backgroundColor: DARK_GREEN },
           headerTintColor: '#fff',
-          headerBackTitle: 'Back',
+          headerTitleStyle: { color: '#fff', fontWeight: '700' },
           headerLeft: () => (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
                 console.log('[PersonDetail] User tapped Back button');
                 router.back();
               }}
-              style={styles.backButtonContainer}
+              style={styles.headerBtn}
             >
-              <IconSymbol
-                ios_icon_name="chevron.left"
-                android_material_icon_name="arrow-back"
-                size={24}
-                color="#fff"
-              />
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity 
-              onPress={() => {
-                console.log('[PersonDetail] User tapped Edit button - navigating to edit with id:', person.id);
-                router.push(`/person/add?id=${person.id}` as any);
-              }}
-              style={styles.editButtonContainer}
-            >
-              <Text style={styles.editButton}>Edit</Text>
+              <Ionicons name="chevron-back" size={20} color="#fff" />
+              <Text style={styles.headerBtnText}>Back</Text>
             </TouchableOpacity>
           ),
         }}
       />
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.container} edges={['bottom']}>
-          <ScrollView 
-            style={styles.scrollView} 
+        <View style={styles.root}>
+          <ScrollView
+            style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={true}
+            showsVerticalScrollIndicator={false}
           >
-            {/* Profile Header */}
-            <View style={styles.profileHeader}>
-              {person.imageUrl ? (
-                <Image source={{ uri: person.imageUrl }} style={styles.profileImage} />
-              ) : (
-                <View style={[styles.profileImage, styles.placeholderImage]}>
-                  <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={80} color={colors.grey} />
-                </View>
-              )}
-              <View style={[styles.interestBadge, { backgroundColor: getInterestColor(person.interestLevel) }]}>
-                <Text style={styles.interestText}>{person.interestLevel.toUpperCase()}</Text>
-              </View>
-            </View>
-
-            {/* Quick Actions */}
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('morning_text')}>
-                <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={28} color={colors.primary} />
-                <Text style={styles.quickActionText}>Morning Text</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionButton} onPress={() => handleQuickAction('check_in')}>
-                <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={28} color={colors.primary} />
-                <Text style={styles.quickActionText}>Check In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowReminderModal(true)}>
-                <IconSymbol ios_icon_name="bell.fill" android_material_icon_name="notifications" size={28} color={colors.primary} />
-                <Text style={styles.quickActionText}>Set Reminder</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Info Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Information</Text>
-              {person.age && (
-                <View style={styles.infoRow}>
-                  <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={22} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>{person.age} years old</Text>
-                </View>
-              )}
-              {person.zodiacSign && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.zodiacEmoji}>{getZodiacEmoji(person.zodiacSign)}</Text>
-                  <Text style={styles.infoText}>{person.zodiacSign}</Text>
-                </View>
-              )}
-              {person.location && (
-                <View style={styles.infoRow}>
-                  <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={22} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>{person.location}</Text>
-                </View>
-              )}
-              {person.relationshipType && (
-                <View style={styles.infoRow}>
-                  <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={22} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>{person.relationshipType}</Text>
-                </View>
-              )}
-              {person.howMet && (
-                <View style={styles.infoRow}>
-                  <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="people" size={22} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>How We Met: {person.howMet}</Text>
-                </View>
-              )}
-              {person.favoriteColor && (
-                <View style={styles.infoRow}>
-                  <IconSymbol ios_icon_name="paintpalette.fill" android_material_icon_name="palette" size={22} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>Favorite Color: {person.favoriteColor}</Text>
-                </View>
-              )}
-              {person.favoriteFood && (
-                <View style={styles.infoRow}>
-                  <IconSymbol ios_icon_name="fork.knife" android_material_icon_name="restaurant" size={22} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>Favorite Food: {person.favoriteFood}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Contact Information */}
-            {(person.phoneNumber || person.instagram || person.twitter || person.facebook || person.snapchat) && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Contact</Text>
-                
-                {person.phoneNumber && (
-                  <TouchableOpacity style={styles.contactRow} onPress={handleCall}>
-                    <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={22} color={colors.primary} />
-                    <Text style={styles.contactText}>{person.phoneNumber}</Text>
-                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-
-                {person.instagram && (
-                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('instagram')}>
-                    <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#E4405F" />
-                    <Text style={styles.contactText}>Instagram: {person.instagram}</Text>
-                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-
-                {person.twitter && (
-                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('twitter')}>
-                    <IconSymbol ios_icon_name="at" android_material_icon_name="alternate-email" size={22} color="#1DA1F2" />
-                    <Text style={styles.contactText}>X/Twitter: {person.twitter}</Text>
-                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-
-                {person.facebook && (
-                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('facebook')}>
-                    <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="group" size={22} color="#4267B2" />
-                    <Text style={styles.contactText}>Facebook: {person.facebook}</Text>
-                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-
-                {person.snapchat && (
-                  <TouchableOpacity style={styles.contactRow} onPress={() => handleSocialMedia('snapchat')}>
-                    <IconSymbol ios_icon_name="camera.fill" android_material_icon_name="camera" size={22} color="#FFFC00" />
-                    <Text style={styles.contactText}>Snapchat: {person.snapchat}</Text>
-                    <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {/* Chemistry Timeline */}
-            <View style={styles.section}>
-              <TouchableOpacity
-                style={styles.sectionHeader}
-                onPress={() => setShowChemistryTimeline(!showChemistryTimeline)}
-              >
-                <Text style={styles.sectionTitle}>Chemistry Timeline</Text>
-                <IconSymbol
-                  ios_icon_name={showChemistryTimeline ? 'chevron.up' : 'chevron.down'}
-                  android_material_icon_name={showChemistryTimeline ? 'expand-less' : 'expand-more'}
-                  size={24}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-              {showChemistryTimeline && (
-                <View style={styles.timeline}>
-                  {timelineEvents.length === 0 ? (
-                    <>
-                      <View style={styles.timelineItem}>
-                        <Text style={styles.timelineIcon}>✨</Text>
-                        <View style={styles.timelineContent}>
-                          <Text style={styles.timelineName}>Added to Roster</Text>
-                          <Text style={styles.timelineDate}>
-                            {new Date(personCreatedDate).toLocaleDateString()}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.emptyText}>No interactions yet</Text>
-                    </>
-                  ) : (
-                    timelineEvents
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .slice(0, 10)
-                      .map((item, index) => (
-                        <View key={`timeline-${index}`} style={styles.timelineItem}>
-                          <Text style={styles.timelineIcon}>
-                            {getInteractionIcon(item.type)}
-                          </Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineName}>{item.name.replace('_', ' ')}</Text>
-                            <Text style={styles.timelineDate}>
-                              {new Date(item.date).toLocaleDateString()}
-                            </Text>
-                          </View>
-                        </View>
-                      ))
-                  )}
-                </View>
-              )}
-            </View>
-
-            {/* Dates */}
-            {personDates.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Dates ({personDates.length})</Text>
-                {personDates.slice(0, 3).map((date) => (
-                  <View key={date.id} style={styles.dateCard}>
-                    <Text style={styles.dateTitle}>{date.type}</Text>
-                    <Text style={styles.dateDetails}>{date.date} at {date.time}</Text>
-                    <Text style={styles.dateLocation}>{date.location}</Text>
-                    {date.rating && (
-                      <View style={styles.ratingRow}>
-                        <Text style={styles.ratingText}>Rating: {'⭐'.repeat(date.rating)}</Text>
-                      </View>
-                    )}
+            {/* ── TOP CARD ─────────────────────────────────────────── */}
+            <View style={styles.topCard}>
+              {/* Avatar */}
+              <View style={styles.avatarRing}>
+                {person.imageUrl ? (
+                  <Image source={resolveImageSource(person.imageUrl)} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Ionicons name="person" size={36} color="rgba(255,255,255,0.6)" />
                   </View>
-                ))}
+                )}
               </View>
-            )}
 
-            {/* Reminders */}
-            {personReminders.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Active Reminders</Text>
-                {personReminders.map((reminder) => (
-                  <View key={reminder.id} style={styles.reminderCard}>
-                    <IconSymbol
-                      ios_icon_name="bell.fill"
-                      android_material_icon_name="notifications"
-                      size={22}
-                      color={colors.primary}
-                    />
-                    <View style={styles.reminderContent}>
-                      <Text style={styles.reminderTitle}>{reminder.title}</Text>
-                      <Text style={styles.reminderDate}>
-                        {new Date(reminder.scheduledFor).toLocaleString()}
+              {/* Name + Zodiac Badge */}
+              <View style={styles.nameRow}>
+                <Text style={styles.personName}>{person.name}</Text>
+                <View style={styles.zodiacBadge}>
+                  <Text style={styles.zodiacBadgeText}>{zodiacShort}</Text>
+                </View>
+              </View>
+
+              {/* Pill tags */}
+              <View style={styles.pillRow}>
+                {person.relationshipType ? (
+                  <View style={styles.darkPill}>
+                    <Text style={styles.darkPillText}>{person.relationshipType}</Text>
+                  </View>
+                ) : null}
+                {chemistryScore !== null ? (
+                  <View style={styles.darkPill}>
+                    <Text style={styles.darkPillText}>{chemistryScore}</Text>
+                    <Text style={styles.darkPillSep}> | </Text>
+                    <Text style={styles.darkPillText}>Chemistry</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Zodiac Compatibility Row */}
+              <View style={styles.compatRow}>
+                <View style={styles.compatLeft}>
+                  <Text style={styles.compatTitle}>Zodiac Compatibility</Text>
+                  <Text style={styles.compatSub}>{compatLabel}</Text>
+                </View>
+                <CompatibilityRing score={compatScore} />
+              </View>
+
+              {/* Action Buttons Row */}
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.actionPill} onPress={handleCall}>
+                  <Ionicons name="call-outline" size={16} color="#fff" />
+                  <Text style={styles.actionPillText}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionPill} onPress={handleMessage}>
+                  <Ionicons name="chatbubble-outline" size={16} color="#fff" />
+                  <Text style={styles.actionPillText}>Text</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionPill} onPress={handleInstagram}>
+                  <Ionicons name="logo-instagram" size={16} color="#fff" />
+                  <Text style={styles.actionPillText}>Insta</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionPill} onPress={handleTikTok}>
+                  <Ionicons name="musical-notes-outline" size={16} color="#fff" />
+                  <Text style={styles.actionPillText}>TikTok</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Tab Bar */}
+              <View style={styles.tabBar}>
+                {(['overview', 'dates', 'notes', 'reminders'] as TabKey[]).map((tab, idx) => {
+                  const isActive = activeTab === tab;
+                  const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      style={[styles.tabItem, isActive && styles.tabItemActive]}
+                      onPress={() => {
+                        console.log('[PersonDetail] User tapped tab:', tab);
+                        setActiveTab(tab);
+                      }}
+                    >
+                      <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                        {label}
                       </Text>
-                    </View>
-                  </View>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            )}
-
-            {/* Flags Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Flags</Text>
-              
-              {/* Red Flags */}
-              <Text style={styles.flagSubtitle}>Red Flags 🚩</Text>
-              <View style={styles.flagInputContainer}>
-                <TextInput
-                  style={[styles.flagInput, { flex: 1 }]}
-                  value={redFlagInput}
-                  onChangeText={setRedFlagInput}
-                  placeholder="Add a red flag"
-                  placeholderTextColor={colors.grey}
-                  onSubmitEditing={handleAddRedFlag}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity 
-                  style={[styles.addFlagButton, { backgroundColor: colors.lowInterest }]} 
-                  onPress={handleAddRedFlag}
-                >
-                  <IconSymbol
-                    ios_icon_name="plus"
-                    android_material_icon_name="add"
-                    size={20}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
-              {person.redFlags.map((flag) => (
-                <View key={flag.id} style={styles.flagItem}>
-                  <Text style={styles.flagEmoji}>🚩</Text>
-                  <Text style={styles.flagText}>{flag.text}</Text>
-                </View>
-              ))}
-              {person.redFlags.length === 0 && (
-                <Text style={styles.noFlagsText}>No red flags yet</Text>
-              )}
-
-              {/* Green Flags */}
-              <Text style={[styles.flagSubtitle, { marginTop: 16 }]}>Green Flags ✅</Text>
-              <View style={styles.flagInputContainer}>
-                <TextInput
-                  style={[styles.flagInput, { flex: 1 }]}
-                  value={greenFlagInput}
-                  onChangeText={setGreenFlagInput}
-                  placeholder="Add a green flag"
-                  placeholderTextColor={colors.grey}
-                  onSubmitEditing={handleAddGreenFlag}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity 
-                  style={[styles.addFlagButton, { backgroundColor: colors.green }]} 
-                  onPress={handleAddGreenFlag}
-                >
-                  <IconSymbol
-                    ios_icon_name="plus"
-                    android_material_icon_name="add"
-                    size={20}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
-              {person.greenFlags.map((flag) => (
-                <View key={flag.id} style={styles.flagItem}>
-                  <Text style={styles.flagEmoji}>✅</Text>
-                  <Text style={styles.flagText}>{flag.text}</Text>
-                </View>
-              ))}
-              {person.greenFlags.length === 0 && (
-                <Text style={styles.noFlagsText}>No green flags yet</Text>
-              )}
             </View>
 
-            {/* Ratings Section */}
-            <RatingsSection
-              initialRatings={ratingsMap[person.id] || {}}
-              onChange={(ratings) => {
-                console.log('[PersonDetail] Ratings updated for', person.name, ratings);
-                setRatingsMap(prev => ({ ...prev, [person.id]: ratings }));
-              }}
-            />
-
-            {/* Contact Actions */}
-            {person.phoneNumber && (
-              <View style={styles.contactActions}>
-                <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
-                  <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={24} color="#fff" />
-                  <Text style={styles.contactButtonText}>Call</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.contactButton} onPress={handleMessage}>
-                  <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color="#fff" />
-                  <Text style={styles.contactButtonText}>Message</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-              {person.status === 'roster' ? (
-                <TouchableOpacity style={styles.benchButton} onPress={handleMoveToBench}>
-                  <IconSymbol ios_icon_name="pause.fill" android_material_icon_name="pause" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Move to Bench</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.rosterButton} onPress={handleMoveToRoster}>
-                  <IconSymbol ios_icon_name="arrow.uturn.left" android_material_icon_name="undo" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Move to Roster</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-                <IconSymbol ios_icon_name="trash.fill" android_material_icon_name="delete" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
+            {/* ── TAB CONTENT ──────────────────────────────────────── */}
+            {tabContent}
           </ScrollView>
 
-          {/* Bench Modal */}
-          <Modal
-            visible={showBenchModal}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowBenchModal(false)}
-          >
-            <TouchableWithoutFeedback onPress={() => {
-              Keyboard.dismiss();
-              setShowBenchModal(false);
-            }}>
-              <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                  <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Move to Bench</Text>
-                    <Text style={styles.modalSubtitle}>Why are you benching {person.name}?</Text>
-                    <TextInput
-                      style={styles.modalInput}
-                      value={benchReason}
-                      onChangeText={setBenchReason}
-                      placeholder="Enter reason..."
-                      placeholderTextColor={colors.textSecondary}
-                      multiline
-                      numberOfLines={3}
-                    />
-                    <View style={styles.modalButtons}>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.cancelButton]}
-                        onPress={() => {
-                          setShowBenchModal(false);
-                          setBenchReason('');
-                        }}
-                      >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.confirmButton]}
-                        onPress={confirmMoveToBench}
-                      >
-                        <Text style={styles.confirmButtonText}>Confirm</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
-
-          {/* FIX: Custom Delete Confirmation Modal (cross-platform compatible) */}
-          <Modal
-            visible={showDeleteModal}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowDeleteModal(false)}
-          >
-            <TouchableWithoutFeedback onPress={() => setShowDeleteModal(false)}>
-              <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback>
-                  <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Delete Person</Text>
-                    <Text style={styles.modalSubtitle}>
-                      Are you sure you want to delete {person.name}? This action cannot be undone.
-                    </Text>
-                    <View style={styles.modalButtons}>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.cancelButton]}
-                        onPress={() => setShowDeleteModal(false)}
-                      >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.deleteConfirmButton]}
-                        onPress={confirmDelete}
-                      >
-                        <Text style={styles.confirmButtonText}>Delete</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
-
-          {/* Reminder Modal */}
-          <Modal
-            visible={showReminderModal}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowReminderModal(false)}
-          >
-            <TouchableWithoutFeedback onPress={() => {
-              Keyboard.dismiss();
-              setShowReminderModal(false);
-            }}>
-              <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                  <View style={styles.reminderModalContent}>
-                    <Text style={styles.modalTitle}>Set Reminder</Text>
-                    <TouchableOpacity
-                      style={styles.reminderOption}
-                      onPress={() => {
-                        handleSetReminder('morning_text');
-                        setShowReminderModal(false);
-                      }}
-                    >
-                      <IconSymbol ios_icon_name="sun.max.fill" android_material_icon_name="wb-sunny" size={24} color={colors.primary} />
-                      <Text style={styles.reminderOptionText}>Send morning text</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.reminderOption}
-                      onPress={() => {
-                        handleSetReminder('check_in');
-                        setShowReminderModal(false);
-                      }}
-                    >
-                      <IconSymbol ios_icon_name="message.fill" android_material_icon_name="message" size={24} color={colors.primary} />
-                      <Text style={styles.reminderOptionText}>Check in - How&apos;s your day?</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.cancelButton]}
-                      onPress={() => setShowReminderModal(false)}
-                    >
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
-        </SafeAreaView>
+          {/* ── STICKY BOTTOM BUTTONS ────────────────────────────── */}
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => {
+                console.log('[PersonDetail] User tapped Edit button - navigating to edit with id:', person.id);
+                router.push(`/person/add?id=${person.id}` as any);
+              }}
+            >
+              <Ionicons name="pencil-outline" size={18} color="#fff" />
+              <Text style={styles.bottomBtnText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Text style={styles.bottomBtnText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </TouchableWithoutFeedback>
+
+      {/* ── BENCH MODAL ──────────────────────────────────────────── */}
+      <Modal visible={showBenchModal} transparent animationType="slide" onRequestClose={() => setShowBenchModal(false)}>
+        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setShowBenchModal(false); }}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Move to Bench</Text>
+                <Text style={styles.modalSubtitle}>Why are you benching {person.name}?</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={benchReason}
+                  onChangeText={setBenchReason}
+                  placeholder="Enter reason..."
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  numberOfLines={3}
+                />
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => { setShowBenchModal(false); setBenchReason(''); }}>
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalButton, styles.confirmButton]} onPress={confirmMoveToBench}>
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* ── DELETE MODAL ─────────────────────────────────────────── */}
+      <Modal visible={showDeleteModal} transparent animationType="slide" onRequestClose={() => setShowDeleteModal(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowDeleteModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Delete Person</Text>
+                <Text style={styles.modalSubtitle}>
+                  Are you sure you want to delete {person.name}? This action cannot be undone.
+                </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setShowDeleteModal(false)}>
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalButton, styles.deleteConfirmButton]} onPress={confirmDelete}>
+                    <Text style={styles.confirmButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* ── REMINDER MODAL ───────────────────────────────────────── */}
+      <Modal visible={showReminderModal} transparent animationType="slide" onRequestClose={() => setShowReminderModal(false)}>
+        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setShowReminderModal(false); }}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.reminderModalContent}>
+                <Text style={styles.modalTitle}>Set Reminder</Text>
+                <TouchableOpacity style={styles.reminderOption} onPress={() => { handleSetReminder('morning_text'); setShowReminderModal(false); }}>
+                  <Ionicons name="sunny-outline" size={24} color={DARK_GREEN} />
+                  <Text style={styles.reminderOptionText}>Send morning text</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.reminderOption} onPress={() => { handleSetReminder('check_in'); setShowReminderModal(false); }}>
+                  <Ionicons name="chatbubble-outline" size={24} color={DARK_GREEN} />
+                  <Text style={styles.reminderOptionText}>Check in</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setShowReminderModal(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F3F4F6',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: BOTTOM_BAR_HEIGHT + 24,
   },
   errorText: {
     fontSize: 16,
@@ -880,304 +788,350 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
   },
-  backButtonContainer: {
+  headerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 8,
-    gap: 4,
+    gap: 2,
   },
-  backButtonText: {
+  headerBtnText: {
     color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  editButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  editButton: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  profileHeader: {
-    alignItems: 'center',
-    position: 'relative',
-    marginBottom: 24,
-  },
-  profileImage: {
-    width: SCREEN_WIDTH,
-    height: IMAGE_HEIGHT,
-  },
-  placeholderImage: {
-    backgroundColor: colors.backgroundAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  interestBadge: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  interestText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  quickActionButton: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: colors.text,
+    fontSize: 16,
     fontWeight: '500',
   },
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
+
+  // ── TOP CARD ──────────────────────────────────────────────────────────────
+  topCard: {
+    backgroundColor: CARD_GREEN,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 0,
+    marginBottom: 0,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  avatarRing: {
+    alignSelf: 'center',
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
     alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
     marginBottom: 12,
+    overflow: 'hidden',
   },
-  flagSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
+  avatar: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  infoText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  zodiacEmoji: {
-    fontSize: 22,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  contactText: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-  },
-  timeline: {
-    marginTop: 8,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 12,
-  },
-  timelineIcon: {
-    fontSize: 24,
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    textTransform: 'capitalize',
-  },
-  timelineDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  dateCard: {
-    backgroundColor: colors.card,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  dateTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    textTransform: 'capitalize',
-  },
-  dateDetails: {
-    fontSize: 12,
-    color: colors.text,
-    opacity: 0.8,
-    marginTop: 4,
-  },
-  dateLocation: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  ratingRow: {
-    marginTop: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: colors.text,
-  },
-  reminderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    gap: 12,
-  },
-  reminderContent: {
-    flex: 1,
-  },
-  reminderTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  reminderDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  flagInputContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  flagInput: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.grey + '30',
-  },
-  addFlagButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  avatarPlaceholder: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  flagItem: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    gap: 12,
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 10,
   },
-  flagEmoji: {
-    fontSize: 20,
+  personName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
   },
-  flagText: {
-    fontSize: 14,
-    color: colors.text,
+  zodiacBadge: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  noFlagsText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginBottom: 8,
+  zodiacBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  contactActions: {
+  pillRow: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  darkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  darkPillText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  darkPillSep: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+  },
+
+  // Compatibility row
+  compatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14,
     paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 16,
   },
-  contactButton: {
+  compatLeft: {
+    flex: 1,
+  },
+  compatTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  compatSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+  },
+
+  // Action pills
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 20,
+  },
+  actionPill: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  contactButtonText: {
+  actionPillText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 24,
+    padding: 4,
+    marginBottom: 16,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  tabItemActive: {
+    backgroundColor: '#fff',
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  tabLabelActive: {
+    color: DARK_GREEN,
+    fontWeight: '700',
+  },
+
+  // ── TAB CONTENT ───────────────────────────────────────────────────────────
+  tabContent: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+
+  // Flags
+  flagsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  flagsCol: {
+    flex: 1,
+  },
+  flagsDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  greenFlagsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: DARK_GREEN,
+    marginBottom: 8,
+  },
+  redFlagsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginBottom: 8,
+  },
+  flagInputRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  flagInput: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    color: '#111827',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  flagAddBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  emptyText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
+
+  // Dates / Notes / Reminders
+  dateDetail: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  dateLocation: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  dateRating: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  comingSoonBox: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 10,
+  },
+  comingSoonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  comingSoonSub: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  addReminderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: DARK_GREEN,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  addReminderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: DARK_GREEN,
+  },
+
+  // ── BOTTOM BAR ────────────────────────────────────────────────────────────
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    backgroundColor: '#F3F4F6',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: DARK_GREEN,
+    borderRadius: 28,
+    paddingVertical: 14,
+  },
+  deleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 28,
+    paddingVertical: 14,
+  },
+  bottomBtnText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-  },
-  benchButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.yellow,
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  rosterButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.green,
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  deleteButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#dc3545',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
+
+  // ── MODALS ────────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1186,7 +1140,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
     width: '100%',
@@ -1204,7 +1158,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalInput: {
-    backgroundColor: colors.background,
+    backgroundColor: '#F9FAFB',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -1212,6 +1166,8 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -1224,7 +1180,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: colors.background,
+    backgroundColor: '#F3F4F6',
   },
   cancelButtonText: {
     fontSize: 16,
@@ -1232,10 +1188,10 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   confirmButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: DARK_GREEN,
   },
   deleteConfirmButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: '#DC2626',
   },
   confirmButtonText: {
     fontSize: 16,
@@ -1243,7 +1199,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   reminderModalContent: {
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
     width: '100%',
@@ -1252,7 +1208,7 @@ const styles = StyleSheet.create({
   reminderOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#F9FAFB',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
