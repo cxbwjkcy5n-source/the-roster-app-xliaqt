@@ -8,6 +8,7 @@ import { registerHealthRoutes } from './routes/health.js';
 import { registerProfileRoutes } from './routes/api.js';
 import { registerSupabaseRoutes } from './routes/supabase-api.js';
 import { registerRosterRoutes } from './routes/roster.js';
+import { registerPlacesRoutes } from './routes/places.js';
 
 // Add delay before application creation to allow WASM modules to initialize
 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -138,6 +139,7 @@ registerHealthRoutes(app, app.fastify);
 // registerProfileRoutes(app, app.fastify);
 registerSupabaseRoutes(app.fastify);
 registerRosterRoutes(app.fastify);
+registerPlacesRoutes(app.fastify);
 
 await app.run();
 app.logger.info('Application running');
