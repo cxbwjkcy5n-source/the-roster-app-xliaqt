@@ -1,18 +1,308 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useRoster } from '@/contexts/RosterContext';
+import { getZodiacFromBirthday } from '@/utils/zodiac';
+
+// ─── Analytics card colors ───────────────────────────────────────────────────
+
+const CARD_DARK_GREEN = '#1B4332';
+const CARD_RING_BG = '#A8D5A2';
+const CARD_MED_GREEN = '#4A7C59';
+const CARD_TEAL_GREEN = '#52796F';
+
+// ─── Sparkline SVG ───────────────────────────────────────────────────────────
+
+function Sparkline({ count }: { count: number }) {
+  const W = 120;
+  const H = 40;
+  // Generate a simple rising curve based on count
+  const points = useMemo(() => {
+    const pts: { x: number; y: number }[] = [];
+    const steps = 10;
+    for (let i = 0; i <= steps; i++) {
+      const x = (i / steps) * W;
+      // Gentle upward trend with slight wave
+      const progress = i / steps;
+      const wave = Math.sin(i * 1.2) * 4;
+      const y = H - 4 - progress * (H - 12) + wave;
+      pts.push({ x, y: Math.max(4, Math.min(H - 4, y)) });
+    }
+    return pts;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+    .join(' ');
+
+  const areaPath =
+    linePath +
+    ` L ${W} ${H} L 0 ${H} Z`;
+
+  return (
+    <Svg width={W} height={H}>
+      <Path d={areaPath} fill={CARD_DARK_GREEN + '22'} />
+      <Path d={linePath} stroke={CARD_DARK_GREEN} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// ─── Chemistry ring ──────────────────────────────────────────────────────────
+
+function ChemistryRing({ score }: { score: number }) {
+  const SIZE = 110;
+  const STROKE = 10;
+  const RADIUS = (SIZE - STROKE) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const progress = Math.min(score / 10, 1);
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  const scoreInt = Math.round(score);
+  const scoreStr = String(scoreInt);
+
+  return (
+    <View style={ringStyles.wrapper}>
+      <Svg width={SIZE} height={SIZE}>
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          stroke={CARD_RING_BG}
+          strokeWidth={STROKE}
+          fill="none"
+        />
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          stroke={CARD_DARK_GREEN}
+          strokeWidth={STROKE}
+          fill="none"
+          strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${SIZE / 2}, ${SIZE / 2}`}
+        />
+      </Svg>
+      <View style={ringStyles.label}>
+        <Text style={ringStyles.scoreText}>{scoreStr}</Text>
+        <Text style={ringStyles.maxText}>/10</Text>
+      </View>
+    </View>
+  );
+}
+
+const ringStyles = StyleSheet.create({
+  wrapper: {
+    width: 110,
+    height: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  scoreText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: CARD_DARK_GREEN,
+  },
+  maxText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6B7280',
+    marginLeft: 1,
+  },
+});
+
+// ─── 2×2 Analytics grid ──────────────────────────────────────────────────────
+
+interface AnalyticsGridProps {
+  totalCount: number;
+  avgChemistry: number;
+  highestRatedName: string;
+  bestZodiac: string;
+}
+
+function AnalyticsGrid({ totalCount, avgChemistry, highestRatedName, bestZodiac }: AnalyticsGridProps) {
+  const { width } = useWindowDimensions();
+  const cardWidth = (width - 16 * 2 - 12) / 2;
+  const totalStr = String(totalCount).padStart(2, '0');
+
+  return (
+    <View style={gridStyles.container}>
+      <Text style={gridStyles.sectionHeader}>Your Dating Analytics</Text>
+      <View style={gridStyles.row}>
+        {/* Card 1 — Total People */}
+        <View style={[gridStyles.card, gridStyles.cardBorderGreen, { width: cardWidth }]}>
+          <Text style={gridStyles.bigNumber}>{totalStr}</Text>
+          <Text style={gridStyles.cardLabel}>Total people on your roster</Text>
+          <View style={gridStyles.sparklineWrap}>
+            <Sparkline count={totalCount} />
+          </View>
+          <Text style={gridStyles.sparklineCaption}>Growth Trend (Past 30d)</Text>
+        </View>
+
+        {/* Card 2 — Avg Chemistry */}
+        <View style={[gridStyles.card, gridStyles.cardBorderBlue, { width: cardWidth, alignItems: 'center', justifyContent: 'center' }]}>
+          <ChemistryRing score={avgChemistry} />
+          <Text style={[gridStyles.cardLabel, { textAlign: 'center', marginTop: 12 }]}>
+            Average Chemistry Score
+          </Text>
+        </View>
+      </View>
+
+      <View style={[gridStyles.row, { marginTop: 12 }]}>
+        {/* Card 3 — Highest Rated */}
+        <View style={[gridStyles.card, gridStyles.cardNoBorder, { width: cardWidth, padding: 0, overflow: 'hidden' }]}>
+          <View style={gridStyles.splitCardTop}>
+            <Text style={gridStyles.splitCardName} numberOfLines={1} adjustsFontSizeToFit>
+              {highestRatedName || '—'}
+            </Text>
+          </View>
+          <View style={[gridStyles.splitCardBottom, { backgroundColor: CARD_MED_GREEN }]}>
+            <Text style={gridStyles.splitCardBottomLabel}>Highest Rated{'\n'}Person</Text>
+            <View style={gridStyles.splitCardIcon}>
+              <IconSymbol
+                ios_icon_name="star"
+                android_material_icon_name="star-border"
+                size={28}
+                color="rgba(255,255,255,0.7)"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Card 4 — Best Zodiac */}
+        <View style={[gridStyles.card, gridStyles.cardNoBorder, { width: cardWidth, padding: 0, overflow: 'hidden' }]}>
+          <View style={gridStyles.splitCardTop}>
+            <Text style={[gridStyles.splitCardName, { color: CARD_TEAL_GREEN }]} numberOfLines={1} adjustsFontSizeToFit>
+              {bestZodiac || '—'}
+            </Text>
+          </View>
+          <View style={[gridStyles.splitCardBottom, { backgroundColor: CARD_TEAL_GREEN }]}>
+            <Text style={gridStyles.splitCardBottomLabel}>Best Zodiac{'\n'}Match</Text>
+            <View style={gridStyles.splitCardIcon}>
+              <IconSymbol
+                ios_icon_name="heart"
+                android_material_icon_name="favorite-border"
+                size={28}
+                color="rgba(255,255,255,0.7)"
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const gridStyles = StyleSheet.create({
+  container: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: CARD_DARK_GREEN,
+    marginBottom: 14,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardBorderGreen: {
+    borderWidth: 1.5,
+    borderColor: CARD_DARK_GREEN,
+  },
+  cardBorderBlue: {
+    borderWidth: 1.5,
+    borderColor: CARD_DARK_GREEN,
+  },
+  cardNoBorder: {
+    borderWidth: 0,
+  },
+  bigNumber: {
+    fontSize: 52,
+    fontWeight: '800',
+    color: CARD_DARK_GREEN,
+    lineHeight: 58,
+  },
+  cardLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  sparklineWrap: {
+    marginTop: 'auto',
+    paddingTop: 12,
+  },
+  sparklineCaption: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  splitCardTop: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  splitCardName: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: CARD_MED_GREEN,
+    lineHeight: 50,
+  },
+  splitCardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    minHeight: 72,
+  },
+  splitCardBottomLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+    lineHeight: 18,
+    flex: 1,
+  },
+  splitCardIcon: {
+    marginLeft: 8,
+  },
+});
 
 // ─── Derived helpers ────────────────────────────────────────────────────────
 
@@ -219,7 +509,63 @@ export default function AnalyticsScreen() {
   const router = useRouter();
   const { dates, roster, bench } = useRoster();
 
-  // Derived stats from real data
+  // ─── Analytics grid data ────────────────────────────────────────────────
+  const allPeople = useMemo(() => [...roster, ...bench], [roster, bench]);
+
+  const totalPeopleCount = allPeople.length;
+
+  // Average chemistry: use overallChemistry (0–10) from sexualChemistry field,
+  // or fall back to compatibilityScore * 10, or 0
+  const avgChemistry = useMemo(() => {
+    const scores = allPeople
+      .map((p) => {
+        if (p.sexualChemistry != null) return Number(p.sexualChemistry);
+        if (p.compatibilityScore != null) return Number(p.compatibilityScore) * 10;
+        return null;
+      })
+      .filter((s): s is number => s !== null && !isNaN(s));
+    if (scores.length === 0) return 0;
+    return scores.reduce((a, b) => a + b, 0) / scores.length;
+  }, [allPeople]);
+
+  // Highest rated person: highest average of available numeric scores
+  const highestRatedName = useMemo(() => {
+    if (allPeople.length === 0) return '';
+    let best = allPeople[0];
+    let bestScore = -1;
+    for (const p of allPeople) {
+      const vals = [p.sexualChemistry, p.attractiveness, p.compatibilityScore]
+        .filter((v): v is number => v != null && !isNaN(Number(v)))
+        .map(Number);
+      const avg = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      if (avg > bestScore) {
+        bestScore = avg;
+        best = p;
+      }
+    }
+    const firstName = best.name ? best.name.split(' ')[0] : '';
+    return firstName;
+  }, [allPeople]);
+
+  // Best zodiac: most frequent sign among all people
+  const bestZodiac = useMemo(() => {
+    if (allPeople.length === 0) return '';
+    const counts: Record<string, number> = {};
+    for (const p of allPeople) {
+      let sign = p.zodiacSign;
+      if (!sign && p.birthdayMonth && p.birthdayDay) {
+        sign = getZodiacFromBirthday(p.birthdayMonth, p.birthdayDay);
+      }
+      if (sign) {
+        counts[sign] = (counts[sign] || 0) + 1;
+      }
+    }
+    const entries = Object.entries(counts);
+    if (entries.length === 0) return '';
+    return entries.sort((a, b) => b[1] - a[1])[0][0];
+  }, [allPeople]);
+
+  // ─── Derived stats from real data ───────────────────────────────────────
   const totalDates = dates.length;
   const completedDates = dates.filter((d) => d.status === 'completed');
   const upcomingDates = dates.filter((d) => d.status === 'upcoming');
@@ -232,7 +578,7 @@ export default function AnalyticsScreen() {
   const matchRateStr = getMatchRate(totalDates, completedCount);
   const mostActiveDayStr = getMostActiveDay(dates.map((d) => d.date || ''));
 
-  const totalPeople = roster.length + bench.length;
+  const totalPeople = totalPeopleCount;
   const rosterCount = roster.length;
   const benchCount = bench.length;
 
@@ -295,6 +641,14 @@ export default function AnalyticsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* 2×2 Analytics grid */}
+        <AnalyticsGrid
+          totalCount={totalPeopleCount}
+          avgChemistry={avgChemistry}
+          highestRatedName={highestRatedName}
+          bestZodiac={bestZodiac}
+        />
+
         {/* Hero stat cards */}
         <View style={styles.statRow}>
           <StatCard
