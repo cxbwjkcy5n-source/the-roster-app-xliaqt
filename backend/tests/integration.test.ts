@@ -1034,6 +1034,44 @@ describe('Integration Tests', () => {
     });
   });
 
+  describe('Places Endpoints', () => {
+    let authToken: string;
+
+    it('should sign up a test user for places', async () => {
+      const { token } = await signUpTestUser();
+      authToken = token;
+      expect(token).toBeDefined();
+    });
+
+    it('should get autocomplete predictions for a location', async () => {
+      const res = await authenticatedApi('/api/places/autocomplete?input=New+York', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.predictions).toBeDefined();
+      expect(Array.isArray(data.predictions)).toBe(true);
+    });
+
+    it('should return 400 for autocomplete without input parameter', async () => {
+      const res = await authenticatedApi('/api/places/autocomplete', authToken);
+      await expectStatus(res, 400);
+    });
+
+    it('should get place details with valid place_id', async () => {
+      const res = await authenticatedApi('/api/places/details?place_id=test-place-id', authToken);
+      await expectStatus(res, 200);
+
+      const data = await res.json() as any;
+      expect(data.name).toBeDefined();
+      expect(data.formatted_address).toBeDefined();
+    });
+
+    it('should return 400 for details without place_id parameter', async () => {
+      const res = await authenticatedApi('/api/places/details', authToken);
+      await expectStatus(res, 400);
+    });
+  });
+
   describe('Negative Cases', () => {
     let authToken: string;
 
