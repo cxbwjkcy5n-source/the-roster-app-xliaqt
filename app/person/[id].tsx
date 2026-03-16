@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, Interaction, Reminder } from '@/types/roster';
 import { colors } from '@/styles/commonStyles';
 import { getZodiacEmoji } from '@/utils/zodiac';
+import RatingsSection, { RatingsValues } from '@/components/RatingsSection';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_HEIGHT = SCREEN_WIDTH * 0.75;
@@ -54,6 +55,9 @@ export default function PersonDetailScreen() {
   
   // FIX: Add custom delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Ratings state (local per person, keyed by person id)
+  const [ratingsMap, setRatingsMap] = useState<Record<string, Partial<RatingsValues>>>({});
 
   useEffect(() => {
     const allPeople = [...roster, ...bench];
@@ -680,6 +684,15 @@ export default function PersonDetailScreen() {
                 <Text style={styles.noFlagsText}>No green flags yet</Text>
               )}
             </View>
+
+            {/* Ratings Section */}
+            <RatingsSection
+              initialRatings={ratingsMap[person.id] || {}}
+              onChange={(ratings) => {
+                console.log('[PersonDetail] Ratings updated for', person.name, ratings);
+                setRatingsMap(prev => ({ ...prev, [person.id]: ratings }));
+              }}
+            />
 
             {/* Contact Actions */}
             {person.phoneNumber && (
