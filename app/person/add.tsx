@@ -18,7 +18,6 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, RelationshipType } from '@/types/roster';
@@ -56,6 +55,71 @@ const relationshipTypes: { value: RelationshipType; label: string }[] = [
   { value: 'booty call', label: 'Booty Call' },
   { value: 'exploring', label: 'Exploring' },
   { value: 'other', label: 'Other' },
+];
+
+const INTENTION_OPTIONS = [
+  'Just having fun',
+  'Open to serious',
+  'Looking for commitment',
+  'Not sure yet',
+  'Friends with benefits',
+  'Taking it slow',
+];
+
+const FAV_FOOD_OPTIONS = [
+  'Italian',
+  'Mexican',
+  'Japanese/Sushi',
+  'American',
+  'Mediterranean',
+  'Thai',
+  'Indian',
+  'Chinese',
+  'Caribbean',
+  'Soul Food',
+  'Vegan/Plant-based',
+  'Other',
+];
+
+const FAV_COLOR_OPTIONS = [
+  'Red',
+  'Blue',
+  'Green',
+  'Purple',
+  'Pink',
+  'Black',
+  'White',
+  'Yellow',
+  'Orange',
+  'Brown',
+  'Gold',
+  'Other',
+];
+
+const THINGS_THEY_LIKE_OPTIONS = [
+  'Traveling',
+  'Music',
+  'Sports',
+  'Cooking',
+  'Gaming',
+  'Reading',
+  'Fitness',
+  'Art',
+  'Fashion',
+  'Movies/TV',
+  'Outdoors',
+  'Dancing',
+  'Other',
+];
+
+const LIFESTYLE_VIBE_OPTIONS = [
+  'Homebody',
+  'Social butterfly',
+  'Adventurer',
+  'Workaholic',
+  'Balanced',
+  'Night owl',
+  'Early bird',
 ];
 
 const getDaysInMonth = (month: number) => {
@@ -309,10 +373,16 @@ function PickerModal({
                       <Text style={[pickerStyle.itemText, isActive && pickerStyle.itemTextActive]}>
                         {item}
                       </Text>
+                      {isActive && (
+                        <Text style={pickerStyle.checkmark}>✓</Text>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
+              <TouchableOpacity style={pickerStyle.doneBtn} onPress={onClose}>
+                <Text style={pickerStyle.doneBtnText}>Done</Text>
+              </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -324,14 +394,14 @@ function PickerModal({
 const pickerStyle = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '55%',
+    maxHeight: '60%',
   },
   header: {
     flexDirection: 'row',
@@ -353,14 +423,165 @@ const pickerStyle = StyleSheet.create({
   },
   scroll: { maxHeight: 400 },
   item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  itemActive: { backgroundColor: DARK_GREEN + '18' },
+  itemActive: { backgroundColor: DARK_GREEN + '12' },
   itemText: { fontSize: 16, color: '#1A1A1A' },
   itemTextActive: { color: DARK_GREEN, fontWeight: '700' },
+  checkmark: { fontSize: 16, color: DARK_GREEN, fontWeight: '700' },
+  doneBtn: {
+    margin: 16,
+    backgroundColor: DARK_GREEN,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  doneBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
+
+// ─── Dropdown Field ───────────────────────────────────────────────────────────
+function DropdownField({
+  label,
+  value,
+  placeholder,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onPress: () => void;
+}) {
+  const hasValue = value.length > 0;
+  return (
+    <View style={dropdownStyle.wrapper}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TouchableOpacity style={dropdownStyle.field} onPress={onPress} activeOpacity={0.7}>
+        {hasValue ? (
+          <View style={dropdownStyle.valuePill}>
+            <Text style={dropdownStyle.valueText}>{value}</Text>
+          </View>
+        ) : (
+          <Text style={dropdownStyle.placeholder}>{placeholder}</Text>
+        )}
+        <Text style={dropdownStyle.chevron}>›</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const dropdownStyle = StyleSheet.create({
+  wrapper: {
+    marginBottom: 10,
+  },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FAFAFA',
+    minHeight: 44,
+  },
+  valuePill: {
+    backgroundColor: DARK_GREEN + '18',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  valueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: DARK_GREEN,
+  },
+  placeholder: {
+    fontSize: 15,
+    color: '#9CA3AF',
+  },
+  chevron: {
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: '300',
+  },
+});
+
+// ─── Social Media Row ─────────────────────────────────────────────────────────
+function SocialMediaRow({
+  icon,
+  label,
+  value,
+  onChangeText,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+}) {
+  return (
+    <View style={socialStyle.row}>
+      <View style={socialStyle.iconLabel}>
+        {icon}
+        <Text style={socialStyle.label}>{label}</Text>
+      </View>
+      <TextInput
+        style={socialStyle.input}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="@handle"
+        placeholderTextColor="#9CA3AF"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+    </View>
+  );
+}
+
+const socialStyle = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    backgroundColor: '#FAFAFA',
+  },
+  iconLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 100,
+    gap: 6,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1A1A1A',
+    paddingVertical: 0,
+  },
+  xText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -380,7 +601,6 @@ export default function AddPersonScreen() {
   const [photoUri, setPhotoUri] = useState<string | undefined>();
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
-  const [chemistryScore, setChemistryScore] = useState('');
   const [zodiacOverride, setZodiacOverride] = useState('');
 
   // ── Basic Info ──
@@ -390,6 +610,7 @@ export default function AddPersonScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [instagram, setInstagram] = useState('');
   const [tiktok, setTiktok] = useState('');
+  const [twitter, setTwitter] = useState('');
   const [location, setLocation] = useState('');
   const [howMet, setHowMet] = useState('');
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('dating');
@@ -424,8 +645,18 @@ export default function AddPersonScreen() {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [showZodiacPicker, setShowZodiacPicker] = useState(false);
   const [showRelTypePicker, setShowRelTypePicker] = useState(false);
+  const [showIntentionPicker, setShowIntentionPicker] = useState(false);
+  const [showFavFoodPicker, setShowFavFoodPicker] = useState(false);
+  const [showFavColorPicker, setShowFavColorPicker] = useState(false);
+  const [showThingsLikePicker, setShowThingsLikePicker] = useState(false);
+  const [showLifestylePicker, setShowLifestylePicker] = useState(false);
 
   const relationshipCarouselRef = useRef<FlatList>(null);
+
+  // ── Derived: chemistry from ratings average ──
+  const computedChemistry = Math.round(
+    Object.values(ratings).reduce((sum, v) => sum + v, 0) / 7
+  );
 
   // ── Prefill from QR scan ──
   useEffect(() => {
@@ -465,6 +696,7 @@ export default function AddPersonScreen() {
         setPhoneNumber(p.phoneNumber);
         setInstagram(p.instagram || '');
         setTiktok((p as any).tiktok || '');
+        setTwitter(p.twitter || '');
         setLocation(p.location);
         setHowMet(p.howMet || '');
         setRelationshipType(p.relationshipType);
@@ -521,11 +753,12 @@ export default function AddPersonScreen() {
   const zodiacSign = zodiacOverride || autoZodiac;
   const zodiacEmoji = getZodiacEmoji(zodiacSign);
   const monthLabel = months[birthMonth - 1];
-  const chemScoreDisplay = chemistryScore ? chemistryScore : '—';
   const nicknameDisplay = nickname || 'Nickname';
 
   const dayItems = Array.from({ length: getDaysInMonth(birthMonth) }, (_, i) => String(i + 1));
   const monthItems = months;
+
+  const chemistryLabel = computedChemistry + '/10';
 
   // ── Save ──
   const handleSave = async () => {
@@ -581,7 +814,7 @@ export default function AddPersonScreen() {
         location: location.trim(),
         phoneNumber: phoneNumber.trim(),
         instagram: instagram.trim() || undefined,
-        twitter: undefined,
+        twitter: twitter.trim() || undefined,
         facebook: undefined,
         snapchat: undefined,
         notes: [
@@ -594,6 +827,7 @@ export default function AddPersonScreen() {
         greenFlags: greenFlags.map((text, index) => ({ id: `green-${index}`, text, type: 'green' as const })),
         interestLevel: 'medium',
         sexualChemistry: ratings.sexualChemistry,
+        compatibilityScore: computedChemistry,
         attractiveness: null,
         imageUrl: uploadedImageUrl,
         profileImageUrl: uploadedImageUrl,
@@ -603,7 +837,7 @@ export default function AddPersonScreen() {
         createdAt: isEditing ? undefined : new Date().toISOString(),
       };
 
-      console.log('[AddPerson] Saving person:', person.name);
+      console.log('[AddPerson] Saving person:', person.name, '| Chemistry score:', computedChemistry);
 
       if (isEditing) {
         console.log('[AddPerson] Updating existing person');
@@ -621,7 +855,6 @@ export default function AddPersonScreen() {
           } catch (e) { console.error('[AddPerson] Error saving green flag:', e); }
         }
 
-        // Persist ratings in AsyncStorage
         await AsyncStorage.setItem(`ratingsMap_${person.id}`, JSON.stringify(ratings));
         console.log('[AddPerson] Ratings saved to AsyncStorage for:', person.id);
 
@@ -646,7 +879,6 @@ export default function AddPersonScreen() {
           }
         }
 
-        // Persist ratings in AsyncStorage keyed by new person ID
         if (newPerson.id) {
           await AsyncStorage.setItem(`ratingsMap_${newPerson.id}`, JSON.stringify(ratings));
           console.log('[AddPerson] Ratings saved to AsyncStorage for:', newPerson.id);
@@ -732,10 +964,12 @@ export default function AddPersonScreen() {
               setShowZodiacPicker(true);
             }}
           >
-            <Text style={styles.zodiacBadgeText}>{zodiacEmoji} {zodiacSign}</Text>
+            <Text style={styles.zodiacBadgeText}>{zodiacEmoji}</Text>
+            <Text style={styles.zodiacBadgeText}> </Text>
+            <Text style={styles.zodiacBadgeText}>{zodiacSign}</Text>
           </TouchableOpacity>
 
-          {/* Nickname + Chemistry pills */}
+          {/* Nickname pill + Chemistry read-only badge */}
           <View style={styles.pillRow}>
             <View style={styles.pillInputWrapper}>
               <TextInput
@@ -747,20 +981,9 @@ export default function AddPersonScreen() {
                 textAlign="center"
               />
             </View>
-            <View style={styles.pillInputWrapper}>
-              <TextInput
-                style={styles.pillInput}
-                value={chemistryScore}
-                onChangeText={(t) => {
-                  const n = t.replace(/[^0-9]/g, '');
-                  if (n === '' || (Number(n) >= 1 && Number(n) <= 10)) setChemistryScore(n);
-                }}
-                placeholder="Chemistry 1–10"
-                placeholderTextColor="rgba(255,255,255,0.55)"
-                keyboardType="number-pad"
-                textAlign="center"
-                maxLength={2}
-              />
+            <View style={styles.chemistryBadge}>
+              <Text style={styles.chemistryLabel}>Chemistry</Text>
+              <Text style={styles.chemistryValue}>{chemistryLabel}</Text>
             </View>
           </View>
         </View>
@@ -795,20 +1018,6 @@ export default function AddPersonScreen() {
             onChangeText={setPhoneNumber}
             placeholder="Phone number"
             keyboardType="phone-pad"
-          />
-
-          <Text style={styles.fieldLabel}>Instagram</Text>
-          <FormInput
-            value={instagram}
-            onChangeText={setInstagram}
-            placeholder="@instagram"
-          />
-
-          <Text style={styles.fieldLabel}>TikTok</Text>
-          <FormInput
-            value={tiktok}
-            onChangeText={setTiktok}
-            placeholder="@tiktok"
           />
 
           <Text style={styles.fieldLabel}>Location</Text>
@@ -846,22 +1055,79 @@ export default function AddPersonScreen() {
           )}
         </SectionCard>
 
+        {/* ══ SECTION: Social Media ══ */}
+        <SectionCard title="Social Media">
+          <SocialMediaRow
+            icon={<IconSymbol name="logo-instagram" size={18} color="#E1306C" />}
+            label="Instagram"
+            value={instagram}
+            onChangeText={setInstagram}
+          />
+          <SocialMediaRow
+            icon={<IconSymbol name="musical-note-outline" size={18} color="#1A1A1A" />}
+            label="TikTok"
+            value={tiktok}
+            onChangeText={setTiktok}
+          />
+          <SocialMediaRow
+            icon={<Text style={socialStyle.xText}>𝕏</Text>}
+            label="X / Twitter"
+            value={twitter}
+            onChangeText={setTwitter}
+          />
+        </SectionCard>
+
         {/* ══ SECTION: Favorites ══ */}
         <SectionCard title="Favorites">
-          <Text style={styles.fieldLabel}>Fav Food</Text>
-          <FormInput value={favFood} onChangeText={setFavFood} placeholder="e.g. Italian & Chinese" />
+          <DropdownField
+            label="Fav Food"
+            value={favFood}
+            placeholder="Select favorite food..."
+            onPress={() => {
+              console.log('[AddPerson] User tapped Fav Food dropdown');
+              setShowFavFoodPicker(true);
+            }}
+          />
 
-          <Text style={styles.fieldLabel}>Fav Color</Text>
-          <FormInput value={favColor} onChangeText={setFavColor} placeholder="e.g. Black & green" />
+          <DropdownField
+            label="Fav Color"
+            value={favColor}
+            placeholder="Select favorite color..."
+            onPress={() => {
+              console.log('[AddPerson] User tapped Fav Color dropdown');
+              setShowFavColorPicker(true);
+            }}
+          />
 
-          <Text style={styles.fieldLabel}>Things they like</Text>
-          <FormInput value={thingsTheyLike} onChangeText={setThingsTheyLike} placeholder="e.g. Traveling & exploring" />
+          <DropdownField
+            label="Things they like"
+            value={thingsTheyLike}
+            placeholder="Select an interest..."
+            onPress={() => {
+              console.log('[AddPerson] User tapped Things They Like dropdown');
+              setShowThingsLikePicker(true);
+            }}
+          />
 
-          <Text style={styles.fieldLabel}>Lifestyle vibe</Text>
-          <FormInput value={lifestyleVibe} onChangeText={setLifestyleVibe} placeholder="e.g. Homebody" />
+          <DropdownField
+            label="Lifestyle vibe"
+            value={lifestyleVibe}
+            placeholder="Select lifestyle vibe..."
+            onPress={() => {
+              console.log('[AddPerson] User tapped Lifestyle Vibe dropdown');
+              setShowLifestylePicker(true);
+            }}
+          />
 
-          <Text style={styles.fieldLabel}>Intention</Text>
-          <FormInput value={intention} onChangeText={setIntention} placeholder="e.g. Open to serious" />
+          <DropdownField
+            label="Intention"
+            value={intention}
+            placeholder="Select intention..."
+            onPress={() => {
+              console.log('[AddPerson] User tapped Intention dropdown');
+              setShowIntentionPicker(true);
+            }}
+          />
         </SectionCard>
 
         {/* ══ SECTION: Flags ══ */}
@@ -900,6 +1166,7 @@ export default function AddPersonScreen() {
           <RatingsSection
             initialRatings={ratings}
             onChange={(r) => {
+              console.log('[AddPerson] Ratings updated — new chemistry avg:', Math.round(Object.values(r).reduce((s, v) => s + v, 0) / 7));
               setRatings(r);
             }}
           />
@@ -968,6 +1235,61 @@ export default function AddPersonScreen() {
           }
         }}
         onClose={() => setShowRelTypePicker(false)}
+      />
+      <PickerModal
+        visible={showIntentionPicker}
+        title="Intention"
+        items={INTENTION_OPTIONS}
+        selectedValue={intention}
+        onSelect={(v) => {
+          console.log('[AddPerson] Intention selected:', v);
+          setIntention(v);
+        }}
+        onClose={() => setShowIntentionPicker(false)}
+      />
+      <PickerModal
+        visible={showFavFoodPicker}
+        title="Favorite Food"
+        items={FAV_FOOD_OPTIONS}
+        selectedValue={favFood}
+        onSelect={(v) => {
+          console.log('[AddPerson] Fav food selected:', v);
+          setFavFood(v);
+        }}
+        onClose={() => setShowFavFoodPicker(false)}
+      />
+      <PickerModal
+        visible={showFavColorPicker}
+        title="Favorite Color"
+        items={FAV_COLOR_OPTIONS}
+        selectedValue={favColor}
+        onSelect={(v) => {
+          console.log('[AddPerson] Fav color selected:', v);
+          setFavColor(v);
+        }}
+        onClose={() => setShowFavColorPicker(false)}
+      />
+      <PickerModal
+        visible={showThingsLikePicker}
+        title="Things They Like"
+        items={THINGS_THEY_LIKE_OPTIONS}
+        selectedValue={thingsTheyLike}
+        onSelect={(v) => {
+          console.log('[AddPerson] Things they like selected:', v);
+          setThingsTheyLike(v);
+        }}
+        onClose={() => setShowThingsLikePicker(false)}
+      />
+      <PickerModal
+        visible={showLifestylePicker}
+        title="Lifestyle Vibe"
+        items={LIFESTYLE_VIBE_OPTIONS}
+        selectedValue={lifestyleVibe}
+        onSelect={(v) => {
+          console.log('[AddPerson] Lifestyle vibe selected:', v);
+          setLifestyleVibe(v);
+        }}
+        onClose={() => setShowLifestylePicker(false)}
       />
     </SafeAreaView>
   );
@@ -1099,6 +1421,7 @@ const styles = StyleSheet.create({
 
   // Zodiac badge
   zodiacBadge: {
+    flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 20,
     paddingHorizontal: 14,
@@ -1131,6 +1454,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     textAlign: 'center',
+  },
+
+  // Chemistry badge (read-only)
+  chemistryBadge: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chemistryLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  chemistryValue: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   // ── Field label ──
