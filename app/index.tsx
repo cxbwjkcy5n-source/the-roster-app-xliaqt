@@ -5,6 +5,7 @@ import { Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/commonStyles';
 import * as SplashScreen from 'expo-splash-screen';
+import { NotificationBell } from "@/components/NotificationBell";
 
 // Keep the splash screen visible while we check auth
 SplashScreen.preventAutoHideAsync();
@@ -32,7 +33,9 @@ export default function Index() {
   if (loading || !splashReady) {
     return (
       <View style={styles.splashContainer}>
-        <Image
+                <NotificationBell />
+        
+<Image
           source={require('@/assets/images/d136fc08-2fbc-4902-972a-c9d16c00fa3b.png')}
           style={styles.splashImage}
           resizeMode="contain"

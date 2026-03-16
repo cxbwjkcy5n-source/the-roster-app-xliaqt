@@ -13,8 +13,6 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
-  FlatList,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +21,8 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { DateEvent, RosterPerson } from '@/types/roster';
-import { authenticatedGet } from '@/utils/api';
+import LocationSearch, { PlaceSuggestion } from '@/components/LocationSearch';
+import { scheduleDateReminders } from '@/utils/dateNotifications';
 
 let DateTimePicker: any = null;
 if (Platform.OS !== 'web') {
@@ -41,20 +40,10 @@ const REMINDER_OPTIONS = [
   { label: '1 week before', value: '1w' },
 ];
 
-interface LocationResult {
-  id: string;
-  name: string;
-  address: string;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
-}
-
 export default function ScheduleDateScreen() {
   const router = useRouter();
   const { roster, bench, addDate } = useRoster();
-  
+
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedPersonName, setSelectedPersonName] = useState('');
   const [selectedPersonData, setSelectedPersonData] = useState<RosterPerson | null>(null);
@@ -62,67 +51,24 @@ export default function ScheduleDateScreen() {
   const [dateDate, setDateDate] = useState(new Date());
   const [dateTime, setDateTime] = useState(new Date());
   const [location, setLocation] = useState('');
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState('');
   const [selectedReminders, setSelectedReminders] = useState<string[]>(['1d']);
-  
+
   const [showPersonPicker, setShowPersonPicker] = useState(false);
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [saving, setSaving] = useState(false);
-  
-  // Location autocomplete state
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-  const [locationSuggestions, setLocationSuggestions] = useState<LocationResult[]>([]);
-  const [searchingLocations, setSearchingLocations] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const handleLocationChange = (text: string) => {
-    setLocation(text);
-    
-    // Clear previous timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-    
-    if (text.length > 2) {
-      // Debounce the search - wait 500ms after user stops typing
-      const timeout = setTimeout(async () => {
-        try {
-          setSearchingLocations(true);
-          console.log('[ScheduleDate] Searching locations for:', text);
-          
-          const results = await authenticatedGet(`/api/locations/search?query=${encodeURIComponent(text)}`);
-          
-          console.log('[ScheduleDate] Found locations:', results.length);
-          setLocationSuggestions(results);
-          setShowLocationSuggestions(true);
-        } catch (error) {
-          console.error('[ScheduleDate] Error searching locations:', error);
-          // Fallback to showing no suggestions
-          setLocationSuggestions([]);
-          setShowLocationSuggestions(false);
-        } finally {
-          setSearchingLocations(false);
-        }
-      }, 500);
-      
-      setSearchTimeout(timeout);
-    } else {
-      setLocationSuggestions([]);
-      setShowLocationSuggestions(false);
-    }
-  };
-
-  const handleSelectLocation = (locationItem: LocationResult) => {
-    console.log('[ScheduleDate] User selected location:', locationItem.name);
-    setLocation(`${locationItem.name}, ${locationItem.address}`);
-    setShowLocationSuggestions(false);
+  const handleSelectPlace = (place: PlaceSuggestion) => {
+    setLocation(place.description);
+    setSelectedPlaceId(place.place_id);
   };
 
   const handleSave = async () => {
     console.log('[ScheduleDate] User tapped Save button');
-    
+
     if (!selectedPerson) {
       Alert.alert('Error', 'Please select a person');
       return;
@@ -137,8 +83,10 @@ export default function ScheduleDateScreen() {
       const dateStr = dateDate.toISOString().split('T')[0];
       const timeStr = dateTime.toTimeString().split(' ')[0].substring(0, 5);
 
+      const newDateId = Date.now().toString();
+
       const newDate: DateEvent = {
-        id: Date.now().toString(),
+        id: newDateId,
         profileId: selectedPerson,
         profileName: selectedPersonName,
         date: dateStr,
@@ -152,9 +100,22 @@ export default function ScheduleDateScreen() {
 
       console.log('[ScheduleDate] Saving date:', newDate);
       await addDate(newDate);
-      
+
+      // Schedule push notifications for this date
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const [hour, minute] = timeStr.split(':').map(Number);
+      const dateTimeMs = new Date(year, month - 1, day, hour, minute).getTime();
+
+      console.log('[ScheduleDate] Scheduling push notifications for date at:', new Date(dateTimeMs).toISOString());
+      await scheduleDateReminders({
+        dateId: newDateId,
+        personName: selectedPersonName,
+        location,
+        dateTimeMs,
+      });
+
       Alert.alert('Success', 'Date scheduled successfully!', [
-        { text: 'OK', onPress: () => router.back() }
+        { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (error) {
       console.error('[ScheduleDate] Error saving date:', error);
@@ -165,6 +126,7 @@ export default function ScheduleDateScreen() {
   };
 
   const toggleReminder = (value: string) => {
+    console.log('[ScheduleDate] User toggled reminder:', value);
     if (selectedReminders.includes(value)) {
       setSelectedReminders(selectedReminders.filter(r => r !== value));
     } else {
@@ -175,17 +137,17 @@ export default function ScheduleDateScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <Stack.Screen 
+        <Stack.Screen
           options={{
             headerShown: true,
             title: 'Schedule a Date',
             headerBackTitle: 'Back',
             headerStyle: { backgroundColor: colors.background },
             headerTintColor: colors.text,
-          }} 
+          }}
         />
-        
-        <ScrollView 
+
+        <ScrollView
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
@@ -195,7 +157,10 @@ export default function ScheduleDateScreen() {
             <Text style={styles.formLabel}>Person *</Text>
             <TouchableOpacity
               style={styles.formInput}
-              onPress={() => setShowPersonPicker(true)}
+              onPress={() => {
+                console.log('[ScheduleDate] User tapped person picker');
+                setShowPersonPicker(true);
+              }}
             >
               <View style={styles.personDisplay}>
                 {selectedPersonData?.imageUrl && (
@@ -222,7 +187,10 @@ export default function ScheduleDateScreen() {
             <Text style={styles.formLabel}>Date Type</Text>
             <TouchableOpacity
               style={styles.formInput}
-              onPress={() => setShowTypePicker(true)}
+              onPress={() => {
+                console.log('[ScheduleDate] User tapped date type picker');
+                setShowTypePicker(true);
+              }}
             >
               <Text style={styles.formInputText}>{dateType}</Text>
               <IconSymbol
@@ -234,7 +202,7 @@ export default function ScheduleDateScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Date - FIX: Better picker UI */}
+          {/* Date */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Date *</Text>
             <TouchableOpacity
@@ -257,7 +225,7 @@ export default function ScheduleDateScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Time - FIX: Better picker UI */}
+          {/* Time */}
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Time *</Text>
             <TouchableOpacity
@@ -280,80 +248,17 @@ export default function ScheduleDateScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Location with Autocomplete */}
-          <View style={styles.formGroup}>
+          {/* Location with smart autocomplete */}
+          <View style={[styles.formGroup, styles.locationFormGroup]}>
             <Text style={styles.formLabel}>Location / Address *</Text>
-            <View style={styles.locationContainer}>
-              <View style={styles.locationInputWrapper}>
-                <IconSymbol
-                  ios_icon_name="location.fill"
-                  android_material_icon_name="location-on"
-                  size={20}
-                  color={colors.textSecondary}
-                  style={styles.locationIcon}
-                />
-                <TextInput
-                  style={[styles.formInput, styles.textInput, styles.locationInput]}
-                  value={location}
-                  onChangeText={handleLocationChange}
-                  onFocus={() => {
-                    if (location.length > 0) {
-                      setShowLocationSuggestions(true);
-                    }
-                  }}
-                  placeholder="Start typing location..."
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </View>
-              
-              {searchingLocations && (
-                <View style={styles.suggestionsContainer}>
-                  <View style={styles.suggestionItem}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.suggestionName}>Searching locations...</Text>
-                  </View>
-                </View>
-              )}
-              
-              {!searchingLocations && showLocationSuggestions && locationSuggestions.length > 0 && (
-                <View style={styles.suggestionsContainer}>
-                  {locationSuggestions.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.suggestionItem}
-                      onPress={() => handleSelectLocation(item)}
-                    >
-                      <IconSymbol
-                        ios_icon_name="mappin.circle.fill"
-                        android_material_icon_name="place"
-                        size={24}
-                        color={colors.rosterGreen}
-                      />
-                      <View style={styles.suggestionTextContainer}>
-                        <Text style={styles.suggestionName}>{item.name}</Text>
-                        <Text style={styles.suggestionAddress}>{item.address}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-              
-              {!searchingLocations && showLocationSuggestions && locationSuggestions.length === 0 && location.length > 2 && (
-                <View style={styles.suggestionsContainer}>
-                  <View style={styles.suggestionItem}>
-                    <IconSymbol
-                      ios_icon_name="magnifyingglass"
-                      android_material_icon_name="search"
-                      size={24}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.suggestionName}>No locations found</Text>
-                  </View>
-                </View>
-              )}
-            </View>
+            <LocationSearch
+              value={location}
+              onChangeText={setLocation}
+              onSelectPlace={handleSelectPlace}
+              placeholder="Search for a venue or address..."
+            />
             <Text style={styles.helperText}>
-              💡 Tip: Type at least 3 characters to search for locations
+              💡 Type to search for a location
             </Text>
           </View>
 
@@ -433,7 +338,6 @@ export default function ScheduleDateScreen() {
                     </TouchableOpacity>
                   </View>
                   <ScrollView>
-                    {/* Roster Section */}
                     {roster.length > 0 && (
                       <React.Fragment>
                         <View style={styles.sectionHeader}>
@@ -471,7 +375,6 @@ export default function ScheduleDateScreen() {
                       </React.Fragment>
                     )}
 
-                    {/* Bench Section */}
                     {bench.length > 0 && (
                       <React.Fragment>
                         <View style={styles.sectionHeader}>
@@ -545,6 +448,7 @@ export default function ScheduleDateScreen() {
                         key={`type-${type}`}
                         style={styles.pickerItem}
                         onPress={() => {
+                          console.log('[ScheduleDate] User selected date type:', type);
                           setDateType(type);
                           setShowTypePicker(false);
                         }}
@@ -567,7 +471,7 @@ export default function ScheduleDateScreen() {
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* FIX: Date Picker - Modal-based for better UX */}
+        {/* Date Picker Modal */}
         {Platform.OS !== 'web' && showDatePicker && DateTimePicker && (
           <Modal
             visible={showDatePicker}
@@ -592,8 +496,9 @@ export default function ScheduleDateScreen() {
                       value={dateDate}
                       mode="date"
                       display="spinner"
-                      onChange={(event: any, selectedDate?: Date) => {
+                      onChange={(_event: any, selectedDate?: Date) => {
                         if (selectedDate) {
+                          console.log('[ScheduleDate] Date selected:', selectedDate.toLocaleDateString());
                           setDateDate(selectedDate);
                         }
                       }}
@@ -606,7 +511,7 @@ export default function ScheduleDateScreen() {
           </Modal>
         )}
 
-        {/* FIX: Time Picker - Modal-based for better UX */}
+        {/* Time Picker Modal */}
         {Platform.OS !== 'web' && showTimePicker && DateTimePicker && (
           <Modal
             visible={showTimePicker}
@@ -631,8 +536,9 @@ export default function ScheduleDateScreen() {
                       value={dateTime}
                       mode="time"
                       display="spinner"
-                      onChange={(event: any, selectedTime?: Date) => {
+                      onChange={(_event: any, selectedTime?: Date) => {
                         if (selectedTime) {
+                          console.log('[ScheduleDate] Time selected:', selectedTime.toLocaleTimeString());
                           setDateTime(selectedTime);
                         }
                       }}
@@ -663,6 +569,9 @@ const styles = StyleSheet.create({
   },
   formGroup: {
     marginBottom: 20,
+  },
+  locationFormGroup: {
+    zIndex: 200,
   },
   formLabel: {
     fontSize: 14,
@@ -697,7 +606,7 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: 6,
   },
   personDisplay: {
     flexDirection: 'row',
@@ -711,56 +620,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: colors.primary,
-  },
-  locationContainer: {
-    position: 'relative',
-  },
-  locationInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationIcon: {
-    position: 'absolute',
-    left: 12,
-    zIndex: 1,
-  },
-  locationInput: {
-    paddingLeft: 40,
-    flex: 1,
-  },
-  suggestionsContainer: {
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    maxHeight: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: 12,
-  },
-  suggestionTextContainer: {
-    flex: 1,
-  },
-  suggestionName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  suggestionAddress: {
-    fontSize: 13,
-    color: colors.textSecondary,
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -874,7 +733,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  // FIX: Better date/time picker modal styling
   pickerModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

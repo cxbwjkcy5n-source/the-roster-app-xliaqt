@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { colors } from '@/styles/commonStyles';
 import {
   View,
@@ -15,14 +15,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { useRouter } from 'expo-router';
-import { RosterPerson } from '@/types/roster';
+import { RosterPerson, DateEvent } from '@/types/roster';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { scheduleInactivityNotification } from '@/utils/dateNotifications';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const { width: screenWidth } = Dimensions.get('window');
-
 const DARK_GREEN = '#1B4332';
+const INACTIVITY_DAYS = 14;
 
 async function loadRatingsMap(ids: string[]): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
@@ -46,9 +49,28 @@ async function loadRatingsMap(ids: string[]): Promise<Record<string, number>> {
   return result;
 }
 
+function getLastActivityMs(person: RosterPerson, dates: DateEvent[]): number {
+  const candidates: number[] = [];
+
+  if (person.createdAt) {
+    const t = new Date(person.createdAt).getTime();
+    if (!isNaN(t)) candidates.push(t);
+  }
+
+  const personDates = dates.filter(d => d.profileId === person.id);
+  for (const d of personDates) {
+    if (d.date) {
+      const t = new Date(`${d.date}T${d.time || '00:00'}:00`).getTime();
+      if (!isNaN(t)) candidates.push(t);
+    }
+  }
+
+  return candidates.length > 0 ? Math.max(...candidates) : 0;
+}
+
 export default function RosterScreen() {
   const router = useRouter();
-  const { roster, loading: rosterLoading } = useRoster();
+  const { roster, dates, loading: rosterLoading } = useRoster();
   const { user, loading: authLoading, profileIncomplete } = useAuth();
   const [ratingsMap, setRatingsMap] = useState<Record<string, number>>({});
 
@@ -69,6 +91,25 @@ export default function RosterScreen() {
       });
     }
   }, [roster]);
+
+  // Check inactivity on focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!roster.length) return;
+      console.log('[Home] Checking inactivity for', roster.length, 'roster members');
+      const now = Date.now();
+      const cutoff = now - INACTIVITY_DAYS * 24 * 60 * 60 * 1000;
+
+      roster.forEach(person => {
+        const lastActivity = getLastActivityMs(person, dates);
+        const isInactive = lastActivity === 0 || lastActivity < cutoff;
+        if (isInactive) {
+          console.log('[Home] Person inactive for 14+ days:', person.name, '— scheduling notification');
+          scheduleInactivityNotification({ personId: person.id, personName: person.name });
+        }
+      });
+    }, [roster, dates])
+  );
 
   if (authLoading || rosterLoading) {
     return (
@@ -211,6 +252,7 @@ export default function RosterScreen() {
           <Text style={styles.headerSubtitle}>WHERE EVERYONE PLAYS THEIR POSITION</Text>
         </View>
         <View style={styles.headerButtons}>
+          <NotificationBell color={colors.white} />
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
@@ -251,16 +293,8 @@ export default function RosterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-  },
+  container: { flex: 1, backgroundColor: colors.white },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.white },
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -268,206 +302,31 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  headerContent: {
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.white,
-    textAlign: 'left',
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: colors.white,
-    textAlign: 'left',
-    marginTop: 6,
-    opacity: 0.95,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    position: 'absolute',
-    top: 20,
-    right: 20,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  content: {
-    flex: 1,
-    paddingTop: 20,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingBottom: 100,
-  },
-  listContent: {
-    paddingBottom: 120,
-    paddingHorizontal: 16,
-  },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  personCard: {
-    width: '47%',
-    aspectRatio: 0.75,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: colors.card,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  personImage: {
-    width: '100%',
-    height: '100%',
-  },
-  interestBadge: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 3,
-    borderColor: colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  ratingBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: DARK_GREEN,
-    borderRadius: 12,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  ratingBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  ratingBadgeStar: {
-    fontSize: 10,
-    color: '#FFD700',
-    fontWeight: '700',
-  },
-  personInfoGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    justifyContent: 'flex-end',
-  },
-  personInfo: {
-    padding: 16,
-  },
-  personName: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.white,
-    letterSpacing: -0.5,
-  },
-  personDetails: {
-    fontSize: 15,
-    color: colors.white,
-    marginTop: 4,
-    fontWeight: '600',
-    opacity: 0.95,
-  },
-  flagsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  flagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  flagCount: {
-    fontSize: 13,
-    color: colors.white,
-    fontWeight: '700',
-  },
-  emptyCard: {
-    width: '100%',
-    aspectRatio: 1.5,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.darkText,
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: colors.grey,
-    marginTop: 6,
-  },
-  profileBanner: {
-    backgroundColor: '#8B0000',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  profileBannerText: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  headerContent: { alignItems: 'flex-start', marginBottom: 8 },
+  headerTitle: { fontSize: 32, fontWeight: '800', color: colors.white, textAlign: 'left', letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, color: colors.white, textAlign: 'left', marginTop: 6, opacity: 0.95, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase' },
+  headerButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, position: 'absolute', top: 20, right: 20 },
+  headerButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
+  content: { flex: 1, paddingTop: 20 },
+  emptyStateContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingBottom: 100 },
+  listContent: { paddingBottom: 120, paddingHorizontal: 16 },
+  row: { justifyContent: 'space-between', marginBottom: 16 },
+  personCard: { width: '47%', aspectRatio: 0.75, borderRadius: 20, overflow: 'hidden', backgroundColor: colors.card, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 6 },
+  personImage: { width: '100%', height: '100%' },
+  interestBadge: { position: 'absolute', top: 16, left: 16, width: 20, height: 20, borderRadius: 10, borderWidth: 3, borderColor: colors.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+  ratingBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: DARK_GREEN, borderRadius: 12, paddingHorizontal: 7, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 },
+  ratingBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  ratingBadgeStar: { fontSize: 10, color: '#FFD700', fontWeight: '700' },
+  personInfoGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100, justifyContent: 'flex-end' },
+  personInfo: { padding: 16 },
+  personName: { fontSize: 24, fontWeight: '800', color: colors.white, letterSpacing: -0.5 },
+  personDetails: { fontSize: 15, color: colors.white, marginTop: 4, fontWeight: '600', opacity: 0.95 },
+  flagsContainer: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  flagBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
+  flagCount: { fontSize: 13, color: colors.white, fontWeight: '700' },
+  emptyCard: { width: '100%', aspectRatio: 1.5, borderRadius: 20, borderWidth: 3, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.white },
+  emptyText: { fontSize: 18, fontWeight: '700', color: colors.darkText, marginTop: 16 },
+  emptySubtext: { fontSize: 14, color: colors.grey, marginTop: 6 },
+  profileBanner: { backgroundColor: '#8B0000', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+  profileBannerText: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '600' },
 });

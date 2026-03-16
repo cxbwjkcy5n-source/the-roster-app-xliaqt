@@ -15,7 +15,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.rostercollective.therosterapp",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.security.application-groups": [
+          "group.com.rostercollective.therosterapp.onesignal"
+        ]
       }
     },
     "android": {
@@ -30,6 +39,12 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production"
+        }
+      ],
       "expo-font",
       "expo-router",
       "expo-web-browser",
@@ -40,7 +55,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "oneSignalAppId": "c6cd1cb6-bb83-4a2d-89c4-2ab2272649d5"
     }
   }
 }

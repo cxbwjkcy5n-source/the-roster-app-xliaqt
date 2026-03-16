@@ -16,6 +16,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RosterProvider } from "@/contexts/RosterContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DebugOverlay } from "@/components/DebugOverlay";
@@ -129,6 +130,7 @@ export default function RootLayout() {
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
       >
         <AuthProvider>
+        <NotificationProvider>
           <RosterProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <Stack screenOptions={{ headerShown: false }}>
@@ -158,6 +160,7 @@ export default function RootLayout() {
               <DebugOverlay />
             </GestureHandlerRootView>
           </RosterProvider>
+        </NotificationProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
