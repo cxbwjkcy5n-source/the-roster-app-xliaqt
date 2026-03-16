@@ -267,6 +267,31 @@ export default function DatingScreen() {
           </View>
         </View>
 
+        {/* ── 3b. Dating Coach Featured Card ────────────────────────────── */}
+        <View style={styles.coachCardWrapper}>
+          <TouchableOpacity
+            style={styles.coachCard}
+            onPress={() => {
+              console.log('[Dating] User tapped Dating Coach featured card');
+              router.push('/dating/coach' as any);
+            }}
+            activeOpacity={0.82}
+          >
+            <View style={styles.coachLeftBorder} />
+            <View style={styles.coachIconBadge}>
+              <MaterialIcons name="auto-awesome" size={32} color="#C2185B" />
+            </View>
+            <View style={styles.coachTextBlock}>
+              <Text style={styles.coachTitle}>Dating Coach</Text>
+              <Text style={styles.coachSubtitle}>Get personalized advice & insights</Text>
+            </View>
+            <View style={styles.aiBadge}>
+              <Text style={styles.aiBadgeText}>AI Powered</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color="#FFFFFF" style={styles.coachChevron} />
+          </TouchableOpacity>
+        </View>
+
         {/* ── 4. Upcoming Dates ──────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -536,6 +561,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,
+  },
+
+  // Dating Coach featured card
+  coachCardWrapper: {
+    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  coachCard: {
+    backgroundColor: DARK_GREEN,
+    borderRadius: 20,
+    height: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  coachLeftBorder: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: DARK_PINK,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
+  },
+  coachIconBadge: {
+    marginLeft: 14,
+    marginRight: 12,
+  },
+  coachTextBlock: {
+    flex: 1,
+    gap: 3,
+  },
+  coachTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  coachSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    fontWeight: '400',
+  },
+  aiBadge: {
+    backgroundColor: DARK_PINK,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  coachChevron: {
+    marginRight: 14,
   },
 
   // Section
