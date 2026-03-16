@@ -19,23 +19,21 @@ import { getZodiacFromBirthday } from '@/utils/zodiac';
 
 // ─── Analytics card colors ───────────────────────────────────────────────────
 
-const CARD_DARK_GREEN = '#1B4332';
-const CARD_RING_BG = '#A8D5A2';
-const CARD_MED_GREEN = '#4A7C59';
-const CARD_TEAL_GREEN = '#52796F';
+const DARK_GREEN = '#1B4332';
+const PINK_PRIMARY = '#C2185B';
+const PINK_DEEP = '#880E4F';
+const PINK_LIGHT = '#FCE4EC';
 
 // ─── Sparkline SVG ───────────────────────────────────────────────────────────
 
 function Sparkline({ count }: { count: number }) {
   const W = 120;
   const H = 40;
-  // Generate a simple rising curve based on count
   const points = useMemo(() => {
     const pts: { x: number; y: number }[] = [];
     const steps = 10;
     for (let i = 0; i <= steps; i++) {
       const x = (i / steps) * W;
-      // Gentle upward trend with slight wave
       const progress = i / steps;
       const wave = Math.sin(i * 1.2) * 4;
       const y = H - 4 - progress * (H - 12) + wave;
@@ -49,14 +47,12 @@ function Sparkline({ count }: { count: number }) {
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
     .join(' ');
 
-  const areaPath =
-    linePath +
-    ` L ${W} ${H} L 0 ${H} Z`;
+  const areaPath = linePath + ` L ${W} ${H} L 0 ${H} Z`;
 
   return (
     <Svg width={W} height={H}>
-      <Path d={areaPath} fill={CARD_DARK_GREEN + '22'} />
-      <Path d={linePath} stroke={CARD_DARK_GREEN} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d={areaPath} fill={PINK_PRIMARY + '22'} />
+      <Path d={linePath} stroke={PINK_PRIMARY} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -80,7 +76,7 @@ function ChemistryRing({ score }: { score: number }) {
           cx={SIZE / 2}
           cy={SIZE / 2}
           r={RADIUS}
-          stroke={CARD_RING_BG}
+          stroke={PINK_LIGHT}
           strokeWidth={STROKE}
           fill="none"
         />
@@ -88,7 +84,7 @@ function ChemistryRing({ score }: { score: number }) {
           cx={SIZE / 2}
           cy={SIZE / 2}
           r={RADIUS}
-          stroke={CARD_DARK_GREEN}
+          stroke={PINK_PRIMARY}
           strokeWidth={STROKE}
           fill="none"
           strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
@@ -121,7 +117,7 @@ const ringStyles = StyleSheet.create({
   scoreText: {
     fontSize: 32,
     fontWeight: '800',
-    color: CARD_DARK_GREEN,
+    color: PINK_PRIMARY,
   },
   maxText: {
     fontSize: 16,
@@ -150,7 +146,7 @@ function AnalyticsGrid({ totalCount, avgChemistry, highestRatedName, bestZodiac 
       <Text style={gridStyles.sectionHeader}>Your Dating Analytics</Text>
       <View style={gridStyles.row}>
         {/* Card 1 — Total People */}
-        <View style={[gridStyles.card, gridStyles.cardBorderGreen, { width: cardWidth }]}>
+        <View style={[gridStyles.card, gridStyles.cardBorderPink, { width: cardWidth }]}>
           <Text style={gridStyles.bigNumber}>{totalStr}</Text>
           <Text style={gridStyles.cardLabel}>Total people on your roster</Text>
           <View style={gridStyles.sparklineWrap}>
@@ -160,7 +156,7 @@ function AnalyticsGrid({ totalCount, avgChemistry, highestRatedName, bestZodiac 
         </View>
 
         {/* Card 2 — Avg Chemistry */}
-        <View style={[gridStyles.card, gridStyles.cardBorderBlue, { width: cardWidth, alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={[gridStyles.card, gridStyles.cardBorderPink, { width: cardWidth, alignItems: 'center', justifyContent: 'center' }]}>
           <ChemistryRing score={avgChemistry} />
           <Text style={[gridStyles.cardLabel, { textAlign: 'center', marginTop: 12 }]}>
             Average Chemistry Score
@@ -176,7 +172,7 @@ function AnalyticsGrid({ totalCount, avgChemistry, highestRatedName, bestZodiac 
               {highestRatedName || '—'}
             </Text>
           </View>
-          <View style={[gridStyles.splitCardBottom, { backgroundColor: CARD_MED_GREEN }]}>
+          <View style={[gridStyles.splitCardBottom, { backgroundColor: PINK_DEEP }]}>
             <Text style={gridStyles.splitCardBottomLabel}>Highest Rated{'\n'}Person</Text>
             <View style={gridStyles.splitCardIcon}>
               <IconSymbol
@@ -192,11 +188,11 @@ function AnalyticsGrid({ totalCount, avgChemistry, highestRatedName, bestZodiac 
         {/* Card 4 — Best Zodiac */}
         <View style={[gridStyles.card, gridStyles.cardNoBorder, { width: cardWidth, padding: 0, overflow: 'hidden' }]}>
           <View style={gridStyles.splitCardTop}>
-            <Text style={[gridStyles.splitCardName, { color: CARD_TEAL_GREEN }]} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={[gridStyles.splitCardName, { color: PINK_PRIMARY }]} numberOfLines={1} adjustsFontSizeToFit>
               {bestZodiac || '—'}
             </Text>
           </View>
-          <View style={[gridStyles.splitCardBottom, { backgroundColor: CARD_TEAL_GREEN }]}>
+          <View style={[gridStyles.splitCardBottom, { backgroundColor: PINK_PRIMARY }]}>
             <Text style={gridStyles.splitCardBottomLabel}>Best Zodiac{'\n'}Match</Text>
             <View style={gridStyles.splitCardIcon}>
               <IconSymbol
@@ -220,7 +216,7 @@ const gridStyles = StyleSheet.create({
   sectionHeader: {
     fontSize: 18,
     fontWeight: '700',
-    color: CARD_DARK_GREEN,
+    color: DARK_GREEN,
     marginBottom: 14,
   },
   row: {
@@ -238,13 +234,9 @@ const gridStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardBorderGreen: {
+  cardBorderPink: {
     borderWidth: 1.5,
-    borderColor: CARD_DARK_GREEN,
-  },
-  cardBorderBlue: {
-    borderWidth: 1.5,
-    borderColor: CARD_DARK_GREEN,
+    borderColor: PINK_PRIMARY,
   },
   cardNoBorder: {
     borderWidth: 0,
@@ -252,7 +244,7 @@ const gridStyles = StyleSheet.create({
   bigNumber: {
     fontSize: 52,
     fontWeight: '800',
-    color: CARD_DARK_GREEN,
+    color: DARK_GREEN,
     lineHeight: 58,
   },
   cardLabel: {
@@ -281,7 +273,7 @@ const gridStyles = StyleSheet.create({
   splitCardName: {
     fontSize: 44,
     fontWeight: '800',
-    color: CARD_MED_GREEN,
+    color: PINK_DEEP,
     lineHeight: 50,
   },
   splitCardBottom: {
@@ -514,8 +506,6 @@ export default function AnalyticsScreen() {
 
   const totalPeopleCount = allPeople.length;
 
-  // Average chemistry: use overallChemistry (0–10) from sexualChemistry field,
-  // or fall back to compatibilityScore * 10, or 0
   const avgChemistry = useMemo(() => {
     const scores = allPeople
       .map((p) => {
@@ -528,7 +518,6 @@ export default function AnalyticsScreen() {
     return scores.reduce((a, b) => a + b, 0) / scores.length;
   }, [allPeople]);
 
-  // Highest rated person: highest average of available numeric scores
   const highestRatedName = useMemo(() => {
     if (allPeople.length === 0) return '';
     let best = allPeople[0];
@@ -547,7 +536,6 @@ export default function AnalyticsScreen() {
     return firstName;
   }, [allPeople]);
 
-  // Best zodiac: most frequent sign among all people
   const bestZodiac = useMemo(() => {
     if (allPeople.length === 0) return '';
     const counts: Record<string, number> = {};
@@ -582,7 +570,6 @@ export default function AnalyticsScreen() {
   const rosterCount = roster.length;
   const benchCount = bench.length;
 
-  // Date type breakdown
   const typeCounts: Record<string, number> = {};
   dates.forEach((d) => {
     const t = d.type || 'casual';
@@ -591,29 +578,27 @@ export default function AnalyticsScreen() {
   const typeEntries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
   const maxTypeCount = typeEntries.length > 0 ? typeEntries[0][1] : 1;
 
-  // Rating distribution
   const ratingDist = [5, 4, 3, 2, 1].map((star) => ({
     star,
     count: ratings.filter((r) => r === star).length,
   }));
   const maxRatingCount = Math.max(...ratingDist.map((r) => r.count), 1);
 
-  // Would go again
   const wouldGoAgainCount = completedDates.filter((d) => d.wouldGoAgain === true).length;
   const wouldNotGoAgainCount = completedDates.filter((d) => d.wouldGoAgain === false).length;
 
-  // Type bar colors
-  const typeColors = ['#E91E8C', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800'];
+  const typeColors = [PINK_PRIMARY, PINK_DEEP, '#9C27B0', '#2196F3', '#4CAF50'];
 
   const wouldGoAgainPct = completedCount > 0 ? Math.round((wouldGoAgainCount / completedCount) * 100) : 0;
   const wouldGoAgainPctStr = wouldGoAgainPct + '%';
+  const wouldNotGoAgainPctStr = (100 - wouldGoAgainPct) + '%';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Pink gradient header matching dates.tsx */}
-      <LinearGradient colors={['#E91E8C', '#C2185B']} style={styles.header}>
+      {/* Dark pink gradient header */}
+      <LinearGradient colors={[PINK_PRIMARY, PINK_DEEP]} style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
@@ -656,7 +641,7 @@ export default function AnalyticsScreen() {
             androidIcon="event-available"
             label="Total Dates"
             value={String(totalDates)}
-            accent="#E91E8C"
+            accent={PINK_PRIMARY}
           />
           <View style={styles.statGap} />
           <StatCard
@@ -664,7 +649,7 @@ export default function AnalyticsScreen() {
             androidIcon="percent"
             label="Match Rate"
             value={matchRateStr}
-            accent="#9C27B0"
+            accent={PINK_DEEP}
           />
         </View>
 
@@ -690,14 +675,14 @@ export default function AnalyticsScreen() {
         <View style={{ marginTop: 20 }}>
           <Section title="Dates Overview">
             <View style={styles.overviewRow}>
-              <View style={[styles.overviewCard, { borderColor: '#E91E8C' }]}>
+              <View style={[styles.overviewCard, { borderColor: PINK_PRIMARY }]}>
                 <IconSymbol
                   ios_icon_name="calendar.badge.clock"
                   android_material_icon_name="event"
                   size={28}
-                  color="#E91E8C"
+                  color={PINK_PRIMARY}
                 />
-                <Text style={[styles.overviewValue, { color: '#E91E8C' }]}>{upcomingCount}</Text>
+                <Text style={[styles.overviewValue, { color: PINK_PRIMARY }]}>{upcomingCount}</Text>
                 <Text style={styles.overviewLabel}>Upcoming</Text>
               </View>
               <View style={[styles.overviewCard, { borderColor: colors.rosterGreen }]}>
@@ -728,12 +713,12 @@ export default function AnalyticsScreen() {
         <Section title="Highlights">
           <View style={styles.highlightRow}>
             <View style={styles.highlightItem}>
-              <View style={[styles.highlightIcon, { backgroundColor: '#E91E8C18' }]}>
+              <View style={[styles.highlightIcon, { backgroundColor: PINK_PRIMARY + '18' }]}>
                 <IconSymbol
                   ios_icon_name="sun.max.fill"
                   android_material_icon_name="wb-sunny"
                   size={22}
-                  color="#E91E8C"
+                  color={PINK_PRIMARY}
                 />
               </View>
               <Text style={styles.highlightLabel}>Most Active Day</Text>
@@ -833,10 +818,10 @@ export default function AnalyticsScreen() {
               </View>
               <View style={styles.wouldGoItem}>
                 <LinearGradient
-                  colors={['#E91E8C', '#C2185B']}
+                  colors={[PINK_PRIMARY, PINK_DEEP]}
                   style={styles.wouldGoCircle}
                 >
-                  <Text style={styles.wouldGoCircleText}>{100 - wouldGoAgainPct}%</Text>
+                  <Text style={styles.wouldGoCircleText}>{wouldNotGoAgainPctStr}</Text>
                 </LinearGradient>
                 <Text style={styles.wouldGoLabel}>No</Text>
                 <Text style={styles.wouldGoCount}>{wouldNotGoAgainCount} dates</Text>
@@ -1038,11 +1023,11 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   ctaButton: {
-    backgroundColor: '#E91E8C',
+    backgroundColor: PINK_PRIMARY,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 14,
-    shadowColor: '#E91E8C',
+    shadowColor: PINK_PRIMARY,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
