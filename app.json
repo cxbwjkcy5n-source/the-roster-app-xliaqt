@@ -43,8 +43,7 @@
         "onesignal-expo-plugin",
         {
           "mode": "production",
-          "smallIcons": [],
-          "iosNSEEntitlementsFile": null
+          "smallIcons": []
         }
       ],
       "expo-font",
