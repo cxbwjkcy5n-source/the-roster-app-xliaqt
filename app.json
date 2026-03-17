@@ -42,9 +42,7 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "production",
-          "smallIcons": [],
-          "appGroupName": "group.com.d62de040124e438994b5a60819342428.app.onesignal"
+          "mode": "production"
         }
       ],
       "expo-font",
