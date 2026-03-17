@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rostercollective.therosterapp",
+      "bundleIdentifier": "com.d62de040124e438994b5a60819342428.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -23,7 +23,7 @@
       "entitlements": {
         "aps-environment": "production",
         "com.apple.security.application-groups": [
-          "group.com.rostercollective.therosterapp.onesignal"
+          "group.com.d62de040124e438994b5a60819342428.app.onesignal"
         ]
       }
     },
@@ -42,7 +42,9 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "production"
+          "mode": "production",
+          "smallIcons": [],
+          "iosNSEEntitlementsFile": null
         }
       ],
       "expo-font",
