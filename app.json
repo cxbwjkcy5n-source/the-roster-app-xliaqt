@@ -43,7 +43,8 @@
         "onesignal-expo-plugin",
         {
           "mode": "production",
-          "smallIcons": []
+          "smallIcons": [],
+          "appGroupName": "group.com.d62de040124e438994b5a60819342428.app.onesignal"
         }
       ],
       "expo-font",
@@ -57,7 +58,8 @@
     },
     "extra": {
       "router": {},
-      "oneSignalAppId": "c6cd1cb6-bb83-4a2d-89c4-2ab2272649d5"
+      "oneSignalAppId": "c6cd1cb6-bb83-4a2d-89c4-2ab2272649d5",
+      "backendUrl": "https://svuaszgx5v6c3k9w6qqku44nfpjn3782.app.specular.dev"
     }
   }
 }
