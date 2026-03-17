@@ -9,6 +9,7 @@ import { registerProfileRoutes } from './routes/api.js';
 import { registerSupabaseRoutes } from './routes/supabase-api.js';
 import { registerRosterRoutes } from './routes/roster.js';
 import { registerPlacesRoutes } from './routes/places.js';
+// import { registerRosterApiRoutes } from './routes/roster-api.js'; // Duplicate endpoints - use registerSupabaseRoutes instead
 
 // Add delay before application creation to allow WASM modules to initialize
 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -140,6 +141,8 @@ registerHealthRoutes(app, app.fastify);
 registerSupabaseRoutes(app.fastify);
 registerRosterRoutes(app.fastify);
 registerPlacesRoutes(app.fastify);
+// Note: registerRosterApiRoutes would duplicate endpoints from registerSupabaseRoutes
+// registerRosterApiRoutes(app.fastify);
 
 await app.run();
 app.logger.info('Application running');
