@@ -14,6 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.d62de040124e438994b5a60819342428.app",
+      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -42,7 +43,8 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "production"
+          "mode": "production",
+          "appGroupName": "group.com.d62de040124e438994b5a60819342428.app.onesignal"
         }
       ],
       "expo-font",
@@ -51,6 +53,7 @@
       "expo-secure-store"
     ],
     "scheme": "theroster",
+    "newArchEnabled": true,
     "experiments": {
       "typedRoutes": true
     },
