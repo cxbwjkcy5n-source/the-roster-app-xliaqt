@@ -803,7 +803,23 @@ export default function AddPersonScreen() {
   const pickImage = async () => {
     console.log('[AddPerson] User tapped avatar picker');
     if (Platform.OS === 'web') {
-      Alert.alert('Not Supported', 'Photo upload is not supported in the web preview. Please use the mobile app to add photos.');
+      // Web: use native file input
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        console.log('[AddPerson] Web file selected:', file.name);
+        const reader = new FileReader();
+        reader.onload = (ev: any) => {
+          const dataUrl = ev.target.result as string;
+          console.log('[AddPerson] Web image read as data URL, length:', dataUrl.length);
+          setPhotoUri(dataUrl);
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
       return;
     }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -898,6 +914,10 @@ export default function AddPersonScreen() {
           setSaving(false);
           return;
         }
+      } else if (photoUri && photoUri.startsWith('data:')) {
+        // Web data URL — use directly as image (no upload needed for web preview)
+        console.log('[AddPerson] Web data URL detected, using directly as image');
+        uploadedImageUrl = photoUri;
       }
       if (!uploadedImageUrl && prefillImageUrl) {
         uploadedImageUrl = prefillImageUrl;

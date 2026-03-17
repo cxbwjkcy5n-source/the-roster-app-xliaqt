@@ -15,6 +15,7 @@ import {
   Switch,
   Dimensions,
   ImageSourcePropType,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -450,6 +451,27 @@ export default function ProfileScreen() {
 
   const pickImage = async () => {
     console.log('[Profile] User tapped avatar to change photo');
+    if (Platform.OS === 'web') {
+      // Web: use native file input
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        console.log('[Profile] Web file selected:', file.name);
+        const reader = new FileReader();
+        reader.onload = (ev: any) => {
+          const dataUrl = ev.target.result as string;
+          console.log('[Profile] Setting profile image to:', dataUrl.substring(0, 60) + '...');
+          setProfileImage(dataUrl);
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+      return;
+    }
+    // Native: use ImagePicker + upload
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -467,7 +489,7 @@ export default function ProfileScreen() {
         const uri = result.assets[0].uri;
         console.log('[Profile] Image selected, uploading...');
         const uploadResult = await uploadImage(uri, 'profile');
-        console.log('[Profile] Image uploaded successfully:', uploadResult.url);
+        console.log('[Profile] Setting profile image to:', uploadResult.url);
         setProfileImage(uploadResult.url);
       }
     } catch (error: any) {
