@@ -983,8 +983,8 @@ export default function AddPersonScreen() {
         await AsyncStorage.setItem(`ratingsMap_${person.id}`, JSON.stringify(ratings));
         console.log('[AddPerson] Ratings saved to AsyncStorage for:', person.id);
 
-        console.log('[AddPerson] Person updated, navigating back');
-        router.back();
+        console.log('[AddPerson] Person updated, navigating to roster homepage');
+        router.replace('/(tabs)/(home)');
       } else {
         console.log('[AddPerson] Adding new person');
         const newPerson = await addPerson(person);
@@ -1009,8 +1009,8 @@ export default function AddPersonScreen() {
           console.log('[AddPerson] Ratings saved to AsyncStorage for:', newPerson.id);
         }
 
-        console.log('[AddPerson] Save complete, navigating back');
-        router.back();
+        console.log('[AddPerson] Save complete, navigating to roster homepage');
+        router.replace('/(tabs)/(home)');
       }
     } catch (error: any) {
       console.error('[AddPerson] Error saving person:', error);
