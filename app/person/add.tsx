@@ -24,7 +24,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRoster } from '@/contexts/RosterContext';
 import { RosterPerson, RelationshipType } from '@/types/roster';
 import { getZodiacFromBirthday, getZodiacEmoji } from '@/utils/zodiac';
-import { uploadImage } from '@/utils/imageUpload';
+import { uploadImage, ensureLocalUri } from '@/utils/imageUpload';
 import RatingsSection, { RatingsValues } from '@/components/RatingsSection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -834,18 +834,21 @@ export default function AddPersonScreen() {
       quality: 0.8,
     });
     if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      console.log('[AddPerson] Image selected, uploading:', uri);
+      const rawUri = result.assets[0].uri;
+      console.log('[AddPerson] Image selected, raw URI:', rawUri);
       setUploadingPhoto(true);
       try {
-        const uploadResult = await uploadImage(uri, 'roster');
+        // Ensure the asset is fully downloaded locally (handles iCloud/ph:// URIs)
+        const localUri = await ensureLocalUri(rawUri);
+        console.log('[AddPerson] Local URI ready for upload:', localUri);
+        const uploadResult = await uploadImage(localUri, 'roster');
         console.log('[AddPerson] Photo uploaded successfully:', uploadResult.url);
         setPhotoUri(uploadResult.url);
       } catch (err: any) {
         console.error('[AddPerson] Photo upload failed:', err);
         // Fall back to local URI so user can still see the photo
-        setPhotoUri(uri);
-        Alert.alert('Upload Warning', 'Photo saved locally. It will be uploaded when you save.');
+        setPhotoUri(rawUri);
+        Alert.alert('Upload Warning', 'Could not upload photo: ' + (err.message || 'Unknown error') + '. It will be retried when you save.');
       } finally {
         setUploadingPhoto(false);
       }

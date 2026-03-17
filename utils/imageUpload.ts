@@ -1,7 +1,7 @@
 
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
-import { EncodingType } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { EncodingType } from 'expo-file-system/legacy';
 import { BACKEND_URL } from './api';
 import { supabase } from '@/lib/supabase';
 import { addToUploadQueue, removeFromUploadQueue, incrementUploadRetry, logUploadError, getUploadQueue } from './storage';
@@ -27,6 +27,44 @@ const MAX_IMAGE_HEIGHT = 1000;
 const JPEG_QUALITY = 0.7;
 const MAX_RETRY_ATTEMPTS = 3;
 const UPLOAD_TIMEOUT_MS = 30000;
+
+/**
+ * Ensures the image URI is a locally accessible file:// path.
+ * iCloud photos on iOS may come back as ph:// URIs or temp paths that are
+ * not yet fully downloaded. We copy them to the app cache directory first.
+ */
+export async function ensureLocalUri(uri: string): Promise<string> {
+  // Already a local file — check it actually exists
+  if (uri.startsWith('file://')) {
+    try {
+      const info = await FileSystem.getInfoAsync(uri);
+      if (info.exists) {
+        console.log('[ImageUpload] URI is already a local file, size:', (info as any).size);
+        return uri;
+      }
+      console.warn('[ImageUpload] file:// URI does not exist on disk, will attempt copy:', uri);
+    } catch (e) {
+      console.warn('[ImageUpload] Could not stat file:// URI, will attempt copy:', e);
+    }
+  }
+
+  // ph:// (Photos framework) or any other non-file URI — copy to cache
+  const filename = `img_${Date.now()}.jpg`;
+  const destUri = (FileSystem.cacheDirectory ?? 'file://tmp/') + filename;
+  console.log('[ImageUpload] Copying iCloud/ph:// asset to cache:', uri, '->', destUri);
+  try {
+    await FileSystem.copyAsync({ from: uri, to: destUri });
+    const info = await FileSystem.getInfoAsync(destUri);
+    console.log('[ImageUpload] Copy successful, size:', (info as any).size);
+    return destUri;
+  } catch (copyError) {
+    console.error('[ImageUpload] copyAsync failed, trying downloadAsync:', copyError);
+    // Fallback: downloadAsync works for some URI schemes
+    const downloadResult = await FileSystem.downloadAsync(uri, destUri);
+    console.log('[ImageUpload] downloadAsync result status:', downloadResult.status);
+    return downloadResult.uri;
+  }
+}
 
 export interface UploadResult {
   url: string;
@@ -149,8 +187,12 @@ export async function uploadImage(
       return await uploadWithRetry(uri, endpoint);
     }
 
+    // Ensure the image is fully downloaded locally (handles iCloud/ph:// URIs)
+    const localUri = await ensureLocalUri(uri);
+    console.log('[ImageUpload] Using local URI for compression:', localUri);
+
     // Compress and encode to base64 data URL
-    const imageData = await compressAndEncodeImage(uri);
+    const imageData = await compressAndEncodeImage(localUri);
 
     const endpoint = type === 'roster'
       ? '/api/upload/roster-image'

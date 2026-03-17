@@ -32,7 +32,7 @@ import { useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRoster } from '@/contexts/RosterContext';
-import { uploadImage } from '@/utils/imageUpload';
+import { uploadImage, ensureLocalUri } from '@/utils/imageUpload';
 import { authenticatedGet, authenticatedPut, authenticatedPost } from '@/utils/api';
 import { logSaveError } from '@/utils/storage';
 
@@ -486,9 +486,12 @@ export default function ProfileScreen() {
         quality: 0.8,
       });
       if (!result.canceled && result.assets[0]) {
-        const uri = result.assets[0].uri;
-        console.log('[Profile] Image selected, uploading...');
-        const uploadResult = await uploadImage(uri, 'profile');
+        const rawUri = result.assets[0].uri;
+        console.log('[Profile] Image selected, raw URI:', rawUri);
+        // Ensure the asset is fully downloaded locally (handles iCloud/ph:// URIs)
+        const localUri = await ensureLocalUri(rawUri);
+        console.log('[Profile] Local URI ready for upload:', localUri);
+        const uploadResult = await uploadImage(localUri, 'profile');
         console.log('[Profile] Setting profile image to:', uploadResult.url);
         setProfileImage(uploadResult.url);
       }
