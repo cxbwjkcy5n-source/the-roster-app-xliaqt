@@ -401,9 +401,24 @@ export default function ProfileScreen() {
   const datesCountStr = String(datesCount);
 
   useEffect(() => {
-    if (user?.id) {
-      setShareCode(user.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase());
-    }
+    if (!user?.id) return;
+    const fallback = user.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
+    console.log('[Profile] Fetching real share code from backend...');
+    authenticatedGet('/api/user/share-code')
+      .then((data) => {
+        const code = data?.shareCode || data?.share_code || data?.code;
+        if (code) {
+          console.log('[Profile] Got share code from backend:', code);
+          setShareCode(String(code).toUpperCase());
+        } else {
+          console.warn('[Profile] Backend returned no shareCode, using fallback');
+          setShareCode(fallback);
+        }
+      })
+      .catch((err) => {
+        console.error('[Profile] Failed to fetch share code, using fallback:', err);
+        setShareCode(fallback);
+      });
   }, [user?.id]);
 
   const loadProfileData = useCallback(async () => {

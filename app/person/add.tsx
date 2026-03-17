@@ -15,6 +15,7 @@ import {
   Dimensions,
   ImageSourcePropType,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -801,6 +802,10 @@ export default function AddPersonScreen() {
   // ── Image picker ──
   const pickImage = async () => {
     console.log('[AddPerson] User tapped avatar picker');
+    if (Platform.OS === 'web') {
+      Alert.alert('Not Supported', 'Photo upload is not supported in the web preview. Please use the mobile app to add photos.');
+      return;
+    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant photo library access');
@@ -862,7 +867,7 @@ export default function AddPersonScreen() {
   const handleSave = async () => {
     console.log('[AddPerson] User tapped Save button');
 
-    if (!photoUri && !prefillImageUrl) {
+    if (Platform.OS !== 'web' && !photoUri && !prefillImageUrl) {
       Alert.alert('Picture Required', 'Please add a photo before saving');
       return;
     }
@@ -984,8 +989,8 @@ export default function AddPersonScreen() {
           console.log('[AddPerson] Ratings saved to AsyncStorage for:', newPerson.id);
         }
 
-        console.log('[AddPerson] Save complete, navigating to home');
-        router.replace('/(tabs)/(home)');
+        console.log('[AddPerson] Save complete, navigating back');
+        router.back();
       }
     } catch (error: any) {
       console.error('[AddPerson] Error saving person:', error);
